@@ -4,7 +4,9 @@
 ## 🌟 Features
 
 - **Studio Pro Version Management** - Manage multiple Studio Pro versions with magical ease
+- [ ] Show All Studio Pro Versions
 - [ ] Install Studio Pro
+- [ ] Show Installed Studio Pro Versions
 - [ ] Uninstall Studio Pro
 - [ ] Run Studio Pro
 - **Local App Tracking** - See which apps are under development for each version at a glance
