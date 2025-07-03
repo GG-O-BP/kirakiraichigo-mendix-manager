@@ -28,4 +28,4 @@ Just like a magical girl transforms to save the day, this manager transforms you
 # Licence 📜
 this programme follows [Mozilla Public License 2.0](/LICENSE)
 
-Copyright © 2025 GG-O-BP. All rights reserved. 🧀🍓
+Copyright © 2025 GG-O-BP. All rights reserved. ✨🍓
