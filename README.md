@@ -7,7 +7,7 @@
 - [ ] Show All Studio Pro Versions
 - [ ] Install Studio Pro
 - [x] Show Installed Studio Pro Versions
-- [ ] Uninstall Studio Pro
+- [x] Uninstall Studio Pro
 - [x] Run Studio Pro
 - **Local App Tracking** - See which apps are under development for each version at a glance
 - [x] Show Local Mendix App List by Version

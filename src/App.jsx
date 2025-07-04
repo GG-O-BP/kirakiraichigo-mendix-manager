@@ -50,42 +50,64 @@ const ListItem = ({ item, onClick, children }) => (
 const MendixVersionListItem = ({
     version,
     onLaunch,
+    onUninstall,
     isLaunching,
+    isUninstalling,
     isSelected,
     onClick,
 }) => (
     <div
-        className={`version-list-item ${isSelected ? "selected" : ""}`}
-        onClick={onClick}
-        style={{ cursor: "pointer" }}
+        className={`version-list-item ${isSelected ? "selected" : ""} ${isUninstalling ? "disabled" : ""}`}
+        onClick={isUninstalling ? undefined : onClick}
+        style={{ cursor: isUninstalling ? "not-allowed" : "pointer" }}
     >
         <div className="version-info">
             <span className="version-icon">🚀</span>
             <div className="version-details">
                 <span className="version-number">
-                    Studio Pro {version.version}
+                    {version.version}
                     {version.is_valid && (
                         <span className="version-badge lts">✓</span>
                     )}
                 </span>
                 <span className="version-date">
-                    {version.install_date
-                        ? new Date(version.install_date).toLocaleDateString()
-                        : "Installation date unknown"}
+                    {isUninstalling
+                        ? "Uninstalling..."
+                        : version.install_date
+                          ? new Date(version.install_date).toLocaleDateString()
+                          : "Installation date unknown"}
                 </span>
             </div>
         </div>
-        <button
-            className="install-button"
-            onClick={(e) => {
-                e.stopPropagation();
-                onLaunch(version);
-            }}
-            disabled={isLaunching || !version.is_valid}
-        >
-            <span className="button-icon">▶️</span>
-            {isLaunching ? "Launching..." : "Launch"}
-        </button>
+        <div style={{ display: "flex", gap: "8px" }}>
+            <button
+                className="install-button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onLaunch(version);
+                }}
+                disabled={isLaunching || !version.is_valid || isUninstalling}
+            >
+                <span className="button-icon">▶️</span>
+                {isLaunching ? "Launching..." : "Launch"}
+            </button>
+            <button
+                className="install-button uninstall-button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onUninstall(version);
+                }}
+                disabled={isUninstalling || !version.is_valid || isLaunching}
+                style={{
+                    background:
+                        "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",
+                    borderColor: "rgba(220, 20, 60, 0.4)",
+                }}
+            >
+                <span className="button-icon">🗑️</span>
+                {isUninstalling ? "ing..." : ""}
+            </button>
+        </div>
     </div>
 );
 
@@ -260,6 +282,83 @@ const TabButton = ({ label, isActive, onClick }) => (
     </button>
 );
 
+// Confirm Modal Component
+const ConfirmModal = ({
+    isOpen,
+    title,
+    message,
+    onConfirm,
+    onCancel,
+    onConfirmWithApps,
+    isLoading,
+    relatedApps,
+}) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="modal-overlay">
+            <div className="modal-content">
+                <div className="modal-header">
+                    <h3>{title}</h3>
+                </div>
+                <div className="modal-body">
+                    <p>{message}</p>
+                    {relatedApps && relatedApps.length > 0 && (
+                        <div className="related-apps-section">
+                            <h4>Related Apps that will be deleted:</h4>
+                            <ul className="related-apps-list">
+                                {relatedApps.map((app) => (
+                                    <li
+                                        key={app.name}
+                                        className="related-app-item"
+                                    >
+                                        <span className="app-icon">📱</span>
+                                        <span className="app-name">
+                                            {app.name}
+                                        </span>
+                                        <span className="app-version">
+                                            v{app.version}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+                <div className="modal-footer">
+                    <button
+                        className="modal-button cancel-button"
+                        onClick={onCancel}
+                        disabled={isLoading}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        className="modal-button confirm-button"
+                        onClick={onConfirm}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? "Processing..." : "Uninstall Only"}
+                    </button>
+                    {onConfirmWithApps &&
+                        relatedApps &&
+                        relatedApps.length > 0 && (
+                            <button
+                                className="modal-button confirm-with-apps-button"
+                                onClick={onConfirmWithApps}
+                                disabled={isLoading}
+                            >
+                                {isLoading
+                                    ? "Processing..."
+                                    : "Uninstall + Delete Apps"}
+                            </button>
+                        )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // Main App component
 function App() {
     // State management using immutable updates
@@ -284,7 +383,17 @@ function App() {
         mendixApps: [],
         selectedVersion: null,
         launchingVersion: null,
+        uninstallingVersion: null,
         selectedProjects: [],
+        modal: {
+            isOpen: false,
+            title: "",
+            message: "",
+            onConfirm: null,
+            onConfirmWithApps: null,
+            isLoading: false,
+            relatedApps: [],
+        },
     });
 
     // Fetch Mendix versions and apps on mount
@@ -389,6 +498,242 @@ function App() {
                 launchingVersion: null,
             }));
         }
+    }, []);
+
+    const handleUninstallStudioPro = useCallback(async (version) => {
+        // First, get related apps
+        try {
+            const relatedApps = await invoke("get_apps_by_version", {
+                version: version.version,
+            });
+
+            const uninstallStudioProOnly = async () => {
+                setState((prev) => ({
+                    ...prev,
+                    modal: { ...prev.modal, isLoading: true },
+                    uninstallingVersion: version.version,
+                }));
+
+                try {
+                    await invoke("uninstall_studio_pro", {
+                        version: version.version,
+                    });
+
+                    // Start monitoring folder deletion
+                    const monitorDeletion = setInterval(async () => {
+                        try {
+                            const folderExists = await invoke(
+                                "check_version_folder_exists",
+                                {
+                                    version: version.version,
+                                },
+                            );
+
+                            if (!folderExists) {
+                                clearInterval(monitorDeletion);
+                                // Refresh the versions list after folder is deleted
+                                const versions = await invoke(
+                                    "get_installed_mendix_versions",
+                                );
+                                setState((prev) => ({
+                                    ...prev,
+                                    mendixVersions: versions,
+                                    uninstallingVersion: null,
+                                    modal: {
+                                        isOpen: false,
+                                        title: "",
+                                        message: "",
+                                        onConfirm: null,
+                                        onConfirmWithApps: null,
+                                        isLoading: false,
+                                        relatedApps: [],
+                                    },
+                                }));
+                            }
+                        } catch (error) {
+                            console.error(
+                                "Error monitoring folder deletion:",
+                                error,
+                            );
+                        }
+                    }, 1000); // Check every second
+
+                    // Fallback timeout after 60 seconds
+                    setTimeout(() => {
+                        clearInterval(monitorDeletion);
+                        setState((prev) => ({
+                            ...prev,
+                            uninstallingVersion: null,
+                            modal: {
+                                isOpen: false,
+                                title: "",
+                                message: "",
+                                onConfirm: null,
+                                onConfirmWithApps: null,
+                                isLoading: false,
+                                relatedApps: [],
+                            },
+                        }));
+                    }, 60000);
+                } catch (error) {
+                    console.error("Failed to uninstall Studio Pro:", error);
+                    alert(
+                        `Failed to uninstall Studio Pro ${version.version}: ${error}`,
+                    );
+                    setState((prev) => ({
+                        ...prev,
+                        uninstallingVersion: null,
+                        modal: {
+                            isOpen: false,
+                            title: "",
+                            message: "",
+                            onConfirm: null,
+                            onConfirmWithApps: null,
+                            isLoading: false,
+                            relatedApps: [],
+                        },
+                    }));
+                }
+            };
+
+            const uninstallStudioProWithApps = async () => {
+                setState((prev) => ({
+                    ...prev,
+                    modal: { ...prev.modal, isLoading: true },
+                    uninstallingVersion: version.version,
+                }));
+
+                try {
+                    // First delete all related apps
+                    for (const app of relatedApps) {
+                        await invoke("delete_mendix_app", {
+                            appPath: app.path,
+                        });
+                    }
+
+                    // Then uninstall Studio Pro
+                    await invoke("uninstall_studio_pro", {
+                        version: version.version,
+                    });
+
+                    // Start monitoring folder deletion
+                    const monitorDeletion = setInterval(async () => {
+                        try {
+                            const folderExists = await invoke(
+                                "check_version_folder_exists",
+                                {
+                                    version: version.version,
+                                },
+                            );
+
+                            if (!folderExists) {
+                                clearInterval(monitorDeletion);
+                                // Refresh both versions and apps lists
+                                const versions = await invoke(
+                                    "get_installed_mendix_versions",
+                                );
+                                const apps = await invoke(
+                                    "get_installed_mendix_apps",
+                                );
+                                setState((prev) => ({
+                                    ...prev,
+                                    mendixVersions: versions,
+                                    mendixApps: apps,
+                                    uninstallingVersion: null,
+                                    modal: {
+                                        isOpen: false,
+                                        title: "",
+                                        message: "",
+                                        onConfirm: null,
+                                        onConfirmWithApps: null,
+                                        isLoading: false,
+                                        relatedApps: [],
+                                    },
+                                }));
+                            }
+                        } catch (error) {
+                            console.error(
+                                "Error monitoring folder deletion:",
+                                error,
+                            );
+                        }
+                    }, 1000); // Check every second
+
+                    // Fallback timeout after 60 seconds
+                    setTimeout(() => {
+                        clearInterval(monitorDeletion);
+                        setState((prev) => ({
+                            ...prev,
+                            uninstallingVersion: null,
+                            modal: {
+                                isOpen: false,
+                                title: "",
+                                message: "",
+                                onConfirm: null,
+                                onConfirmWithApps: null,
+                                isLoading: false,
+                                relatedApps: [],
+                            },
+                        }));
+                    }, 60000);
+                } catch (error) {
+                    console.error(
+                        "Failed to uninstall Studio Pro with apps:",
+                        error,
+                    );
+                    alert(
+                        `Failed to uninstall Studio Pro ${version.version} with apps: ${error}`,
+                    );
+                    setState((prev) => ({
+                        ...prev,
+                        uninstallingVersion: null,
+                        modal: {
+                            isOpen: false,
+                            title: "",
+                            message: "",
+                            onConfirm: null,
+                            onConfirmWithApps: null,
+                            isLoading: false,
+                            relatedApps: [],
+                        },
+                    }));
+                }
+            };
+
+            setState((prev) => ({
+                ...prev,
+                modal: {
+                    isOpen: true,
+                    title: "Confirm Uninstall",
+                    message: `Are you sure you want to uninstall Studio Pro ${version.version}?\n\nThis action cannot be undone.`,
+                    onConfirm: uninstallStudioProOnly,
+                    onConfirmWithApps:
+                        relatedApps.length > 0
+                            ? uninstallStudioProWithApps
+                            : null,
+                    isLoading: false,
+                    relatedApps: relatedApps,
+                },
+            }));
+        } catch (error) {
+            console.error("Failed to get related apps:", error);
+            alert(`Failed to get related apps: ${error}`);
+        }
+    }, []);
+
+    const handleModalCancel = useCallback(() => {
+        setState((prev) => ({
+            ...prev,
+            modal: {
+                isOpen: false,
+                title: "",
+                message: "",
+                onConfirm: null,
+                onConfirmWithApps: null,
+                isLoading: false,
+                relatedApps: [],
+            },
+        }));
     }, []);
 
     const handleItemClick = useCallback((item) => {
@@ -510,8 +855,13 @@ function App() {
                                     key={version.version}
                                     version={version}
                                     onLaunch={handleLaunchStudioPro}
+                                    onUninstall={handleUninstallStudioPro}
                                     isLaunching={
                                         state.launchingVersion ===
+                                        version.version
+                                    }
+                                    isUninstalling={
+                                        state.uninstallingVersion ===
                                         version.version
                                     }
                                     isSelected={
@@ -740,6 +1090,17 @@ function App() {
             </div>
 
             <div className="tab-content">{activeTabContent}</div>
+
+            <ConfirmModal
+                isOpen={state.modal.isOpen}
+                title={state.modal.title}
+                message={state.modal.message}
+                onConfirm={state.modal.onConfirm}
+                onConfirmWithApps={state.modal.onConfirmWithApps}
+                onCancel={handleModalCancel}
+                isLoading={state.modal.isLoading}
+                relatedApps={state.modal.relatedApps}
+            />
         </main>
     );
 }

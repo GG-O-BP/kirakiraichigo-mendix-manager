@@ -207,6 +207,113 @@ fn launch_studio_pro(version: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn uninstall_studio_pro(version: String) -> Result<(), String> {
+    let mendix_data_dir = "C:\\ProgramData\\Mendix";
+
+    // Find the version directory that starts with the version
+    for entry in WalkDir::new(mendix_data_dir)
+        .max_depth(1)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.depth() == 1 && entry.file_type().is_dir() {
+            if let Some(dir_name) = entry.file_name().to_str() {
+                if dir_name.starts_with(&version) {
+                    let uninstall_path = entry.path().join("uninst").join("unins000.exe");
+
+                    if uninstall_path.exists() {
+                        Command::new(&uninstall_path)
+                            .arg("/SILENT")
+                            .spawn()
+                            .map_err(|e| format!("Failed to launch uninstaller: {}", e))?;
+                        return Ok(());
+                    } else {
+                        return Err("Uninstaller not found".to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    Err(format!("Version {} not found for uninstall", version))
+}
+
+#[tauri::command]
+fn check_version_folder_exists(version: String) -> Result<bool, String> {
+    let mendix_dir = "C:\\Program Files\\Mendix";
+
+    if !Path::new(mendix_dir).exists() {
+        return Ok(false);
+    }
+
+    for entry in WalkDir::new(mendix_dir)
+        .max_depth(1)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.depth() == 1 && entry.file_type().is_dir() {
+            if let Some(dir_name) = entry.file_name().to_str() {
+                if dir_name.starts_with(&version) {
+                    return Ok(true);
+                }
+            }
+        }
+    }
+
+    Ok(false)
+}
+
+#[tauri::command]
+fn delete_mendix_app(app_path: String) -> Result<(), String> {
+    let path = Path::new(&app_path);
+
+    if !path.exists() {
+        return Err("App folder does not exist".to_string());
+    }
+
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    fs::remove_dir_all(path).map_err(|e| format!("Failed to delete app folder: {}", e))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn get_apps_by_version(version: String) -> Result<Vec<MendixApp>, String> {
+    let home_dir = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .map_err(|_| "Failed to get user home directory")?;
+    let mendix_dir = format!("{}\\Mendix", home_dir);
+
+    if !Path::new(&mendix_dir).exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut matching_apps = Vec::new();
+
+    for entry in WalkDir::new(&mendix_dir)
+        .max_depth(1)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.depth() == 1 && entry.file_type().is_dir() {
+            if let Some(dir_name) = entry.file_name().to_str() {
+                let path = entry.path().to_string_lossy().to_string();
+                let app = MendixApp::new(dir_name.to_string(), path);
+
+                if app.is_valid && app.version.as_ref() == Some(&version) {
+                    matching_apps.push(app);
+                }
+            }
+        }
+    }
+
+    Ok(matching_apps)
+}
+
+#[tauri::command]
 fn get_installed_mendix_apps() -> Result<Vec<MendixApp>, String> {
     let home_dir = std::env::var("USERPROFILE")
         .or_else(|_| std::env::var("HOME"))
@@ -255,6 +362,10 @@ pub fn run() {
             greet,
             get_installed_mendix_versions,
             launch_studio_pro,
+            uninstall_studio_pro,
+            check_version_folder_exists,
+            delete_mendix_app,
+            get_apps_by_version,
             get_installed_mendix_apps
         ])
         .run(tauri::generate_context!())
