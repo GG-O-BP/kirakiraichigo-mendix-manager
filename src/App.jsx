@@ -47,6 +47,81 @@ const ListItem = ({ item, onClick, children }) => (
     </div>
 );
 
+const MendixVersionListItem = ({
+    version,
+    onLaunch,
+    isLaunching,
+    isSelected,
+    onClick,
+}) => (
+    <div
+        className={`version-list-item ${isSelected ? "selected" : ""}`}
+        onClick={onClick}
+        style={{ cursor: "pointer" }}
+    >
+        <div className="version-info">
+            <span className="version-icon">🚀</span>
+            <div className="version-details">
+                <span className="version-number">
+                    Studio Pro {version.version}
+                    {version.is_valid && (
+                        <span className="version-badge lts">✓</span>
+                    )}
+                </span>
+                <span className="version-date">
+                    {version.install_date
+                        ? new Date(version.install_date).toLocaleDateString()
+                        : "Installation date unknown"}
+                </span>
+            </div>
+        </div>
+        <button
+            className="install-button"
+            onClick={(e) => {
+                e.stopPropagation();
+                onLaunch(version);
+            }}
+            disabled={isLaunching || !version.is_valid}
+        >
+            <span className="button-icon">▶️</span>
+            {isLaunching ? "Launching..." : "Launch"}
+        </button>
+    </div>
+);
+
+const MendixAppListItem = ({ app, isDisabled, onClick }) => (
+    <div
+        className={`version-list-item ${isDisabled ? "disabled" : ""}`}
+        onClick={isDisabled ? undefined : onClick}
+        style={{
+            cursor: isDisabled ? "not-allowed" : "pointer",
+            opacity: isDisabled ? 0.5 : 1,
+        }}
+    >
+        <div className="version-info">
+            <span className="version-icon">📁</span>
+            <div className="version-details">
+                <span className="version-number">
+                    {app.name}
+                    {app.version && (
+                        <span className="version-badge mts">
+                            v{app.version}
+                        </span>
+                    )}
+                </span>
+                <span className="version-date">
+                    {app.last_modified
+                        ? new Date(app.last_modified).toLocaleDateString()
+                        : "Date unknown"}
+                </span>
+            </div>
+        </div>
+        <div className="app-actions">
+            <span className="item-sparkle">✨</span>
+        </div>
+    </div>
+);
+
 const VersionListItem = ({
     version,
     onInstall,
@@ -205,66 +280,41 @@ function App() {
             prop3: "",
             prop4: "Select...",
         },
-        studioProVersions: [],
-        installedVersions: [],
-        installingVersion: null,
-        downloadProgress: 0,
+        mendixVersions: [],
+        mendixApps: [],
+        selectedVersion: null,
+        launchingVersion: null,
         selectedProjects: [],
-        versionsPagination: {
-            offset: 0,
-            limit: 10,
-            hasMore: true,
-            isLoading: false,
-            totalCount: 0,
-        },
     });
 
-    // Fetch Studio Pro versions on mount
+    // Fetch Mendix versions and apps on mount
     useEffect(() => {
-        const fetchInitialVersions = async () => {
+        const fetchMendixVersions = async () => {
             try {
+                const versions = await invoke("get_installed_mendix_versions");
                 setState((prev) => ({
                     ...prev,
-                    versionsPagination: {
-                        ...prev.versionsPagination,
-                        isLoading: true,
-                    },
-                }));
-
-                const response = await invoke(
-                    "fetch_studio_pro_versions_paginated",
-                    {
-                        offset: 0,
-                        limit: 10,
-                    },
-                );
-                const installed = await invoke("get_installed_versions");
-
-                setState((prev) => ({
-                    ...prev,
-                    studioProVersions: response.versions,
-                    installedVersions: installed,
-                    versionsPagination: {
-                        offset: response.next_offset || 0,
-                        limit: 10,
-                        hasMore: response.has_more,
-                        isLoading: false,
-                        totalCount: response.total_count,
-                    },
+                    mendixVersions: versions,
                 }));
             } catch (error) {
-                console.error("Failed to fetch versions:", error);
-                setState((prev) => ({
-                    ...prev,
-                    versionsPagination: {
-                        ...prev.versionsPagination,
-                        isLoading: false,
-                    },
-                }));
+                console.error("Failed to fetch Mendix versions:", error);
             }
         };
 
-        fetchInitialVersions();
+        const fetchMendixApps = async () => {
+            try {
+                const apps = await invoke("get_installed_mendix_apps");
+                setState((prev) => ({
+                    ...prev,
+                    mendixApps: apps,
+                }));
+            } catch (error) {
+                console.error("Failed to fetch Mendix apps:", error);
+            }
+        };
+
+        fetchMendixVersions();
+        fetchMendixApps();
     }, []);
 
     // Memoized data
@@ -313,85 +363,30 @@ function App() {
         }));
     }, []);
 
-    const loadMoreVersions = useCallback(async () => {
-        if (
-            state.versionsPagination.isLoading ||
-            !state.versionsPagination.hasMore
-        ) {
-            return;
-        }
-
+    const handleLaunchStudioPro = useCallback(async (version) => {
         setState((prev) => ({
             ...prev,
-            versionsPagination: {
-                ...prev.versionsPagination,
-                isLoading: true,
-            },
+            launchingVersion: version.version,
         }));
 
         try {
-            const response = await invoke(
-                "fetch_studio_pro_versions_paginated",
-                {
-                    offset: state.versionsPagination.offset,
-                    limit: state.versionsPagination.limit,
-                },
-            );
-
-            setState((prev) => ({
-                ...prev,
-                studioProVersions: [
-                    ...prev.studioProVersions,
-                    ...response.versions,
-                ],
-                versionsPagination: {
-                    offset:
-                        response.next_offset || prev.versionsPagination.offset,
-                    limit: prev.versionsPagination.limit,
-                    hasMore: response.has_more,
-                    isLoading: false,
-                    totalCount: response.total_count,
-                },
-            }));
-        } catch (error) {
-            console.error("Failed to load more versions:", error);
-            setState((prev) => ({
-                ...prev,
-                versionsPagination: {
-                    ...prev.versionsPagination,
-                    isLoading: false,
-                },
-            }));
-        }
-    }, [state.versionsPagination]);
-
-    const handleInstallVersion = useCallback(async (version) => {
-        setState((prev) => ({
-            ...prev,
-            installingVersion: version.version,
-            downloadProgress: 0,
-        }));
-
-        try {
-            await invoke("download_and_install_studio_pro", {
+            await invoke("launch_studio_pro", {
                 version: version.version,
-                downloadUrl: version.download_url,
             });
 
-            // Refresh installed versions
-            const installed = await invoke("get_installed_versions");
-            setState((prev) => ({
-                ...prev,
-                installedVersions: installed,
-                installingVersion: null,
-                downloadProgress: 0,
-            }));
+            // Reset launching state after a short delay
+            setTimeout(() => {
+                setState((prev) => ({
+                    ...prev,
+                    launchingVersion: null,
+                }));
+            }, 8000);
         } catch (error) {
-            console.error("Installation failed:", error);
+            console.error("Failed to launch Studio Pro:", error);
+            alert(`Failed to launch Studio Pro ${version.version}: ${error}`);
             setState((prev) => ({
                 ...prev,
-                installingVersion: null,
-                downloadProgress: 0,
+                launchingVersion: null,
             }));
         }
     }, []);
@@ -400,26 +395,70 @@ function App() {
         console.log("Clicked:", item);
     }, []);
 
-    const handleScrollVersionsList = useCallback(
-        (event) => {
-            const element = event.target;
-            const threshold = 100; // pixels from bottom to trigger load
-            const isNearBottom =
-                element.scrollHeight -
-                    element.scrollTop -
-                    element.clientHeight <
-                threshold;
+    const refreshMendixVersions = useCallback(async () => {
+        try {
+            const versions = await invoke("get_installed_mendix_versions");
+            setState((prev) => ({
+                ...prev,
+                mendixVersions: versions,
+            }));
+        } catch (error) {
+            console.error("Failed to refresh Mendix versions:", error);
+        }
+    }, []);
 
-            if (
-                isNearBottom &&
-                state.versionsPagination.hasMore &&
-                !state.versionsPagination.isLoading
-            ) {
-                loadMoreVersions();
-            }
-        },
-        [state.versionsPagination, loadMoreVersions],
-    );
+    const handleVersionClick = useCallback((version) => {
+        setState((prev) => ({
+            ...prev,
+            selectedVersion:
+                prev.selectedVersion === version.version
+                    ? null
+                    : version.version,
+        }));
+    }, []);
+
+    const sortedAndFilteredMendixApps = useMemo(() => {
+        let filteredApps = state.mendixApps.filter((app) =>
+            app.name
+                .toLowerCase()
+                .includes(state.searches.studioProSearch3.toLowerCase()),
+        );
+
+        if (state.selectedVersion) {
+            // Sort apps: matching version first, then by last modified
+            filteredApps.sort((a, b) => {
+                const aMatches = a.version === state.selectedVersion;
+                const bMatches = b.version === state.selectedVersion;
+
+                if (aMatches && !bMatches) return -1;
+                if (!aMatches && bMatches) return 1;
+
+                // If both match or both don't match, sort by last modified
+                if (a.last_modified && b.last_modified) {
+                    return (
+                        new Date(b.last_modified) - new Date(a.last_modified)
+                    );
+                }
+                return 0;
+            });
+        } else {
+            // Default sort by last modified
+            filteredApps.sort((a, b) => {
+                if (a.last_modified && b.last_modified) {
+                    return (
+                        new Date(b.last_modified) - new Date(a.last_modified)
+                    );
+                }
+                return 0;
+            });
+        }
+
+        return filteredApps;
+    }, [
+        state.mendixApps,
+        state.searches.studioProSearch3,
+        state.selectedVersion,
+    ]);
 
     // Tab content renderers
     const renderStudioProManager = useCallback(
@@ -427,101 +466,110 @@ function App() {
             <div className="studio-pro-manager">
                 <div className="list-container">
                     <SearchBox
-                        placeholder="Search versions..."
+                        placeholder="Search items..."
                         value={state.searches.studioProSearch1}
                         onChange={(value) =>
                             updateSearch("studioProSearch1", value)
                         }
                     />
-                    <div
-                        className="list-area"
-                        onScroll={handleScrollVersionsList}
-                    >
-                        {state.studioProVersions
+                    <div className="list-area">
+                        {listData
                             .filter(
                                 createSearchFilter(
                                     state.searches.studioProSearch1,
                                 ),
                             )
-                            .map((version) => (
-                                <VersionListItem
-                                    key={version.version}
-                                    version={version}
-                                    onInstall={handleInstallVersion}
-                                    isInstalling={
-                                        state.installingVersion ===
-                                        version.version
-                                    }
-                                    downloadProgress={state.downloadProgress}
+                            .map((item) => (
+                                <ListItem
+                                    key={item.id}
+                                    item={item}
+                                    onClick={handleItemClick}
                                 />
                             ))}
-                        {state.versionsPagination.isLoading && (
-                            <div className="loading-indicator">
-                                <span className="loading-icon">🍓</span>
-                                <span>Loading more versions...</span>
-                            </div>
-                        )}
-                        {!state.versionsPagination.hasMore &&
-                            state.studioProVersions.length > 0 && (
-                                <div className="end-indicator">
-                                    <span>✨ All versions loaded ✨</span>
-                                </div>
-                            )}
                     </div>
                 </div>
                 <div className="list-container">
                     <SearchBox
-                        placeholder="Installed versions..."
+                        placeholder="Search installed versions..."
                         value={state.searches.studioProSearch2}
                         onChange={(value) =>
                             updateSearch("studioProSearch2", value)
                         }
                     />
                     <div className="list-area">
-                        {state.installedVersions
-                            .filter(
-                                createSearchFilter(
-                                    state.searches.studioProSearch2,
-                                ),
+                        {state.mendixVersions
+                            .filter((version) =>
+                                version.version
+                                    .toLowerCase()
+                                    .includes(
+                                        state.searches.studioProSearch2.toLowerCase(),
+                                    ),
                             )
                             .map((version) => (
-                                <div key={version} className="list-item">
-                                    <span className="item-icon">✅</span>
-                                    <span className="item-label">
-                                        {version}
-                                    </span>
-                                    <span className="item-sparkle">·</span>
-                                </div>
+                                <MendixVersionListItem
+                                    key={version.version}
+                                    version={version}
+                                    onLaunch={handleLaunchStudioPro}
+                                    isLaunching={
+                                        state.launchingVersion ===
+                                        version.version
+                                    }
+                                    isSelected={
+                                        state.selectedVersion ===
+                                        version.version
+                                    }
+                                    onClick={() => handleVersionClick(version)}
+                                />
                             ))}
+                        {state.mendixVersions.length === 0 && (
+                            <div className="loading-indicator">
+                                <span className="loading-icon">🍓</span>
+                                <span>No Mendix Studio Pro versions found</span>
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="list-container narrow">
                     <SearchBox
-                        placeholder="Recent projects..."
+                        placeholder="Search Mendix apps..."
                         value={state.searches.studioProSearch3}
                         onChange={(value) =>
                             updateSearch("studioProSearch3", value)
                         }
                     />
-                    <ListArea
-                        items={listData}
-                        searchTerm={state.searches.studioProSearch3}
-                        onItemClick={handleItemClick}
-                    />
+                    <div className="list-area">
+                        {sortedAndFilteredMendixApps.map((app) => (
+                            <MendixAppListItem
+                                key={app.name}
+                                app={app}
+                                isDisabled={
+                                    state.selectedVersion &&
+                                    app.version !== state.selectedVersion
+                                }
+                                onClick={() => handleItemClick(app)}
+                            />
+                        ))}
+                        {state.mendixApps.length === 0 && (
+                            <div className="loading-indicator">
+                                <span className="loading-icon">🍓</span>
+                                <span>No Mendix apps found</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         ),
         [
             state.searches,
-            state.studioProVersions,
-            state.installedVersions,
-            state.installingVersion,
-            state.downloadProgress,
+            state.mendixVersions,
+            state.selectedVersion,
+            state.launchingVersion,
+            sortedAndFilteredMendixApps,
             listData,
             updateSearch,
-            handleInstallVersion,
+            handleLaunchStudioPro,
+            handleVersionClick,
             handleItemClick,
-            handleScrollVersionsList,
         ],
     );
 

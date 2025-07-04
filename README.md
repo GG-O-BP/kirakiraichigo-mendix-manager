@@ -6,13 +6,13 @@
 - **Studio Pro Version Management** - Manage multiple Studio Pro versions with magical ease
 - [ ] Show All Studio Pro Versions
 - [ ] Install Studio Pro
-- [ ] Show Installed Studio Pro Versions
+- [x] Show Installed Studio Pro Versions
 - [ ] Uninstall Studio Pro
-- [ ] Run Studio Pro
+- [x] Run Studio Pro
 - **Local App Tracking** - See which apps are under development for each version at a glance
-- [ ] Show Local Mendix App List by Version
-- [ ] Track which apps are developed with each Studio Pro version
-- [ ] Filter and view apps by specific Studio Pro version
+- [x] Show Local Mendix App List by Version
+- [x] Track which apps are developed with each Studio Pro version
+- [x] Filter and view apps by specific Studio Pro version
 - [ ] Delete Local Mendix App
 - **Generate & Build & Deploy Widgets** - Create widget and Transform your widget code into deployable packages with one click
 - [ ] Generate Mendix Widget

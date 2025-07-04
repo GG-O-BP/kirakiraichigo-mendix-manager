@@ -510,6 +510,29 @@ body {
     box-shadow: 0 6px 16px rgba(255, 107, 157, 0.25);
 }
 
+.version-list-item.selected {
+    background: rgba(255, 107, 157, 0.3);
+    border-color: #ff6b9d;
+    box-shadow: 0 0 0 2px rgba(255, 107, 157, 0.4);
+}
+
+.version-list-item.selected:hover {
+    background: rgba(255, 107, 157, 0.35);
+}
+
+.version-list-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+    background: rgba(139, 0, 44, 0.05);
+}
+
+.version-list-item.disabled:hover {
+    background: rgba(139, 0, 44, 0.05);
+    border-color: rgba(255, 182, 193, 0.2);
+    transform: none;
+    box-shadow: none;
+}
+
 .version-info {
     display: flex;
     align-items: center;
@@ -575,7 +598,6 @@ body {
 
 .button-icon {
     font-size: 16px;
-    animation: twinkle 2s ease-in-out infinite;
 }
 
 /* Download Progress */
