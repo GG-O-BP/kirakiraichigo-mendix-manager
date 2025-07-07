@@ -355,45 +355,146 @@ fn get_installed_mendix_apps() -> Result<Vec<MendixApp>, String> {
 }
 
 #[tauri::command]
+fn check_package_manager(package_manager: String) -> Result<String, String> {
+    let version_cmd = match package_manager.as_str() {
+        "npm" => "npm --version",
+        "yarn" => "yarn --version",
+        "pnpm" => "pnpm --version",
+        "bun" => "bun --version",
+        _ => return Err("Invalid package manager".to_string()),
+    };
+
+    let mut cmd = if cfg!(target_os = "windows") {
+        let mut cmd = Command::new("cmd");
+        cmd.arg("/C");
+        cmd.arg(version_cmd);
+        cmd
+    } else {
+        let mut cmd = Command::new(&package_manager);
+        cmd.arg("--version");
+        cmd
+    };
+
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+    match cmd.output() {
+        Ok(output) => {
+            if output.status.success() {
+                let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                Ok(version)
+            } else {
+                Err(format!(
+                    "{} is not installed or not in PATH",
+                    package_manager
+                ))
+            }
+        }
+        Err(_) => Err(format!(
+            "{} is not installed or not in PATH",
+            package_manager
+        )),
+    }
+}
+
+#[tauri::command]
 fn run_package_manager_command(
     package_manager: String,
     command: String,
     working_directory: String,
 ) -> Result<String, String> {
-    let mut cmd = match package_manager.as_str() {
-        "npm" => Command::new("npm"),
-        "yarn" => Command::new("yarn"),
-        "pnpm" => Command::new("pnpm"),
-        "bun" => Command::new("bun"),
-        _ => return Err("Invalid package manager".to_string()),
+    // On Windows, we need to use cmd.exe to run npm/yarn/pnpm/bun
+    let mut cmd = if cfg!(target_os = "windows") {
+        let mut cmd = Command::new("cmd");
+        cmd.arg("/C");
+
+        // Build the full command
+        let full_command = format!("{} {}", package_manager, command);
+        cmd.arg(&full_command);
+        cmd
+    } else {
+        // On Unix-like systems, run the package manager directly
+        let mut cmd = match package_manager.as_str() {
+            "npm" => Command::new("npm"),
+            "yarn" => Command::new("yarn"),
+            "pnpm" => Command::new("pnpm"),
+            "bun" => Command::new("bun"),
+            _ => return Err("Invalid package manager".to_string()),
+        };
+
+        // Parse command arguments
+        let args: Vec<&str> = command.split_whitespace().collect();
+        for arg in args {
+            cmd.arg(arg);
+        }
+        cmd
     };
 
+    // Set working directory
     cmd.current_dir(&working_directory);
-
-    // Parse command arguments
-    let args: Vec<&str> = command.split_whitespace().collect();
-    if args.is_empty() {
-        return Err("No command provided".to_string());
-    }
-
-    for arg in args {
-        cmd.arg(arg);
-    }
 
     // Capture output
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
-    let output = cmd
-        .output()
-        .map_err(|e| format!("Failed to execute command: {}", e))?;
+    println!(
+        "Executing command: {:?} in directory: {}",
+        cmd, working_directory
+    );
+
+    let output = match cmd.output() {
+        Ok(output) => output,
+        Err(e) => {
+            // Try alternative methods on Windows
+            if cfg!(target_os = "windows") && e.kind() == std::io::ErrorKind::NotFound {
+                // Try with .cmd extension
+                let mut cmd_with_ext = Command::new("cmd");
+                cmd_with_ext.arg("/C");
+                cmd_with_ext.arg(format!("{}.cmd {}", package_manager, command));
+                cmd_with_ext.current_dir(&working_directory);
+                cmd_with_ext.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+                if let Ok(output) = cmd_with_ext.output() {
+                    output
+                } else {
+                    // Try with PowerShell as last resort
+                    let mut ps_cmd = Command::new("powershell");
+                    ps_cmd.arg("-NoProfile");
+                    ps_cmd.arg("-Command");
+                    ps_cmd.arg(format!("{} {}", package_manager, command));
+                    ps_cmd.current_dir(&working_directory);
+                    ps_cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+                    match ps_cmd.output() {
+                        Ok(output) => output,
+                        Err(_) => {
+                            return Err(format!(
+                                "Failed to execute '{}'. Make sure {} is installed and available in PATH. Error: {}",
+                                package_manager, package_manager, e
+                            ));
+                        }
+                    }
+                }
+            } else {
+                return Err(format!(
+                    "Failed to execute '{}': {}. Make sure {} is installed and available in PATH.",
+                    package_manager, e, package_manager
+                ));
+            }
+        }
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
 
     if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
         Ok(stdout.to_string())
     } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        Err(format!("Command failed:\n{}\n{}", stdout, stderr))
+        Err(format!(
+            "Command '{}' failed with exit code {:?}\nOutput:\n{}\nError:\n{}",
+            format!("{} {}", package_manager, command),
+            output.status.code(),
+            stdout,
+            stderr
+        ))
     }
 }
 
@@ -457,6 +558,7 @@ pub fn run() {
             delete_mendix_app,
             get_apps_by_version,
             get_installed_mendix_apps,
+            check_package_manager,
             run_package_manager_command,
             copy_widget_to_apps
         ])
