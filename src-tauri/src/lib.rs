@@ -355,48 +355,6 @@ fn get_installed_mendix_apps() -> Result<Vec<MendixApp>, String> {
 }
 
 #[tauri::command]
-fn check_package_manager(package_manager: String) -> Result<String, String> {
-    let version_cmd = match package_manager.as_str() {
-        "npm" => "npm --version",
-        "yarn" => "yarn --version",
-        "pnpm" => "pnpm --version",
-        "bun" => "bun --version",
-        _ => return Err("Invalid package manager".to_string()),
-    };
-
-    let mut cmd = if cfg!(target_os = "windows") {
-        let mut cmd = Command::new("cmd");
-        cmd.arg("/C");
-        cmd.arg(version_cmd);
-        cmd
-    } else {
-        let mut cmd = Command::new(&package_manager);
-        cmd.arg("--version");
-        cmd
-    };
-
-    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-
-    match cmd.output() {
-        Ok(output) => {
-            if output.status.success() {
-                let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                Ok(version)
-            } else {
-                Err(format!(
-                    "{} is not installed or not in PATH",
-                    package_manager
-                ))
-            }
-        }
-        Err(_) => Err(format!(
-            "{} is not installed or not in PATH",
-            package_manager
-        )),
-    }
-}
-
-#[tauri::command]
 fn run_package_manager_command(
     package_manager: String,
     command: String,
@@ -558,7 +516,6 @@ pub fn run() {
             delete_mendix_app,
             get_apps_by_version,
             get_installed_mendix_apps,
-            check_package_manager,
             run_package_manager_command,
             copy_widget_to_apps
         ])

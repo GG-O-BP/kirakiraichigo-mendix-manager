@@ -389,7 +389,6 @@ function App() {
     successful: [],
     failed: [],
   });
-  const [packageManagerVersions, setPackageManagerVersions] = useState({});
 
   const loadVersions = useCallback(async () => {
     try {
@@ -464,29 +463,6 @@ function App() {
       setPackageManager(savedPackageManager);
       console.log("Loaded package manager preference:", savedPackageManager);
     }
-
-    // Check available package managers
-    const checkPackageManagers = async () => {
-      const managers = ["npm", "yarn", "pnpm", "bun"];
-      const versions = {};
-
-      for (const manager of managers) {
-        try {
-          const version = await invoke("check_package_manager", {
-            packageManager: manager,
-          });
-          versions[manager] = version;
-          console.log(`${manager} version: ${version}`);
-        } catch (error) {
-          versions[manager] = null;
-          console.log(`${manager} not available: ${error}`);
-        }
-      }
-
-      setPackageManagerVersions(versions);
-    };
-
-    checkPackageManagers();
   }, [loadVersions, loadApps]);
 
   // Removed - selections are now loaded immediately on mount
@@ -600,14 +576,6 @@ function App() {
       return;
     }
 
-    // Check if selected package manager is available
-    if (!packageManagerVersions[packageManager]) {
-      alert(
-        `${packageManager} is not installed or not in PATH. Please install ${packageManager} or select a different package manager.`,
-      );
-      return;
-    }
-
     setIsInstalling(true);
     console.log(
       `Starting install for ${selectedWidgets.size} widgets with ${packageManager}`,
@@ -649,14 +617,6 @@ function App() {
 
     if (selectedApps.size === 0) {
       alert("Please select at least one app to deploy to");
-      return;
-    }
-
-    // Check if selected package manager is available
-    if (!packageManagerVersions[packageManager]) {
-      alert(
-        `${packageManager} is not installed or not in PATH. Please install ${packageManager} or select a different package manager.`,
-      );
       return;
     }
 
@@ -1067,18 +1027,8 @@ function App() {
                     display: "flex",
                     alignItems: "center",
                     cursor: "pointer",
-                    color: packageManagerVersions[pm]
-                      ? "rgba(255, 235, 240, 0.9)"
-                      : "rgba(255, 235, 240, 0.4)",
-                    textDecoration: packageManagerVersions[pm]
-                      ? "none"
-                      : "line-through",
+                    color: "rgba(255, 235, 240, 0.9)",
                   }}
-                  title={
-                    packageManagerVersions[pm]
-                      ? `${pm} v${packageManagerVersions[pm]}`
-                      : `${pm} not installed`
-                  }
                 >
                   <input
                     type="radio"
@@ -1087,20 +1037,8 @@ function App() {
                     checked={packageManager === pm}
                     onChange={(e) => setPackageManager(e.target.value)}
                     style={{ marginRight: "5px" }}
-                    disabled={!packageManagerVersions[pm]}
                   />
                   {pm}
-                  {packageManagerVersions[pm] && (
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        marginLeft: "5px",
-                        opacity: 0.7,
-                      }}
-                    >
-                      (v{packageManagerVersions[pm]})
-                    </span>
-                  )}
                 </label>
               ))}
             </div>
@@ -1298,7 +1236,6 @@ function App() {
     setAppSearchTerm,
     handleAppClick,
     packageManager,
-    packageManagerVersions,
     isInstalling,
     isBuilding,
     handleInstall,
