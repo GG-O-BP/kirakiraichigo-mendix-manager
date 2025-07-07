@@ -3,7 +3,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use walkdir::WalkDir;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -354,6 +354,96 @@ fn get_installed_mendix_apps() -> Result<Vec<MendixApp>, String> {
     Ok(apps)
 }
 
+#[tauri::command]
+fn run_package_manager_command(
+    package_manager: String,
+    command: String,
+    working_directory: String,
+) -> Result<String, String> {
+    let mut cmd = match package_manager.as_str() {
+        "npm" => Command::new("npm"),
+        "yarn" => Command::new("yarn"),
+        "pnpm" => Command::new("pnpm"),
+        "bun" => Command::new("bun"),
+        _ => return Err("Invalid package manager".to_string()),
+    };
+
+    cmd.current_dir(&working_directory);
+
+    // Parse command arguments
+    let args: Vec<&str> = command.split_whitespace().collect();
+    if args.is_empty() {
+        return Err("No command provided".to_string());
+    }
+
+    for arg in args {
+        cmd.arg(arg);
+    }
+
+    // Capture output
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to execute command: {}", e))?;
+
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        Ok(stdout.to_string())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        Err(format!("Command failed:\n{}\n{}", stdout, stderr))
+    }
+}
+
+#[tauri::command]
+fn copy_widget_to_apps(widget_path: String, app_paths: Vec<String>) -> Result<Vec<String>, String> {
+    let source_dir = Path::new(&widget_path).join("dist").join("1.0.0");
+
+    if !source_dir.exists() {
+        return Err(format!("Widget dist folder not found: {:?}", source_dir));
+    }
+
+    let mut successful_apps = Vec::new();
+
+    for app_path in app_paths {
+        let target_dir = Path::new(&app_path).join("widgets");
+
+        // Create widgets directory if it doesn't exist
+        if !target_dir.exists() {
+            fs::create_dir_all(&target_dir)
+                .map_err(|e| format!("Failed to create widgets directory: {}", e))?;
+        }
+
+        // Copy all files from source to target
+        for entry in WalkDir::new(&source_dir).min_depth(1) {
+            let entry = entry.map_err(|e| format!("Failed to read source directory: {}", e))?;
+            let source_path = entry.path();
+
+            // Get relative path from source directory
+            let relative_path = source_path
+                .strip_prefix(&source_dir)
+                .map_err(|e| format!("Failed to get relative path: {}", e))?;
+
+            let target_path = target_dir.join(relative_path);
+
+            if entry.file_type().is_dir() {
+                fs::create_dir_all(&target_path)
+                    .map_err(|e| format!("Failed to create directory: {}", e))?;
+            } else {
+                // Copy file
+                fs::copy(source_path, &target_path)
+                    .map_err(|e| format!("Failed to copy file: {}", e))?;
+            }
+        }
+
+        successful_apps.push(app_path);
+    }
+
+    Ok(successful_apps)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -366,7 +456,9 @@ pub fn run() {
             check_version_folder_exists,
             delete_mendix_app,
             get_apps_by_version,
-            get_installed_mendix_apps
+            get_installed_mendix_apps,
+            run_package_manager_command,
+            copy_widget_to_apps
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

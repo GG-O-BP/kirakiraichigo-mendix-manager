@@ -380,6 +380,16 @@ function App() {
     prop4: "Select...",
   });
 
+  // Package manager states
+  const [packageManager, setPackageManager] = useState("npm");
+  const [isInstalling, setIsInstalling] = useState(false);
+  const [isBuilding, setIsBuilding] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [buildResults, setBuildResults] = useState({
+    successful: [],
+    failed: [],
+  });
+
   const loadVersions = useCallback(async () => {
     try {
       const versions = await invoke("get_installed_mendix_versions");
@@ -446,6 +456,13 @@ function App() {
         );
       }
     }
+
+    // Load package manager preference from localStorage
+    const savedPackageManager = localStorage.getItem("kirakiraPackageManager");
+    if (savedPackageManager) {
+      setPackageManager(savedPackageManager);
+      console.log("Loaded package manager preference:", savedPackageManager);
+    }
   }, [loadVersions, loadApps]);
 
   // Removed - selections are now loaded immediately on mount
@@ -497,6 +514,12 @@ function App() {
     setFilteredWidgets(filtered);
   }, [widgets, widgetSearchTerm]);
 
+  // Save package manager preference to localStorage
+  useEffect(() => {
+    localStorage.setItem("kirakiraPackageManager", packageManager);
+    console.log("Saved package manager preference:", packageManager);
+  }, [packageManager]);
+
   // Save selected apps to localStorage whenever they change
   // Commented out - now saving directly in handleAppClick
   // useEffect(() => {
@@ -546,6 +569,114 @@ function App() {
       return newSet;
     });
   };
+
+  const handleInstall = useCallback(async () => {
+    if (selectedWidgets.size === 0) {
+      alert("Please select at least one widget to install");
+      return;
+    }
+
+    setIsInstalling(true);
+    console.log(
+      `Starting install for ${selectedWidgets.size} widgets with ${packageManager}`,
+    );
+
+    const widgetsList = widgets.filter((w) => selectedWidgets.has(w.id));
+
+    for (const widget of widgetsList) {
+      try {
+        console.log(
+          `Installing dependencies for ${widget.caption} at ${widget.path}`,
+        );
+        await invoke("run_package_manager_command", {
+          packageManager,
+          command: "install",
+          workingDirectory: widget.path,
+        });
+        console.log(
+          `Successfully installed dependencies for ${widget.caption}`,
+        );
+      } catch (error) {
+        console.error(
+          `Failed to install dependencies for ${widget.caption}:`,
+          error,
+        );
+        alert(`Failed to install dependencies for ${widget.caption}: ${error}`);
+      }
+    }
+
+    setIsInstalling(false);
+    console.log("Install process completed");
+  }, [selectedWidgets, widgets, packageManager]);
+
+  const handleBuildDeploy = useCallback(async () => {
+    if (selectedWidgets.size === 0) {
+      alert("Please select at least one widget to build");
+      return;
+    }
+
+    if (selectedApps.size === 0) {
+      alert("Please select at least one app to deploy to");
+      return;
+    }
+
+    setIsBuilding(true);
+    console.log(
+      `Starting build+deploy for ${selectedWidgets.size} widgets to ${selectedApps.size} apps`,
+    );
+
+    const results = {
+      successful: [],
+      failed: [],
+    };
+
+    const widgetsList = widgets.filter((w) => selectedWidgets.has(w.id));
+    const appsList = apps.filter((a) => selectedApps.has(a.path));
+
+    for (const widget of widgetsList) {
+      try {
+        console.log(`Building ${widget.caption} at ${widget.path}`);
+
+        // Run build command
+        await invoke("run_package_manager_command", {
+          packageManager,
+          command: "run build",
+          workingDirectory: widget.path,
+        });
+
+        console.log(
+          `Build successful for ${widget.caption}, deploying to apps...`,
+        );
+
+        // Copy to selected apps
+        const appPaths = appsList.map((app) => app.path);
+        const deployedApps = await invoke("copy_widget_to_apps", {
+          widgetPath: widget.path,
+          appPaths: appPaths,
+        });
+
+        results.successful.push({
+          widget: widget.caption,
+          apps: appsList.map((app) => app.name),
+        });
+
+        console.log(
+          `Successfully deployed ${widget.caption} to ${deployedApps.length} apps`,
+        );
+      } catch (error) {
+        console.error(`Failed to build/deploy ${widget.caption}:`, error);
+        results.failed.push({
+          widget: widget.caption,
+          error: error.toString(),
+        });
+      }
+    }
+
+    setBuildResults(results);
+    setIsBuilding(false);
+    setShowResultModal(true);
+    console.log("Build+deploy process completed", results);
+  }, [selectedWidgets, selectedApps, widgets, apps, packageManager]);
 
   // Memoized data
   const listData = useMemo(() => generateListData(20), []);
@@ -867,6 +998,92 @@ function App() {
             )}
           </div>
         </div>
+
+        {/* Package Manager Controls */}
+        <div
+          style={{
+            padding: "20px",
+            borderTop: "1px solid rgba(255, 182, 193, 0.2)",
+            borderBottom: "1px solid rgba(255, 182, 193, 0.2)",
+            background: "rgba(255, 235, 240, 0.02)",
+          }}
+        >
+          <div style={{ marginBottom: "15px" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "10px",
+                fontSize: "14px",
+                color: "rgba(255, 182, 193, 0.9)",
+              }}
+            >
+              Package Manager:
+            </label>
+            <div style={{ display: "flex", gap: "15px" }}>
+              {["npm", "yarn", "pnpm", "bun"].map((pm) => (
+                <label
+                  key={pm}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    cursor: "pointer",
+                    color: "rgba(255, 235, 240, 0.9)",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="packageManager"
+                    value={pm}
+                    checked={packageManager === pm}
+                    onChange={(e) => setPackageManager(e.target.value)}
+                    style={{ marginRight: "5px" }}
+                  />
+                  {pm}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <button
+            className="install-button"
+            onClick={handleInstall}
+            disabled={isInstalling || selectedWidgets.size === 0}
+            style={{
+              width: "100%",
+              marginBottom: "10px",
+              opacity: selectedWidgets.size === 0 ? 0.5 : 1,
+            }}
+          >
+            <span className="button-icon">{isInstalling ? "⏳" : "📦"}</span>
+            {isInstalling
+              ? "Installing..."
+              : `Install (${selectedWidgets.size} widgets)`}
+          </button>
+
+          <button
+            className="install-button"
+            onClick={handleBuildDeploy}
+            disabled={
+              isBuilding ||
+              selectedWidgets.size === 0 ||
+              selectedApps.size === 0
+            }
+            style={{
+              width: "100%",
+              background:
+                "linear-gradient(135deg, rgba(46, 204, 113, 0.3) 0%, rgba(46, 204, 113, 0.5) 100%)",
+              borderColor: "rgba(46, 204, 113, 0.6)",
+              opacity:
+                selectedWidgets.size === 0 || selectedApps.size === 0 ? 0.5 : 1,
+            }}
+          >
+            <span className="button-icon">{isBuilding ? "⏳" : "🚀"}</span>
+            {isBuilding
+              ? "Building & Deploying..."
+              : `Build + Deploy (${selectedWidgets.size} widgets → ${selectedApps.size} apps)`}
+          </button>
+        </div>
+
         <div className="list-container">
           <SearchBox
             placeholder="Search widgets by caption..."
@@ -1018,6 +1235,12 @@ function App() {
     setVersionFilter,
     setAppSearchTerm,
     handleAppClick,
+    packageManager,
+    isInstalling,
+    isBuilding,
+    handleInstall,
+    handleBuildDeploy,
+    apps,
   ]);
 
   const renderWidgetPreview = useCallback(
@@ -1334,6 +1557,91 @@ function App() {
                 disabled={!newWidgetCaption || !newWidgetPath}
               >
                 Add Widget
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Build Results Modal */}
+      {showResultModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: "600px" }}>
+            <div className="modal-header">
+              <h3>Build & Deploy Results</h3>
+            </div>
+            <div className="modal-body">
+              {buildResults.successful.length > 0 && (
+                <div style={{ marginBottom: "20px" }}>
+                  <h4 style={{ color: "#2ecc71", marginBottom: "10px" }}>
+                    ✅ Successfully Deployed ({buildResults.successful.length})
+                  </h4>
+                  {buildResults.successful.map((result, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        padding: "10px",
+                        background: "rgba(46, 204, 113, 0.1)",
+                        borderRadius: "5px",
+                        marginBottom: "10px",
+                      }}
+                    >
+                      <strong>{result.widget}</strong>
+                      <div style={{ fontSize: "14px", marginTop: "5px" }}>
+                        Deployed to: {result.apps.join(", ")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {buildResults.failed.length > 0 && (
+                <div>
+                  <h4 style={{ color: "#e74c3c", marginBottom: "10px" }}>
+                    ❌ Failed ({buildResults.failed.length})
+                  </h4>
+                  {buildResults.failed.map((result, index) => (
+                    <details
+                      key={index}
+                      style={{
+                        padding: "10px",
+                        background: "rgba(231, 76, 60, 0.1)",
+                        borderRadius: "5px",
+                        marginBottom: "10px",
+                      }}
+                    >
+                      <summary
+                        style={{ cursor: "pointer", fontWeight: "bold" }}
+                      >
+                        {result.widget}
+                      </summary>
+                      <pre
+                        style={{
+                          marginTop: "10px",
+                          padding: "10px",
+                          background: "rgba(0, 0, 0, 0.2)",
+                          borderRadius: "3px",
+                          fontSize: "12px",
+                          overflow: "auto",
+                          maxHeight: "200px",
+                        }}
+                      >
+                        {result.error}
+                      </pre>
+                    </details>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button
+                className="modal-button confirm-button"
+                onClick={() => {
+                  setShowResultModal(false);
+                  setBuildResults({ successful: [], failed: [] });
+                }}
+              >
+                Close
               </button>
             </div>
           </div>
