@@ -2,9 +2,79 @@ use chrono::{DateTime, Local};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use walkdir::WalkDir;
+
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+// Constants for Windows process creation
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PackageManagerConfig {
+    npm_method: Option<String>,
+    yarn_method: Option<String>,
+    pnpm_method: Option<String>,
+}
+
+impl PackageManagerConfig {
+    fn new() -> Self {
+        Self {
+            npm_method: None,
+            yarn_method: None,
+            pnpm_method: None,
+        }
+    }
+
+    fn get_method(&self, package_manager: &str) -> Option<&String> {
+        match package_manager {
+            "npm" => self.npm_method.as_ref(),
+            "yarn" => self.yarn_method.as_ref(),
+            "pnpm" => self.pnpm_method.as_ref(),
+            _ => None,
+        }
+    }
+
+    fn set_method(&mut self, package_manager: &str, method: String) {
+        match package_manager {
+            "npm" => self.npm_method = Some(method),
+            "yarn" => self.yarn_method = Some(method),
+            "pnpm" => self.pnpm_method = Some(method),
+            _ => {}
+        }
+    }
+
+    fn load() -> Result<Self, Box<dyn std::error::Error>> {
+        let config_path = Self::get_config_path()?;
+        if config_path.exists() {
+            let content = fs::read_to_string(&config_path)?;
+            let config: PackageManagerConfig = serde_json::from_str(&content)?;
+            Ok(config)
+        } else {
+            Ok(Self::new())
+        }
+    }
+
+    fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let config_path = Self::get_config_path()?;
+        if let Some(parent) = config_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let content = serde_json::to_string_pretty(&self)?;
+        fs::write(&config_path, content)?;
+        Ok(())
+    }
+
+    fn get_config_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
+        let config_dir = dirs::config_dir()
+            .ok_or("Could not find config directory")?
+            .join("kirakiraichigo-mendix-manager");
+        Ok(config_dir.join("package_manager_config.json"))
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MendixVersion {
@@ -189,8 +259,12 @@ fn launch_studio_pro(version: String) -> Result<(), String> {
                             let exe_path = entry.path().join("modeler").join("studiopro.exe");
 
                             if exe_path.exists() {
-                                Command::new(&exe_path)
-                                    .spawn()
+                                let mut cmd = Command::new(&exe_path);
+
+                                #[cfg(target_os = "windows")]
+                                cmd.creation_flags(CREATE_NO_WINDOW);
+
+                                cmd.spawn()
                                     .map_err(|e| format!("Failed to launch Studio Pro: {}", e))?;
                                 return Ok(());
                             } else {
@@ -382,9 +456,42 @@ fn run_package_manager_command(
 
     println!("[Package Manager] Working directory validated");
 
+    // Load saved configuration
+    let mut config = PackageManagerConfig::load().unwrap_or_else(|_| PackageManagerConfig::new());
+
+    // Try saved method first if available
+    if let Some(saved_method) = config.get_method(&package_manager) {
+        println!("[Package Manager] Trying saved method: {}", saved_method);
+        let result = match saved_method.as_str() {
+            "direct_node" => {
+                run_with_direct_node_search(&package_manager, &command, &working_directory)
+            }
+            "fnm_simple" => run_with_fnm_simple(&package_manager, &command, &working_directory),
+            "powershell_fnm" => {
+                run_with_powershell_fnm(&package_manager, &command, &working_directory)
+            }
+            "powershell_simple" => {
+                run_with_powershell_simple(&package_manager, &command, &working_directory)
+            }
+            "direct_command" => run_direct_command(&package_manager, &command, &working_directory),
+            _ => Err("Unknown saved method".to_string()),
+        };
+
+        if let Ok(output) = result {
+            println!("[Package Manager] Saved method succeeded");
+            return Ok(output);
+        } else {
+            println!("[Package Manager] Saved method failed, trying other methods");
+        }
+    }
+
     // Try method 1: Direct Node.js search (bypass fnm)
     match run_with_direct_node_search(&package_manager, &command, &working_directory) {
-        Ok(output) => return Ok(output),
+        Ok(output) => {
+            config.set_method(&package_manager, "direct_node".to_string());
+            let _ = config.save();
+            return Ok(output);
+        }
         Err(err) => {
             println!("[Package Manager] Method 1 (direct node) failed: {}", err);
         }
@@ -392,7 +499,11 @@ fn run_package_manager_command(
 
     // Try method 2: Simple fnm method
     match run_with_fnm_simple(&package_manager, &command, &working_directory) {
-        Ok(output) => return Ok(output),
+        Ok(output) => {
+            config.set_method(&package_manager, "fnm_simple".to_string());
+            let _ = config.save();
+            return Ok(output);
+        }
         Err(err) => {
             println!("[Package Manager] Method 2 (fnm simple) failed: {}", err);
         }
@@ -400,7 +511,11 @@ fn run_package_manager_command(
 
     // Try method 3: PowerShell with fnm support
     match run_with_powershell_fnm(&package_manager, &command, &working_directory) {
-        Ok(output) => return Ok(output),
+        Ok(output) => {
+            config.set_method(&package_manager, "powershell_fnm".to_string());
+            let _ = config.save();
+            return Ok(output);
+        }
         Err(err) => {
             println!("[Package Manager] Method 3 (fnm complex) failed: {}", err);
         }
@@ -408,7 +523,11 @@ fn run_package_manager_command(
 
     // Try method 4: PowerShell without fnm
     match run_with_powershell_simple(&package_manager, &command, &working_directory) {
-        Ok(output) => return Ok(output),
+        Ok(output) => {
+            config.set_method(&package_manager, "powershell_simple".to_string());
+            let _ = config.save();
+            return Ok(output);
+        }
         Err(err) => {
             println!("[Package Manager] Method 4 (simple) failed: {}", err);
         }
@@ -416,7 +535,11 @@ fn run_package_manager_command(
 
     // Try method 5: Direct command execution
     match run_direct_command(&package_manager, &command, &working_directory) {
-        Ok(output) => return Ok(output),
+        Ok(output) => {
+            config.set_method(&package_manager, "direct_command".to_string());
+            let _ = config.save();
+            return Ok(output);
+        }
         Err(err) => {
             println!("[Package Manager] Method 5 (direct) failed: {}", err);
             Err(format!(
@@ -913,10 +1036,13 @@ fn run_direct_command(
     println!("[Package Manager] Trying direct command execution");
 
     let mut cmd = Command::new(package_manager);
-    cmd.args(command.split_whitespace())
-        .current_dir(working_directory)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+    cmd.args(command.split_whitespace());
+    cmd.current_dir(working_directory);
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
 
     match cmd.output() {
         Ok(output) => {
@@ -949,6 +1075,9 @@ fn execute_powershell_script(script: &str, method_name: &str) -> Result<String, 
     ]);
     ps_cmd.stdout(Stdio::piped());
     ps_cmd.stderr(Stdio::piped());
+
+    #[cfg(target_os = "windows")]
+    ps_cmd.creation_flags(CREATE_NO_WINDOW);
 
     match ps_cmd.output() {
         Ok(output) => {
