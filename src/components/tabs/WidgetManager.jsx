@@ -184,33 +184,39 @@ const renderWidgetItem = R.curry(
         className="uninstall-button"
         onClick={R.pipe(
           R.tap((e) => e.stopPropagation()),
-          () => {
-            setWidgets((prev) =>
-              R.pipe(
-                R.reject(R.propEq("id", R.prop("id", widget))),
-                R.tap((newWidgets) =>
+          R.tap((e) => {
+            const widgetId = R.prop("id", widget);
+
+            // Execute widget deletion with strict functional programming
+            R.pipe(
+              R.tap(() => {
+                setWidgets((prevWidgets) => {
+                  const newWidgets = R.filter(
+                    R.pipe(R.prop("id"), R.complement(R.equals(widgetId))),
+                    prevWidgets,
+                  );
                   localStorage.setItem(
                     "kirakiraWidgets",
                     JSON.stringify(newWidgets),
-                  ),
-                ),
-              )(prev),
-            );
-
-            setSelectedWidgets((prev) => {
-              const newSet = new Set(prev);
-              newSet.delete(R.prop("id", widget));
-
-              R.pipe(Array.from, (arr) =>
-                localStorage.setItem(
-                  "kirakiraSelectedWidgets",
-                  JSON.stringify(arr),
-                ),
-              )(newSet);
-
-              return newSet;
-            });
-          },
+                  );
+                  return newWidgets;
+                });
+              }),
+              R.tap(() => {
+                setSelectedWidgets((prevSelected) => {
+                  const newSet = new Set(prevSelected);
+                  newSet.delete(widgetId);
+                  localStorage.setItem(
+                    "kirakiraSelectedWidgets",
+                    JSON.stringify(Array.from(newSet)),
+                  );
+                  return newSet;
+                });
+              }),
+              R.always(undefined),
+            )(null);
+          }),
+          R.always(undefined),
         )}
         style={{
           background:
@@ -458,14 +464,13 @@ const WidgetManager = memo(
             {/* Add Widget Button */}
             <div
               className="version-list-item"
-              onClick={() => {
-                R.pipe(
-                  R.tap(() => setShowWidgetModal(true)),
-                  R.tap(() => setShowAddWidgetForm(false)),
-                  R.tap(() => setNewWidgetCaption("")),
-                  R.tap(() => setNewWidgetPath("")),
-                )();
-              }}
+              onClick={R.pipe(
+                R.tap(() => setShowWidgetModal(true)),
+                R.tap(() => setShowAddWidgetForm(false)),
+                R.tap(() => setNewWidgetCaption("")),
+                R.tap(() => setNewWidgetPath("")),
+                R.always(undefined),
+              )}
               style={{
                 cursor: "pointer",
                 backgroundColor: "rgba(255, 182, 193, 0.1)",

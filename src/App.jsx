@@ -237,9 +237,9 @@ function App() {
 
   // Initial data loading effect
   useEffect(() => {
-    const loadInitialData = R.juxt([loadVersions, loadApps]);
+    const loadInitialData = R.juxt([loadVersions, loadApps, loadWidgets]);
     loadInitialData();
-  }, [loadVersions, loadApps]);
+  }, [loadVersions, loadApps, loadWidgets]);
 
   // Filter versions based on search term
   useEffect(() => {

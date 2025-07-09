@@ -891,11 +891,6 @@ body {
     gap: 8px;
 }
 
-.modal-header h3::before {
-    content: "⚠️";
-    font-size: 24px;
-}
-
 .modal-body {
     padding: 24px;
 }

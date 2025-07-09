@@ -28,16 +28,19 @@ const isValidWidgetForm = R.both(
   R.pipe(R.prop("newWidgetPath"), R.complement(R.isEmpty)),
 );
 
-// Reset form fields
-const resetFormFields = R.pipe(
-  R.tap(R.prop("setShowAddWidgetForm")(false)),
-  R.tap(R.prop("setShowWidgetModal")(false)),
-  R.tap(R.prop("setNewWidgetCaption")("")),
-  R.tap(R.prop("setNewWidgetPath")("")),
+// Reset form fields with strict functional programming
+const resetFormFields = R.curry((props) =>
+  R.pipe(
+    R.tap(() => props.setShowAddWidgetForm(false)),
+    R.tap(() => props.setShowWidgetModal(false)),
+    R.tap(() => props.setNewWidgetCaption("")),
+    R.tap(() => props.setNewWidgetPath("")),
+    R.always(undefined),
+  )(),
 );
 
 // Handle cancel action
-const handleCancel = R.pipe(resetFormFields, R.always(undefined));
+const handleCancel = R.curry((props) => resetFormFields(props));
 
 // Handle add widget
 const handleAddWidget = R.curry((props) => {
@@ -53,6 +56,7 @@ const handleAddWidget = R.curry((props) => {
           return newWidgets;
         }),
       () => resetFormFields(props),
+      R.always(undefined),
     )();
   }
 });
@@ -93,7 +97,7 @@ const renderAddWidgetForm = (props) => {
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
-          <h3>Add Widget</h3>
+          <h3>🍓 Add Widget</h3>
         </div>
         <div className="modal-body">
           {renderLabeledInput(
@@ -114,13 +118,19 @@ const renderAddWidgetForm = (props) => {
         <div className="modal-footer">
           <button
             className="modal-button cancel-button"
-            onClick={() => handleCancel(props)}
+            onClick={R.pipe(
+              R.tap(() => handleCancel(props)),
+              R.always(undefined),
+            )}
           >
             Cancel
           </button>
           <button
             className="modal-button confirm-button"
-            onClick={() => handleAddWidget(props)}
+            onClick={R.pipe(
+              R.tap(() => handleAddWidget(props)),
+              R.always(undefined),
+            )}
             disabled={!isValidWidgetForm(props)}
           >
             Add Widget
@@ -139,7 +149,7 @@ const renderWidgetActionModal = (props) => {
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
-          <h3>Widget Action</h3>
+          <h3>🍓 Widget Action</h3>
         </div>
         <div className="modal-body">
           <p>Choose an action for widget management:</p>
@@ -147,7 +157,10 @@ const renderWidgetActionModal = (props) => {
         <div className="modal-footer">
           <button
             className="modal-button cancel-button"
-            onClick={() => setShowWidgetModal(false)}
+            onClick={R.pipe(
+              R.tap(() => setShowWidgetModal(false)),
+              R.always(undefined),
+            )}
           >
             Cancel
           </button>
@@ -165,7 +178,10 @@ const renderWidgetActionModal = (props) => {
           </button>
           <button
             className="modal-button confirm-button"
-            onClick={() => setShowAddWidgetForm(true)}
+            onClick={R.pipe(
+              R.tap(() => setShowAddWidgetForm(true)),
+              R.always(undefined),
+            )}
           >
             Add Existing Widget
           </button>
