@@ -94,7 +94,14 @@ const renderAppItem = R.curry((selectedApps, handleAppClick, app) => (
   <div
     key={R.prop("path", app)}
     className={getAppClassName(selectedApps, app)}
-    onClick={() => handleAppClick(app)}
+    onClick={R.pipe(
+      R.tap((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }),
+      R.always(app),
+      handleAppClick,
+    )}
     style={{ cursor: "pointer" }}
   >
     <div className="version-info">
@@ -144,31 +151,39 @@ const renderWidgetItem = R.curry(
     <div
       key={R.prop("id", widget)}
       className={getWidgetClassName(selectedWidgets, widget)}
-      onClick={() => {
-        const widgetId = R.prop("id", widget);
-        setSelectedWidgets((prev) => {
-          const newSet = new Set(prev);
-          R.ifElse(
-            () => newSet.has(widgetId),
-            () => newSet.delete(widgetId),
-            () => newSet.add(widgetId),
-          )();
+      onClick={R.pipe(
+        R.tap((e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }),
+        R.always(R.prop("id", widget)),
+        (widgetId) => {
+          setSelectedWidgets((prev) => {
+            const currentSet = new Set(prev);
+            const newSet = new Set(currentSet);
 
-          R.pipe(
-            Array.from,
-            R.tap((arr) =>
-              console.log("Saving selected widgets to localStorage:", arr),
-            ),
-            (arr) =>
+            if (currentSet.has(widgetId)) {
+              newSet.delete(widgetId);
+            } else {
+              newSet.add(widgetId);
+            }
+
+            const newArray = Array.from(newSet);
+
+            // Save to localStorage
+            try {
               localStorage.setItem(
                 "kirakiraSelectedWidgets",
-                JSON.stringify(arr),
-              ),
-          )(newSet);
+                JSON.stringify(newArray),
+              );
+            } catch (error) {
+              // Handle error silently
+            }
 
-          return newSet;
-        });
-      }}
+            return newSet;
+          });
+        },
+      )}
       style={{ cursor: "pointer" }}
     >
       <div className="version-info">
@@ -183,11 +198,12 @@ const renderWidgetItem = R.curry(
       <button
         className="uninstall-button"
         onClick={R.pipe(
-          R.tap((e) => e.stopPropagation()),
           R.tap((e) => {
-            const widgetId = R.prop("id", widget);
-
-            // Execute widget deletion with strict functional programming
+            e.preventDefault();
+            e.stopPropagation();
+          }),
+          R.always(R.prop("id", widget)),
+          (widgetId) =>
             R.pipe(
               R.tap(() => {
                 setWidgets((prevWidgets) => {
@@ -214,9 +230,7 @@ const renderWidgetItem = R.curry(
                 });
               }),
               R.always(undefined),
-            )(null);
-          }),
-          R.always(undefined),
+            )(),
         )}
         style={{
           background:

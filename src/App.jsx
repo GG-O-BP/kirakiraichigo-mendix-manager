@@ -294,14 +294,32 @@ function App() {
 
   // Toggle app selection
   const handleAppClick = useCallback(
-    R.pipe(R.prop("path"), (appPath) =>
-      setSelectedApps((prev) =>
-        R.pipe(
-          toggleInSet(appPath),
-          R.tap(R.pipe(setToArray, saveToStorage(STORAGE_KEYS.SELECTED_APPS))),
-        )(prev),
-      ),
-    ),
+    R.pipe(R.prop("path"), (appPath) => {
+      setSelectedApps((prev) => {
+        const currentSet = new Set(prev);
+        const newSet = new Set(currentSet);
+
+        if (currentSet.has(appPath)) {
+          newSet.delete(appPath);
+        } else {
+          newSet.add(appPath);
+        }
+
+        const newArray = Array.from(newSet);
+
+        // Save to localStorage
+        try {
+          localStorage.setItem(
+            STORAGE_KEYS.SELECTED_APPS,
+            JSON.stringify(newArray),
+          );
+        } catch (error) {
+          // Handle error silently
+        }
+
+        return newSet;
+      });
+    }),
     [],
   );
 

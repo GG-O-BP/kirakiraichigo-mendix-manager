@@ -1,4 +1,4 @@
-import * as R from 'ramda';
+import * as R from "ramda";
 
 // ============= Pure Data Transformations =============
 
@@ -9,12 +9,12 @@ export const set = R.set;
 export const over = R.over;
 
 // Common lenses
-export const idLens = R.lensProp('id');
-export const nameLens = R.lensProp('name');
-export const versionLens = R.lensProp('version');
-export const pathLens = R.lensProp('path');
-export const captionLens = R.lensProp('caption');
-export const selectedLens = R.lensProp('selected');
+export const idLens = R.lensProp("id");
+export const nameLens = R.lensProp("name");
+export const versionLens = R.lensProp("version");
+export const pathLens = R.lensProp("path");
+export const captionLens = R.lensProp("caption");
+export const selectedLens = R.lensProp("selected");
 
 // ============= List Operations =============
 
@@ -22,14 +22,11 @@ export const selectedLens = R.lensProp('selected');
 export const createListItem = R.curry((index) => ({
   id: `item-${index}`,
   label: `Item ${index + 1}`,
-  icon: '🍓',
+  icon: "🍓",
 }));
 
 // Generate list data with given count
-export const generateListData = R.pipe(
-  R.range(0),
-  R.map(createListItem)
-);
+export const generateListData = R.pipe(R.range(0), R.map(createListItem));
 
 // ============= Search and Filter =============
 
@@ -38,34 +35,32 @@ export const toLower = R.toLower;
 
 // Get searchable text from item
 export const getSearchableText = R.pipe(
-  R.props(['label', 'version', 'name', 'caption']),
+  R.props(["label", "version", "name", "caption"]),
   R.filter(R.identity),
-  R.join(' '),
-  toLower
+  R.join(" "),
+  toLower,
 );
 
 // Create search predicate
 export const createSearchPredicate = R.curry((searchTerm, item) =>
-  R.pipe(
-    getSearchableText,
-    R.includes(toLower(searchTerm))
-  )(item)
+  R.pipe(getSearchableText, R.includes(toLower(searchTerm)))(item),
 );
 
 // Filter by search term
 export const filterBySearchTerm = R.curry((searchTerm, items) =>
   R.isEmpty(searchTerm)
     ? items
-    : R.filter(createSearchPredicate(searchTerm), items)
+    : R.filter(createSearchPredicate(searchTerm), items),
 );
 
 // ============= Set Operations =============
 
 // Toggle item in set
 export const toggleInSet = R.curry((item, set) =>
-  set.has(item)
-    ? R.tap(() => set.delete(item))(new Set(set))
-    : R.tap(() => set.add(item))(new Set(set))
+  R.pipe(
+    R.always(new Set(set)),
+    R.tap((newSet) => (set.has(item) ? newSet.delete(item) : newSet.add(item))),
+  )(),
 );
 
 // Convert set to array
@@ -78,19 +73,19 @@ export const arrayToSet = (arr) => new Set(arr);
 
 // Format date
 export const formatDate = R.pipe(
-  (dateStr) => dateStr ? new Date(dateStr) : null,
+  (dateStr) => (dateStr ? new Date(dateStr) : null),
   R.ifElse(
     R.identity,
     (date) => date.toLocaleDateString(),
-    R.always('Date unknown')
-  )
+    R.always("Date unknown"),
+  ),
 );
 
 // ============= Version Operations =============
 
 // Check if version matches
 export const versionMatches = R.curry((targetVersion, item) =>
-  R.equals(view(versionLens, item), targetVersion)
+  R.equals(view(versionLens, item), targetVersion),
 );
 
 // Sort by version match and date
@@ -110,7 +105,10 @@ export const sortByVersionAndDate = R.curry((selectedVersion, items) => {
     return bDate - aDate;
   };
 
-  return R.sort((a, b) => compareVersionMatch(a, b) || compareDate(a, b), items);
+  return R.sort(
+    (a, b) => compareVersionMatch(a, b) || compareDate(a, b),
+    items,
+  );
 });
 
 // ============= Widget Operations =============
@@ -124,25 +122,25 @@ export const createWidget = R.curry((caption, path) => ({
 
 // Filter widgets by caption
 export const filterWidgetsByCaption = R.curry((searchTerm, widgets) =>
-  filterBySearchTerm(searchTerm, widgets)
+  filterBySearchTerm(searchTerm, widgets),
 );
 
 // ============= App Operations =============
 
 // Filter apps by version
 export const filterAppsByVersion = R.curry((versionFilter, apps) =>
-  versionFilter === 'all'
+  versionFilter === "all"
     ? apps
-    : R.filter(versionMatches(versionFilter), apps)
+    : R.filter(versionMatches(versionFilter), apps),
 );
 
 // Create version options for dropdown
 export const createVersionOptions = R.pipe(
-  R.map(version => ({
+  R.map((version) => ({
     value: view(versionLens, version),
     label: `📦 ${view(versionLens, version)}`,
   })),
-  R.prepend({ value: 'all', label: '🍓 All Versions' })
+  R.prepend({ value: "all", label: "🍓 All Versions" }),
 );
 
 // ============= Pagination =============
@@ -155,8 +153,9 @@ export const getPaginatedItems = R.curry((itemsPerPage, currentPage, items) => {
 });
 
 // Check if has more pages
-export const hasMorePages = R.curry((itemsPerPage, currentPage, items) =>
-  R.length(items) > currentPage * itemsPerPage
+export const hasMorePages = R.curry(
+  (itemsPerPage, currentPage, items) =>
+    R.length(items) > currentPage * itemsPerPage,
 );
 
 // ============= Local Storage Operations =============
@@ -180,16 +179,14 @@ export const loadFromStorage = R.curry((key, defaultValue) => {
 // ============= Async Operations =============
 
 // Wrap async function for error handling
-export const wrapAsync = R.curry((errorHandler, asyncFn) =>
-  async (...args) => {
-    try {
-      return await asyncFn(...args);
-    } catch (error) {
-      errorHandler(error);
-      return null;
-    }
+export const wrapAsync = R.curry((errorHandler, asyncFn) => async (...args) => {
+  try {
+    return await asyncFn(...args);
+  } catch (error) {
+    errorHandler(error);
+    return null;
   }
-);
+});
 
 // ============= Build Results =============
 
@@ -197,40 +194,42 @@ export const wrapAsync = R.curry((errorHandler, asyncFn) =>
 export const createBuildResult = R.curry((isSuccess, widget, data) =>
   isSuccess
     ? { widget: view(captionLens, widget), apps: data }
-    : { widget: view(captionLens, widget), error: data.toString() }
+    : { widget: view(captionLens, widget), error: data.toString() },
 );
 
 // Partition build results
-export const partitionBuildResults = R.partition(R.has('apps'));
+export const partitionBuildResults = R.partition(R.has("apps"));
 
 // ============= Property Updates =============
 
 // Update property in object
 export const updateProp = R.curry((prop, value, obj) =>
-  set(R.lensProp(prop), value, obj)
+  set(R.lensProp(prop), value, obj),
 );
 
 // Update nested property
 export const updateNestedProp = R.curry((path, value, obj) =>
-  set(lensPath(path), value, obj)
+  set(lensPath(path), value, obj),
 );
 
 // ============= Compose Utility Functions =============
 
 // Filter and paginate
-export const filterAndPaginate = R.curry((searchTerm, itemsPerPage, currentPage, items) =>
-  R.pipe(
-    filterBySearchTerm(searchTerm),
-    getPaginatedItems(itemsPerPage, currentPage)
-  )(items)
+export const filterAndPaginate = R.curry(
+  (searchTerm, itemsPerPage, currentPage, items) =>
+    R.pipe(
+      filterBySearchTerm(searchTerm),
+      getPaginatedItems(itemsPerPage, currentPage),
+    )(items),
 );
 
 // Filter apps by version and search
-export const filterAppsByVersionAndSearch = R.curry((versionFilter, searchTerm, apps) =>
-  R.pipe(
-    filterAppsByVersion(versionFilter),
-    filterBySearchTerm(searchTerm)
-  )(apps)
+export const filterAppsByVersionAndSearch = R.curry(
+  (versionFilter, searchTerm, apps) =>
+    R.pipe(
+      filterAppsByVersion(versionFilter),
+      filterBySearchTerm(searchTerm),
+    )(apps),
 );
 
 // ============= Tab Configuration =============
@@ -244,7 +243,7 @@ export const createTab = R.curry((id, label, component) => ({
 
 // Find active tab
 export const findActiveTab = R.curry((activeTabId, tabs) =>
-  R.find(R.propEq('id', activeTabId), tabs)
+  R.find(R.propEq("id", activeTabId), tabs),
 );
 
 // ============= Event Handlers =============
@@ -260,18 +259,18 @@ export const preventDefaultHandler = R.curry((handler, event) => {
 
 // Check if all required fields are filled
 export const validateRequired = R.curry((fields, obj) =>
-  R.all(field => !R.isEmpty(R.prop(field, obj)), fields)
+  R.all((field) => !R.isEmpty(R.prop(field, obj)), fields),
 );
 
 // ============= Constants =============
 
 export const STORAGE_KEYS = {
-  SELECTED_APPS: 'kirakiraSelectedApps',
-  SELECTED_WIDGETS: 'kirakiraSelectedWidgets',
-  WIDGETS: 'kirakiraWidgets',
-  PACKAGE_MANAGER: 'kirakiraPackageManager',
+  SELECTED_APPS: "kirakiraSelectedApps",
+  SELECTED_WIDGETS: "kirakiraSelectedWidgets",
+  WIDGETS: "kirakiraWidgets",
+  PACKAGE_MANAGER: "kirakiraPackageManager",
 };
 
-export const PACKAGE_MANAGERS = ['npm', 'yarn', 'pnpm', 'bun'];
+export const PACKAGE_MANAGERS = ["npm", "yarn", "pnpm", "bun"];
 
 export const ITEMS_PER_PAGE = 20;
