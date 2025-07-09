@@ -179,6 +179,7 @@ function App() {
   const [showResultModal, setShowResultModal] = useState(
     initialState.showResultModal,
   );
+  const [inlineResults, setInlineResults] = useState(null);
 
   // Form state
   const [newWidgetCaption, setNewWidgetCaption] = useState(
@@ -420,18 +421,13 @@ function App() {
 
     const results = await processResults(widgetsList);
 
-    // Determine if modal should be shown using pure functions
-    const shouldShowModal = R.pipe(
-      R.juxt([
-        R.pipe(R.prop("successful"), R.complement(R.isEmpty)),
-        R.pipe(R.prop("failed"), R.complement(R.isEmpty)),
-      ]),
-      R.any(R.identity),
-    );
+    // Modal should only show when there are failures - pure functional approach
+    const shouldShowModal = R.pipe(R.prop("failed"), R.complement(R.isEmpty));
 
     // Finalize with strict functional composition
     const finalizeResults = R.pipe(
       R.tap(() => setBuildResults(results)),
+      R.tap(() => setInlineResults(results)),
       R.tap(() => setIsBuilding(false)),
       R.when(
         () => shouldShowModal(results),
@@ -624,6 +620,8 @@ function App() {
     "setNewWidgetCaption",
     "setNewWidgetPath",
     "setWidgets",
+    "inlineResults",
+    "setInlineResults",
   ];
 
   const widgetPreviewKeys = [
@@ -690,6 +688,8 @@ function App() {
     setWidgetPreviewSearch,
     properties,
     updateProperty,
+    inlineResults,
+    setInlineResults,
   };
 
   // Tab configuration with functional approach
@@ -726,6 +726,7 @@ function App() {
       widgetPreviewSearch,
       properties,
       updateProperty,
+      inlineResults,
     ],
   );
 

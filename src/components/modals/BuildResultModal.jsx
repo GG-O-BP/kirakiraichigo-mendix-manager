@@ -28,7 +28,7 @@ const getFailedResults = R.path(["buildResults", "failed"]);
 const getResultsCount = R.pipe(R.length);
 
 // Handle close action
-// Handle close action with strict functional approach
+// Handle close action with functional approach
 const handleClose = R.curry((setShowResultModal, setBuildResults) =>
   R.pipe(
     R.tap(() => setShowResultModal(false)),
@@ -147,12 +147,9 @@ const renderModalContent = (props) => {
     <div className="modal-overlay">
       <div className="modal-content" style={{ maxWidth: "600px" }}>
         <div className="modal-header">
-          <h3>Build & Deploy Results</h3>
+          <h3>Build & Deploy Errors</h3>
         </div>
-        <div className="modal-body">
-          {renderSuccessfulSection(props)}
-          {renderFailedSection(props)}
-        </div>
+        <div className="modal-body">{renderFailedSection(props)}</div>
         <div className="modal-footer">
           <button
             className="modal-button confirm-button"

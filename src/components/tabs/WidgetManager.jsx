@@ -234,6 +234,74 @@ const getButtonOpacity = R.cond([
 
 // ============= Main Component =============
 
+// ============= Inline Results Helpers =============
+
+// Render successful widget result
+const renderSuccessfulWidget = R.curry((result, index) => (
+  <div key={index} className="inline-result-item success">
+    <span className="result-icon">✅</span>
+    <span className="result-text">{R.prop("widget", result)}</span>
+    <span className="result-details">
+      → {R.pipe(R.prop("apps"), R.join(", "))(result)}
+    </span>
+  </div>
+));
+
+// Render failed widget result
+const renderFailedWidget = R.curry((result, index) => (
+  <div key={index} className="inline-result-item failed">
+    <span className="result-icon">❌</span>
+    <span className="result-text">{R.prop("widget", result)}</span>
+  </div>
+));
+
+// Render inline results section with strict functional programming
+const renderInlineResults = R.ifElse(
+  R.propSatisfies(R.complement(R.isNil), "inlineResults"),
+  ({ inlineResults, setInlineResults }) => {
+    const successfulResults = R.pipe(
+      R.propOr([], "successful"),
+      R.addIndex(R.map)(renderSuccessfulWidget),
+    )(inlineResults);
+
+    const failedResults = R.pipe(
+      R.propOr([], "failed"),
+      R.addIndex(R.map)(renderFailedWidget),
+    )(inlineResults);
+
+    const hasResults = R.pipe(
+      R.juxt([
+        R.pipe(R.propOr([], "successful"), R.complement(R.isEmpty)),
+        R.pipe(R.propOr([], "failed"), R.complement(R.isEmpty)),
+      ]),
+      R.any(R.identity),
+    )(inlineResults);
+
+    return R.ifElse(
+      R.always(hasResults),
+      R.always(
+        <div className="inline-results-container">
+          <div className="inline-results-header">
+            <h4>Build & Deploy Results</h4>
+            <button
+              className="clear-results-button"
+              onClick={() => setInlineResults(null)}
+            >
+              Clear
+            </button>
+          </div>
+          <div className="inline-results-content">
+            {successfulResults}
+            {failedResults}
+          </div>
+        </div>,
+      ),
+      R.always(null),
+    )();
+  },
+  R.always(null),
+);
+
 const WidgetManager = memo(
   ({
     versionFilter,
@@ -265,6 +333,8 @@ const WidgetManager = memo(
     setNewWidgetCaption,
     setNewWidgetPath,
     setWidgets,
+    inlineResults,
+    setInlineResults,
   }) => {
     const versionOptions = createVersionOptions(versions);
     const displayedApps = getPaginatedSlice(
@@ -372,6 +442,9 @@ const WidgetManager = memo(
               ? "Building & Deploying..."
               : `Build + Deploy (${selectedWidgets.size} widgets → ${selectedApps.size} apps)`}
           </button>
+
+          {/* Inline Results Section */}
+          {renderInlineResults({ inlineResults, setInlineResults })}
         </div>
 
         {/* Widgets List Section */}
