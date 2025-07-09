@@ -16,19 +16,10 @@ const filterBySearch = R.curry((searchTerm, items) =>
   R.filter(createSearchFilter(searchTerm), items),
 );
 
-// Create app sorter by version and date
-const createAppSorter = R.curry((selectedVersion) => {
-  // Check if app version matches selected version
-  const versionMatches = R.propEq("version", selectedVersion);
-
-  // Compare by version match
-  const compareVersionMatch = R.curry((a, b) =>
-    R.cond([
-      [() => versionMatches(a) && !versionMatches(b), R.always(-1)],
-      [() => !versionMatches(a) && versionMatches(b), R.always(1)],
-      [R.T, R.always(0)],
-    ])(),
-  );
+// Sort apps with version priority using Ramda partition and sortWith
+const sortAppsWithVersionPriority = R.curry((selectedVersion, apps) => {
+  // Convert selectedVersion to string for proper comparison
+  const selectedVersionStr = String(selectedVersion);
 
   // Get date value for comparison
   const getDateValue = R.pipe(
@@ -36,34 +27,46 @@ const createAppSorter = R.curry((selectedVersion) => {
     R.ifElse(R.identity, (dateStr) => new Date(dateStr).getTime(), R.always(0)),
   );
 
-  // Compare by date
-  const compareByDate = (a, b) => getDateValue(b) - getDateValue(a);
+  // Sort function by date (newer first)
+  const sortByDate = R.sortWith([R.descend(getDateValue)]);
 
-  // Combined comparator
-  return R.comparator((a, b) => {
-    const versionCompare = compareVersionMatch(a, b);
-    return versionCompare !== 0 ? versionCompare < 0 : compareByDate(a, b) < 0;
-  });
+  // Version matcher that converts both values to strings for comparison
+  const versionMatches = R.pipe(
+    R.prop("version"),
+    String,
+    R.equals(selectedVersionStr),
+  );
+
+  // Partition apps into matching and non-matching versions
+  const [matchingApps, nonMatchingApps] = R.partition(versionMatches, apps);
+
+  const sortedMatching = sortByDate(matchingApps);
+  const sortedNonMatching = sortByDate(nonMatchingApps);
+
+  // Concatenate sorted matching apps first, then sorted non-matching apps
+  return R.concat(sortedMatching, sortedNonMatching);
 });
 
-// Sort and filter apps
+// Sort and filter apps using strict functional programming
 const sortAndFilterApps = R.curry((searchTerm, selectedVersion, apps) =>
   R.pipe(
     filterBySearch(searchTerm),
+
     R.ifElse(
       () => R.isNil(selectedVersion),
-      R.sort(
-        R.comparator((a, b) => {
-          const aDate = a.last_modified
-            ? new Date(a.last_modified)
-            : new Date(0);
-          const bDate = b.last_modified
-            ? new Date(b.last_modified)
-            : new Date(0);
-          return bDate > aDate;
-        }),
-      ),
-      R.sort(createAppSorter(selectedVersion)),
+      R.sortWith([
+        R.descend(
+          R.pipe(
+            R.prop("last_modified"),
+            R.ifElse(
+              R.identity,
+              (dateStr) => new Date(dateStr).getTime(),
+              R.always(0),
+            ),
+          ),
+        ),
+      ]),
+      sortAppsWithVersionPriority(selectedVersion),
     ),
   )(apps),
 );
