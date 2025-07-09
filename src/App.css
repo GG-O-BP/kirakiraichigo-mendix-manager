@@ -874,6 +874,8 @@ body {
     max-height: 80vh;
     overflow: hidden;
     animation: slideIn 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-header {
@@ -892,7 +894,10 @@ body {
 }
 
 .modal-body {
-    padding: 24px;
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
 }
 
 .modal-body p {
@@ -908,6 +913,7 @@ body {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+    flex-shrink: 0;
 }
 
 .modal-button {
@@ -1020,6 +1026,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
 }
 
 .related-app-item {

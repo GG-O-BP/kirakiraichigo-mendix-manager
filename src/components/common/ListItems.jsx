@@ -55,15 +55,14 @@ const formatDate = R.curry((fallbackText, dateStr) =>
   )(dateStr),
 );
 
-// Create button props
-const createButtonProps = R.curry((onClick, disabled, style = {}) => ({
-  onClick: (e) => {
-    e.stopPropagation();
-    onClick();
-  },
-  disabled,
-  style,
-}));
+// Handle button click with event propagation prevention
+const handleButtonClick = R.curry((onClick, e) =>
+  R.pipe(
+    R.tap((e) => e.stopPropagation()),
+    R.tap(() => onClick()),
+    R.always(undefined),
+  )(e),
+);
 
 // ============= MendixVersionListItem Component =============
 
@@ -81,10 +80,8 @@ const renderLaunchButton = R.curry(
   (onLaunch, version, isLaunching, isUninstalling) => (
     <button
       className="install-button"
-      {...createButtonProps(
-        () => onLaunch(version),
-        isLaunching || !version.is_valid || isUninstalling,
-      )}
+      onClick={handleButtonClick(() => onLaunch(version))}
+      disabled={isLaunching || !version.is_valid || isUninstalling}
     >
       <span className="button-icon">▶️</span>
       {isLaunching ? "Launching..." : "Launch"}
@@ -96,15 +93,13 @@ const renderUninstallButton = R.curry(
   (onUninstall, version, isUninstalling, isLaunching) => (
     <button
       className="install-button uninstall-button"
-      {...createButtonProps(
-        () => onUninstall(version),
-        isUninstalling || !version.is_valid || isLaunching,
-        {
-          background:
-            "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",
-          borderColor: "rgba(220, 20, 60, 0.4)",
-        },
-      )}
+      onClick={handleButtonClick(() => onUninstall(version))}
+      disabled={isUninstalling || !version.is_valid || isLaunching}
+      style={{
+        background:
+          "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",
+        borderColor: "rgba(220, 20, 60, 0.4)",
+      }}
     >
       <span className="button-icon">🗑️</span>
       {isUninstalling ? "ing..." : ""}
@@ -225,7 +220,8 @@ const renderProgressBar = R.curry((downloadProgress) => (
 const renderInstallButton = R.curry((onInstall, version) => (
   <button
     className="install-button"
-    {...createButtonProps(() => onInstall(version), false)}
+    onClick={handleButtonClick(() => onInstall(version))}
+    disabled={false}
   >
     <span className="button-icon">💫</span>
     Install

@@ -94,7 +94,7 @@ const renderListItems = R.curry((handleItemClick, items) =>
   ),
 );
 
-// Render version list items
+// Render version list items with strict functional programming
 const renderVersionListItems = R.curry(
   (
     handleLaunchStudioPro,
@@ -107,13 +107,13 @@ const renderVersionListItems = R.curry(
     R.map(
       (version) => (
         <MendixVersionListItem
-          key={version.version}
+          key={R.prop("version", version)}
           version={version}
           onLaunch={handleLaunchStudioPro}
           onUninstall={handleUninstallClick}
           isLaunching={isLoading}
           isUninstalling={isLoading}
-          isSelected={R.equals(selectedVersion, version.version)}
+          isSelected={R.equals(selectedVersion, R.prop("version", version))}
           onClick={() => handleVersionClick(version)}
         />
       ),
@@ -121,12 +121,12 @@ const renderVersionListItems = R.curry(
     ),
 );
 
-// Render app list items
+// Render app list items with strict functional programming
 const renderAppListItems = R.curry((selectedVersion, handleItemClick, apps) =>
   R.map(
     (app) => (
       <MendixAppListItem
-        key={app.name}
+        key={R.prop("name", app)}
         app={app}
         isDisabled={isAppDisabled(selectedVersion, app)}
         onClick={() => handleItemClick(app)}

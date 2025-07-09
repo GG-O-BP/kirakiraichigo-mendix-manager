@@ -475,11 +475,9 @@ function App() {
         const relatedApps = await invoke("get_apps_by_version", {
           version: version.version,
         });
-        R.pipe(
-          R.tap(() => setShowUninstallModal(true)),
-          R.tap(() => setVersionToUninstall(version)),
-          R.tap(() => setRelatedApps(relatedApps)),
-        )();
+        setShowUninstallModal(true);
+        setVersionToUninstall(version);
+        setRelatedApps(relatedApps);
       },
     ),
     [],
