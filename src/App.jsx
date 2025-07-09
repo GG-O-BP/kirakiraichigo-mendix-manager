@@ -1,9 +1,37 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import * as R from "ramda";
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+  useEffect,
+} from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
+// Import functional utilities
+import {
+  STORAGE_KEYS,
+  PACKAGE_MANAGERS,
+  ITEMS_PER_PAGE,
+  generateListData,
+  loadFromStorage,
+  saveToStorage,
+  wrapAsync,
+  arrayToSet,
+  setToArray,
+  toggleInSet,
+  createWidget,
+  filterAppsByVersionAndSearch,
+  hasMorePages,
+  createTab,
+  findActiveTab,
+  validateRequired,
+  updateProp,
+} from "./utils/functional";
+
 // Import components
-import { TabButton, ConfirmModal, generateListData } from "./components/common";
+import { TabButton, ConfirmModal } from "./components/common";
 import {
   StudioProManager,
   WidgetManager,
@@ -11,363 +39,427 @@ import {
 } from "./components/tabs";
 import { WidgetModal, BuildResultModal } from "./components/modals";
 
-// Main App component
-function App() {
-  const [activeTab, setActiveTab] = useState("studio-pro");
-  const [versions, setVersions] = useState([]);
-  const [apps, setApps] = useState([]);
-  const [filteredVersions, setFilteredVersions] = useState([]);
-  const [filteredApps, setFilteredApps] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [appSearchTerm, setAppSearchTerm] = useState("");
-  const [versionFilter, setVersionFilter] = useState("all");
-  const [selectedApps, setSelectedApps] = useState(new Set());
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedVersion, setSelectedVersion] = useState(null);
-  const [selectedApp, setSelectedApp] = useState(null);
-  const [downloadProgress, setDownloadProgress] = useState({});
-  const [showUninstallModal, setShowUninstallModal] = useState(false);
-  const [versionToUninstall, setVersionToUninstall] = useState(null);
-  const [relatedApps, setRelatedApps] = useState([]);
-  const [showAppDeleteModal, setShowAppDeleteModal] = useState(false);
-  const [appToDelete, setAppToDelete] = useState(null);
-  const listRef = useRef(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 20;
+// Initial state factory
+const createInitialState = () => ({
+  // Tab state
+  activeTab: "studio-pro",
 
-  const unlisten = useRef(null);
+  // Core data
+  versions: [],
+  apps: [],
+  widgets: loadFromStorage(STORAGE_KEYS.WIDGETS, []),
 
-  // Widget Manager specific states
-  const [widgets, setWidgets] = useState([]);
-  const [filteredWidgets, setFilteredWidgets] = useState([]);
-  const [widgetSearchTerm, setWidgetSearchTerm] = useState("");
-  const [selectedWidgets, setSelectedWidgets] = useState(new Set());
-  const [showWidgetModal, setShowWidgetModal] = useState(false);
-  const [showAddWidgetForm, setShowAddWidgetForm] = useState(false);
-  const [newWidgetCaption, setNewWidgetCaption] = useState("");
-  const [newWidgetPath, setNewWidgetPath] = useState("");
-  const [widgetManagerSearch2, setWidgetManagerSearch2] = useState("");
-  const [widgetPreviewSearch, setWidgetPreviewSearch] = useState("");
-  const [properties, setProperties] = useState({
+  // Filtered data
+  filteredVersions: [],
+  filteredApps: [],
+  filteredWidgets: [],
+
+  // Search terms
+  searchTerm: "",
+  appSearchTerm: "",
+  widgetSearchTerm: "",
+  widgetPreviewSearch: "",
+
+  // Selections
+  selectedApps: arrayToSet(loadFromStorage(STORAGE_KEYS.SELECTED_APPS, [])),
+  selectedWidgets: arrayToSet(
+    loadFromStorage(STORAGE_KEYS.SELECTED_WIDGETS, []),
+  ),
+  selectedVersion: null,
+  selectedApp: null,
+
+  // UI states
+  versionFilter: "all",
+  isLoading: false,
+  downloadProgress: {},
+  currentPage: 1,
+  hasMore: true,
+
+  // Modal states
+  showUninstallModal: false,
+  versionToUninstall: null,
+  relatedApps: [],
+  showAppDeleteModal: false,
+  appToDelete: null,
+  showWidgetModal: false,
+  showAddWidgetForm: false,
+  showResultModal: false,
+
+  // Form states
+  newWidgetCaption: "",
+  newWidgetPath: "",
+  properties: {
     prop1: "",
     prop2: "",
     prop3: "",
     prop4: "Select...",
-  });
+  },
 
-  // Package manager states
-  const [packageManager, setPackageManager] = useState("npm");
-  const [isInstalling, setIsInstalling] = useState(false);
-  const [isBuilding, setIsBuilding] = useState(false);
-  const [showResultModal, setShowResultModal] = useState(false);
-  const [buildResults, setBuildResults] = useState({
+  // Package manager
+  packageManager: loadFromStorage(STORAGE_KEYS.PACKAGE_MANAGER, "npm"),
+  isInstalling: false,
+  isBuilding: false,
+  buildResults: {
     successful: [],
     failed: [],
+  },
+});
+
+// Main App component with functional approach
+function App() {
+  // Initialize state using factory
+  const initialState = useMemo(createInitialState, []);
+
+  // Core state
+  const [activeTab, setActiveTab] = useState(initialState.activeTab);
+  const [versions, setVersions] = useState(initialState.versions);
+  const [apps, setApps] = useState(initialState.apps);
+  const [widgets, setWidgets] = useState(initialState.widgets);
+
+  // Filtered state
+  const [filteredVersions, setFilteredVersions] = useState(
+    initialState.filteredVersions,
+  );
+  const [filteredApps, setFilteredApps] = useState(initialState.filteredApps);
+  const [filteredWidgets, setFilteredWidgets] = useState(
+    initialState.filteredWidgets,
+  );
+
+  // Search state
+  const [searchTerm, setSearchTerm] = useState(initialState.searchTerm);
+  const [appSearchTerm, setAppSearchTerm] = useState(
+    initialState.appSearchTerm,
+  );
+  const [widgetSearchTerm, setWidgetSearchTerm] = useState(
+    initialState.widgetSearchTerm,
+  );
+  const [widgetPreviewSearch, setWidgetPreviewSearch] = useState(
+    initialState.widgetPreviewSearch,
+  );
+
+  // Selection state
+  const [selectedApps, setSelectedApps] = useState(initialState.selectedApps);
+  const [selectedWidgets, setSelectedWidgets] = useState(
+    initialState.selectedWidgets,
+  );
+  const [selectedVersion, setSelectedVersion] = useState(
+    initialState.selectedVersion,
+  );
+  const [selectedApp, setSelectedApp] = useState(initialState.selectedApp);
+
+  // UI state
+  const [versionFilter, setVersionFilter] = useState(
+    initialState.versionFilter,
+  );
+  const [isLoading, setIsLoading] = useState(initialState.isLoading);
+  const [downloadProgress, setDownloadProgress] = useState(
+    initialState.downloadProgress,
+  );
+  const [currentPage, setCurrentPage] = useState(initialState.currentPage);
+  const [hasMore, setHasMore] = useState(initialState.hasMore);
+
+  // Modal state
+  const [showUninstallModal, setShowUninstallModal] = useState(
+    initialState.showUninstallModal,
+  );
+  const [versionToUninstall, setVersionToUninstall] = useState(
+    initialState.versionToUninstall,
+  );
+  const [relatedApps, setRelatedApps] = useState(initialState.relatedApps);
+  const [showAppDeleteModal, setShowAppDeleteModal] = useState(
+    initialState.showAppDeleteModal,
+  );
+  const [appToDelete, setAppToDelete] = useState(initialState.appToDelete);
+  const [showWidgetModal, setShowWidgetModal] = useState(
+    initialState.showWidgetModal,
+  );
+  const [showAddWidgetForm, setShowAddWidgetForm] = useState(
+    initialState.showAddWidgetForm,
+  );
+  const [showResultModal, setShowResultModal] = useState(
+    initialState.showResultModal,
+  );
+
+  // Form state
+  const [newWidgetCaption, setNewWidgetCaption] = useState(
+    initialState.newWidgetCaption,
+  );
+  const [newWidgetPath, setNewWidgetPath] = useState(
+    initialState.newWidgetPath,
+  );
+  const [properties, setProperties] = useState(initialState.properties);
+
+  // Package manager state
+  const [packageManager, setPackageManager] = useState(
+    initialState.packageManager,
+  );
+  const [isInstalling, setIsInstalling] = useState(initialState.isInstalling);
+  const [isBuilding, setIsBuilding] = useState(initialState.isBuilding);
+  const [buildResults, setBuildResults] = useState(initialState.buildResults);
+
+  // Refs
+  const listRef = useRef(null);
+  const unlisten = useRef(null);
+
+  // Error handler for data loading
+  const handleLoadError = R.curry((type, error) => {
+    // Error handling without console logging
   });
 
-  const loadVersions = useCallback(async () => {
-    try {
-      const versions = await invoke("get_installed_mendix_versions");
-      setVersions(versions);
-    } catch (error) {
-      console.error("Failed to load versions:", error);
-    }
+  // Data loaders with error handling
+  const loadVersions = useCallback(
+    wrapAsync(
+      handleLoadError("versions"),
+      R.pipeWith(R.andThen, [
+        () => invoke("get_installed_mendix_versions"),
+        setVersions,
+      ]),
+    ),
+    [],
+  );
+
+  const loadApps = useCallback(
+    wrapAsync(
+      handleLoadError("apps"),
+      R.pipeWith(R.andThen, [
+        () => invoke("get_installed_mendix_apps"),
+        setApps,
+      ]),
+    ),
+    [],
+  );
+
+  // Load widgets from storage
+  const loadWidgets = useCallback(() => {
+    R.pipe(() => loadFromStorage(STORAGE_KEYS.WIDGETS, []), setWidgets)();
   }, []);
 
-  const loadApps = useCallback(async () => {
-    try {
-      const apps = await invoke("get_installed_mendix_apps");
-      setApps(apps);
-    } catch (error) {
-      console.error("Failed to load apps:", error);
-    }
-  }, []);
-
+  // Initial data loading effect
   useEffect(() => {
-    loadVersions();
-    loadApps();
-
-    // Load widgets from localStorage
-    const savedWidgets = localStorage.getItem("kirakiraWidgets");
-    if (savedWidgets) {
-      try {
-        setWidgets(JSON.parse(savedWidgets));
-      } catch (error) {
-        console.error("Failed to load widgets from localStorage:", error);
-      }
-    }
-
-    // Load selected apps from localStorage immediately
-    const savedSelectedApps = localStorage.getItem("kirakiraSelectedApps");
-    if (savedSelectedApps) {
-      try {
-        const selectedAppArray = JSON.parse(savedSelectedApps);
-        console.log(
-          "Loading selected apps from localStorage:",
-          selectedAppArray,
-        );
-        setSelectedApps(new Set(selectedAppArray));
-      } catch (error) {
-        console.error("Failed to load selected apps from localStorage:", error);
-      }
-    }
-
-    // Load selected widgets from localStorage immediately
-    const savedSelectedWidgets = localStorage.getItem(
-      "kirakiraSelectedWidgets",
-    );
-    if (savedSelectedWidgets) {
-      try {
-        const selectedWidgetArray = JSON.parse(savedSelectedWidgets);
-        console.log(
-          "Loading selected widgets from localStorage:",
-          selectedWidgetArray,
-        );
-        setSelectedWidgets(new Set(selectedWidgetArray));
-      } catch (error) {
-        console.error(
-          "Failed to load selected widgets from localStorage:",
-          error,
-        );
-      }
-    }
-
-    // Load package manager preference from localStorage
-    const savedPackageManager = localStorage.getItem("kirakiraPackageManager");
-    if (savedPackageManager) {
-      setPackageManager(savedPackageManager);
-      console.log("Loaded package manager preference:", savedPackageManager);
-    }
+    const loadInitialData = R.juxt([loadVersions, loadApps]);
+    loadInitialData();
   }, [loadVersions, loadApps]);
 
   // Filter versions based on search term
   useEffect(() => {
-    if (searchTerm) {
-      setFilteredVersions(
-        versions.filter((version) =>
-          version.version.toLowerCase().includes(searchTerm.toLowerCase()),
+    R.pipe(
+      R.ifElse(
+        () => R.isEmpty(searchTerm),
+        R.identity,
+        R.filter(
+          R.pipe(
+            R.prop("version"),
+            R.toLower,
+            R.includes(R.toLower(searchTerm)),
+          ),
         ),
-      );
-    } else {
-      setFilteredVersions(versions);
-    }
+      ),
+      setFilteredVersions,
+    )(versions);
   }, [versions, searchTerm]);
 
   // Filter apps based on version filter and search term
   useEffect(() => {
-    let filtered = apps;
-
-    // Apply version filter
-    if (versionFilter !== "all") {
-      filtered = filtered.filter((app) => app.version === versionFilter);
-    }
-
-    // Apply text search
-    if (appSearchTerm) {
-      filtered = filtered.filter((app) =>
-        app.name.toLowerCase().includes(appSearchTerm.toLowerCase()),
-      );
-    }
-
-    setFilteredApps(filtered);
-    setCurrentPage(1);
-    setHasMore(filtered.length > ITEMS_PER_PAGE);
+    R.pipe(
+      filterAppsByVersionAndSearch(versionFilter, appSearchTerm),
+      R.tap(R.pipe(R.length, (len) => setHasMore(len > ITEMS_PER_PAGE))),
+      R.tap(() => setCurrentPage(1)),
+      setFilteredApps,
+    )(apps);
   }, [apps, versionFilter, appSearchTerm]);
 
   // Filter widgets based on search term
   useEffect(() => {
-    let filtered = widgets;
-
-    if (widgetSearchTerm) {
-      filtered = filtered.filter((widget) =>
-        widget.caption.toLowerCase().includes(widgetSearchTerm.toLowerCase()),
-      );
-    }
-
-    setFilteredWidgets(filtered);
+    R.pipe(
+      R.ifElse(
+        () => R.isEmpty(widgetSearchTerm),
+        R.identity,
+        R.filter(
+          R.pipe(
+            R.prop("caption"),
+            R.toLower,
+            R.includes(R.toLower(widgetSearchTerm)),
+          ),
+        ),
+      ),
+      setFilteredWidgets,
+    )(widgets);
   }, [widgets, widgetSearchTerm]);
 
   // Save package manager preference to localStorage
   useEffect(() => {
-    localStorage.setItem("kirakiraPackageManager", packageManager);
-    console.log("Saved package manager preference:", packageManager);
+    saveToStorage(STORAGE_KEYS.PACKAGE_MANAGER)(packageManager);
   }, [packageManager]);
 
-  const handleAppClick = (app) => {
-    setSelectedApps((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(app.path)) {
-        newSet.delete(app.path);
-        console.log(`Deselected app: ${app.path}`);
-      } else {
-        newSet.add(app.path);
-        console.log(`Selected app: ${app.path}`);
-      }
+  // Toggle app selection
+  const handleAppClick = useCallback(
+    R.pipe(R.prop("path"), (appPath) =>
+      setSelectedApps((prev) =>
+        R.pipe(
+          toggleInSet(appPath),
+          R.tap(R.pipe(setToArray, saveToStorage(STORAGE_KEYS.SELECTED_APPS))),
+        )(prev),
+      ),
+    ),
+    [],
+  );
 
-      // Save to localStorage immediately
-      const selectedAppsArray = Array.from(newSet);
-      console.log("Saving selected apps to localStorage:", selectedAppsArray);
-      localStorage.setItem(
-        "kirakiraSelectedApps",
-        JSON.stringify(selectedAppsArray),
-      );
+  // Install handler with functional approach
+  const handleInstall = useCallback(
+    R.pipe(
+      () => selectedWidgets.size,
+      R.ifElse(
+        R.equals(0),
+        () => alert("Please select at least one widget to install"),
+        async () => {
+          setIsInstalling(true);
 
-      return newSet;
-    });
-  };
+          const widgetsList = R.filter(
+            (w) => selectedWidgets.has(w.id),
+            widgets,
+          );
 
-  const handleInstall = useCallback(async () => {
-    if (selectedWidgets.size === 0) {
-      alert("Please select at least one widget to install");
-      return;
-    }
+          const installWidget = async (widget) => {
+            try {
+              await invoke("run_package_manager_command", {
+                packageManager,
+                command: "install",
+                workingDirectory: widget.path,
+              });
+              return R.assoc("success", true, widget);
+            } catch (error) {
+              alert(
+                `Failed to install dependencies for ${widget.caption}: ${error}`,
+              );
+              return R.assoc("success", false, widget);
+            }
+          };
 
-    setIsInstalling(true);
-    console.log(
-      `Starting install for ${selectedWidgets.size} widgets with ${packageManager}`,
-    );
+          await R.pipe(R.map(installWidget), (promises) =>
+            Promise.all(promises),
+          )(widgetsList);
 
-    const widgetsList = widgets.filter((w) => selectedWidgets.has(w.id));
+          setIsInstalling(false);
+        },
+      ),
+    ),
+    [selectedWidgets, widgets, packageManager],
+  );
 
-    for (const widget of widgetsList) {
-      try {
-        console.log(
-          `Installing dependencies for ${widget.caption} at ${widget.path}`,
-        );
-        await invoke("run_package_manager_command", {
-          packageManager,
-          command: "install",
-          workingDirectory: widget.path,
-        });
-        console.log(
-          `Successfully installed dependencies for ${widget.caption}`,
-        );
-      } catch (error) {
-        console.error(
-          `Failed to install dependencies for ${widget.caption}:`,
-          error,
-        );
-        alert(`Failed to install dependencies for ${widget.caption}: ${error}`);
-      }
-    }
-
-    setIsInstalling(false);
-    console.log("Install process completed");
-  }, [selectedWidgets, widgets, packageManager]);
-
+  // Build and deploy handler with functional approach
   const handleBuildDeploy = useCallback(async () => {
-    if (selectedWidgets.size === 0) {
-      alert("Please select at least one widget to build");
-      return;
-    }
+    const validateSelections = R.cond([
+      [
+        () => selectedWidgets.size === 0,
+        () => "Please select at least one widget to build",
+      ],
+      [
+        () => selectedApps.size === 0,
+        () => "Please select at least one app to deploy to",
+      ],
+      [R.T, R.always(null)],
+    ]);
 
-    if (selectedApps.size === 0) {
-      alert("Please select at least one app to deploy to");
+    const validationError = validateSelections();
+    if (validationError) {
+      alert(validationError);
       return;
     }
 
     setIsBuilding(true);
-    console.log(
-      `Starting build+deploy for ${selectedWidgets.size} widgets to ${selectedApps.size} apps`,
-    );
 
-    const results = {
-      successful: [],
-      failed: [],
-    };
+    const widgetsList = R.filter((w) => selectedWidgets.has(w.id), widgets);
+    const appsList = R.filter((a) => selectedApps.has(a.path), apps);
+    const appPaths = R.map(R.prop("path"), appsList);
+    const appNames = R.map(R.prop("name"), appsList);
 
-    const widgetsList = widgets.filter((w) => selectedWidgets.has(w.id));
-    const appsList = apps.filter((a) => selectedApps.has(a.path));
-
-    for (const widget of widgetsList) {
+    const buildAndDeployWidget = async (widget) => {
       try {
-        console.log(`Building ${widget.caption} at ${widget.path}`);
-
-        // Run build command
         await invoke("run_package_manager_command", {
           packageManager,
           command: "run build",
           workingDirectory: widget.path,
         });
 
-        console.log(
-          `Build successful for ${widget.caption}, deploying to apps...`,
-        );
-
-        // Copy to selected apps
-        const appPaths = appsList.map((app) => app.path);
         const deployedApps = await invoke("copy_widget_to_apps", {
           widgetPath: widget.path,
           appPaths: appPaths,
         });
 
-        results.successful.push({
+        return {
+          success: true,
           widget: widget.caption,
-          apps: appsList.map((app) => app.name),
-        });
-
-        console.log(
-          `Successfully deployed ${widget.caption} to ${deployedApps.length} apps`,
-        );
+          apps: appNames,
+        };
       } catch (error) {
-        console.error(`Failed to build/deploy ${widget.caption}:`, error);
-        results.failed.push({
+        return {
+          success: false,
           widget: widget.caption,
           error: error.toString(),
-        });
+        };
       }
-    }
+    };
+
+    const results = await R.pipe(
+      R.map(buildAndDeployWidget),
+      (promises) => Promise.all(promises),
+      R.partition(R.prop("success")),
+      ([successful, failed]) => ({
+        successful: R.map(R.omit(["success"]), successful),
+        failed: R.map(R.omit(["success"]), failed),
+      }),
+    )(widgetsList);
 
     setBuildResults(results);
     setIsBuilding(false);
     setShowResultModal(true);
-    console.log("Build+deploy process completed", results);
   }, [selectedWidgets, selectedApps, widgets, apps, packageManager]);
 
   // Memoized data
   const listData = useMemo(() => generateListData(20), []);
 
-  // Pure update functions
-  const updateProperty = useCallback((key, value) => {
-    setProperties((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  }, []);
+  // Property update with functional approach
+  const updateProperty = useCallback(
+    R.curry((key, value) => setProperties(updateProp(key, value))),
+    [],
+  );
 
-  const handleLaunchStudioPro = useCallback(async (version) => {
-    setIsLoading(true);
+  // Launch Studio Pro handler
+  const handleLaunchStudioPro = useCallback(
+    async (version) => {
+      if (isLoading) return; // Prevent multiple launches
 
-    try {
-      await invoke("launch_studio_pro", {
-        version: version.version,
-      });
-
-      // Reset loading state after a short delay
-      setTimeout(() => {
+      setIsLoading(true);
+      try {
+        await invoke("launch_studio_pro", {
+          version: version.version,
+        });
+        setTimeout(() => setIsLoading(false), 8000);
+      } catch (error) {
+        alert(`Failed to launch Studio Pro: ${error}`);
         setIsLoading(false);
-      }, 8000);
-    } catch (error) {
-      console.error("Failed to launch Studio Pro:", error);
-      alert(`Failed to launch Studio Pro ${version.version}: ${error}`);
-      setIsLoading(false);
-    }
-  }, []);
+      }
+    },
+    [isLoading],
+  );
 
-  const handleUninstallClick = useCallback(async (version) => {
-    try {
-      const relatedApps = await invoke("get_apps_by_version", {
-        version: version.version,
-      });
-      setShowUninstallModal(true);
-      setVersionToUninstall(version);
-      setRelatedApps(relatedApps);
-    } catch (error) {
-      console.error("Failed to get related apps:", error);
-      alert(`Failed to get related apps: ${error}`);
-    }
-  }, []);
+  // Uninstall click handler
+  const handleUninstallClick = useCallback(
+    wrapAsync(
+      R.pipe((error) => alert(`Failed to get related apps: ${error}`)),
+      async (version) => {
+        const relatedApps = await invoke("get_apps_by_version", {
+          version: version.version,
+        });
+        R.pipe(
+          R.tap(() => setShowUninstallModal(true)),
+          R.tap(() => setVersionToUninstall(version)),
+          R.tap(() => setRelatedApps(relatedApps)),
+        )();
+      },
+    ),
+    [],
+  );
 
   const handleUninstallStudioPro = useCallback(
     async (version, deleteApps = false, relatedAppsList = []) => {
@@ -408,7 +500,7 @@ function App() {
               setRelatedApps([]);
             }
           } catch (error) {
-            console.error("Error monitoring folder deletion:", error);
+            // Handle error silently
           }
         }, 1000);
 
@@ -424,7 +516,6 @@ function App() {
         const errorMsg = deleteApps
           ? `Failed to uninstall Studio Pro ${version.version} with apps: ${error}`
           : `Failed to uninstall Studio Pro ${version.version}: ${error}`;
-        console.error(errorMsg);
         alert(errorMsg);
         setIsLoading(false);
         setShowUninstallModal(false);
@@ -435,100 +526,150 @@ function App() {
     [loadVersions, loadApps],
   );
 
-  const handleModalCancel = useCallback(() => {
-    setShowUninstallModal(false);
-    setVersionToUninstall(null);
-    setRelatedApps([]);
-  }, []);
+  // Modal cancel handler
+  const handleModalCancel = useCallback(
+    R.pipe(
+      () => setShowUninstallModal(false),
+      () => setVersionToUninstall(null),
+      () => setRelatedApps([]),
+    ),
+    [],
+  );
 
+  // Item click handler
   const handleItemClick = useCallback((item) => {
-    console.log("Clicked:", item);
+    // Handle item click without logging
   }, []);
 
-  const handleVersionClick = useCallback((version) => {
-    setSelectedVersion((prev) =>
-      prev === version.version ? null : version.version,
-    );
-  }, []);
+  // Version click handler
+  const handleVersionClick = useCallback(
+    R.pipe(R.prop("version"), (version) =>
+      setSelectedVersion(
+        R.ifElse(R.equals(version), R.always(null), R.always(version)),
+      ),
+    ),
+    [],
+  );
 
-  // Tab configuration
-  const tabs = useMemo(
-    () => [
-      {
-        id: "studio-pro",
-        label: "Studio Pro Manager",
-        component: (
-          <StudioProManager
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            versions={versions}
-            filteredVersions={filteredVersions}
-            selectedVersion={selectedVersion}
-            handleVersionClick={handleVersionClick}
-            apps={apps}
-            listData={listData}
-            isLoading={isLoading}
-            handleLaunchStudioPro={handleLaunchStudioPro}
-            handleUninstallClick={handleUninstallClick}
-            handleItemClick={handleItemClick}
-          />
-        ),
-      },
-      {
-        id: "widget-manager",
-        label: "Widget Manager",
-        component: (
-          <WidgetManager
-            versionFilter={versionFilter}
-            setVersionFilter={setVersionFilter}
-            versions={versions}
-            appSearchTerm={appSearchTerm}
-            setAppSearchTerm={setAppSearchTerm}
-            filteredApps={filteredApps}
-            currentPage={currentPage}
-            setCurrentPage={setCurrentPage}
-            hasMore={hasMore}
-            ITEMS_PER_PAGE={ITEMS_PER_PAGE}
-            selectedApps={selectedApps}
-            handleAppClick={handleAppClick}
-            packageManager={packageManager}
-            setPackageManager={setPackageManager}
-            handleInstall={handleInstall}
-            handleBuildDeploy={handleBuildDeploy}
-            isInstalling={isInstalling}
-            isBuilding={isBuilding}
-            selectedWidgets={selectedWidgets}
-            setSelectedWidgets={setSelectedWidgets}
-            widgets={widgets}
-            filteredWidgets={filteredWidgets}
-            widgetSearchTerm={widgetSearchTerm}
-            setWidgetSearchTerm={setWidgetSearchTerm}
-            setShowWidgetModal={setShowWidgetModal}
-            setShowAddWidgetForm={setShowAddWidgetForm}
-            setNewWidgetCaption={setNewWidgetCaption}
-            setNewWidgetPath={setNewWidgetPath}
-            setWidgets={setWidgets}
-          />
-        ),
-      },
-      {
-        id: "widget-preview",
-        label: "Widget Preview",
-        component: (
-          <WidgetPreview
-            widgetPreviewSearch={widgetPreviewSearch}
-            setWidgetPreviewSearch={setWidgetPreviewSearch}
-            listData={listData}
-            handleItemClick={handleItemClick}
-            properties={properties}
-            updateProperty={updateProperty}
-          />
-        ),
-      },
-    ],
+  // Define prop keys for each tab component
+  const studioProManagerKeys = [
+    "searchTerm",
+    "setSearchTerm",
+    "versions",
+    "filteredVersions",
+    "selectedVersion",
+    "handleVersionClick",
+    "apps",
+    "listData",
+    "isLoading",
+    "handleLaunchStudioPro",
+    "handleUninstallClick",
+    "handleItemClick",
+  ];
+
+  const widgetManagerKeys = [
+    "versionFilter",
+    "setVersionFilter",
+    "versions",
+    "appSearchTerm",
+    "setAppSearchTerm",
+    "filteredApps",
+    "currentPage",
+    "setCurrentPage",
+    "hasMore",
+    "selectedApps",
+    "handleAppClick",
+    "packageManager",
+    "setPackageManager",
+    "handleInstall",
+    "handleBuildDeploy",
+    "isInstalling",
+    "isBuilding",
+    "selectedWidgets",
+    "setSelectedWidgets",
+    "widgets",
+    "filteredWidgets",
+    "widgetSearchTerm",
+    "setWidgetSearchTerm",
+    "setShowWidgetModal",
+    "setShowAddWidgetForm",
+    "setNewWidgetCaption",
+    "setNewWidgetPath",
+    "setWidgets",
+  ];
+
+  const widgetPreviewKeys = [
+    "widgetPreviewSearch",
+    "setWidgetPreviewSearch",
+    "listData",
+    "handleItemClick",
+    "properties",
+    "updateProperty",
+  ];
+
+  // Create tab props generator using simple functional composition
+  const createTabPropsFromState = R.applySpec({
+    studioProManager: R.pick(studioProManagerKeys),
+    widgetManager: R.pipe(
+      R.pick(widgetManagerKeys),
+      R.assoc("ITEMS_PER_PAGE", ITEMS_PER_PAGE),
+    ),
+    widgetPreview: R.pick(widgetPreviewKeys),
+  });
+
+  // Create state object for tab props generation
+  const stateObject = {
+    searchTerm,
+    setSearchTerm,
+    versions,
+    filteredVersions,
+    selectedVersion,
+    handleVersionClick,
+    apps,
+    listData,
+    isLoading,
+    handleLaunchStudioPro,
+    handleUninstallClick,
+    handleItemClick,
+    versionFilter,
+    setVersionFilter,
+    appSearchTerm,
+    setAppSearchTerm,
+    filteredApps,
+    currentPage,
+    setCurrentPage,
+    hasMore,
+    selectedApps,
+    handleAppClick,
+    packageManager,
+    setPackageManager,
+    handleInstall,
+    handleBuildDeploy,
+    isInstalling,
+    isBuilding,
+    selectedWidgets,
+    setSelectedWidgets,
+    widgets,
+    filteredWidgets,
+    widgetSearchTerm,
+    setWidgetSearchTerm,
+    setShowWidgetModal,
+    setShowAddWidgetForm,
+    setNewWidgetCaption,
+    setNewWidgetPath,
+    setWidgets,
+    widgetPreviewSearch,
+    setWidgetPreviewSearch,
+    properties,
+    updateProperty,
+  };
+
+  // Tab configuration with functional approach
+  const createTabProps = useMemo(
+    () => createTabPropsFromState(stateObject),
+    // List all dependencies explicitly to avoid any memoization issues
     [
       searchTerm,
-      setSearchTerm,
       versions,
       filteredVersions,
       selectedVersion,
@@ -540,42 +681,129 @@ function App() {
       handleUninstallClick,
       handleItemClick,
       versionFilter,
-      setVersionFilter,
-      appSearchTerm,
-      setAppSearchTerm,
       filteredApps,
       currentPage,
-      setCurrentPage,
       hasMore,
       selectedApps,
       handleAppClick,
       packageManager,
-      setPackageManager,
       handleInstall,
       handleBuildDeploy,
       isInstalling,
       isBuilding,
       selectedWidgets,
-      setSelectedWidgets,
       widgets,
       filteredWidgets,
       widgetSearchTerm,
-      setWidgetSearchTerm,
-      setShowWidgetModal,
-      setShowAddWidgetForm,
-      setNewWidgetCaption,
-      setNewWidgetPath,
-      setWidgets,
       widgetPreviewSearch,
-      setWidgetPreviewSearch,
       properties,
       updateProperty,
     ],
   );
 
-  const activeTabContent = useMemo(
-    () => tabs.find((tab) => tab.id === activeTab)?.component,
-    [tabs, activeTab],
+  // Tab configurations
+  const tabConfigurations = [
+    ["studio-pro", "Studio Pro Manager", StudioProManager, "studioProManager"],
+    ["widget-manager", "Widget Manager", WidgetManager, "widgetManager"],
+    ["widget-preview", "Widget Preview", WidgetPreview, "widgetPreview"],
+  ];
+
+  // Create tab from configuration
+  const createTabFromConfig = R.curry((props, config) => {
+    const [id, label, Component, propsKey] = config;
+    return {
+      id,
+      label,
+      component: React.createElement(Component, R.prop(propsKey, props)),
+    };
+  });
+
+  // Create tabs using functional approach
+  const tabs = useMemo(
+    () => R.map(createTabFromConfig(createTabProps), tabConfigurations),
+    [createTabProps],
+  );
+
+  // Get active tab content with functional approach
+  const activeTabContent = useMemo(() => {
+    // Try native find first to ensure it works
+    const foundTab = tabs.find((tab) => tab.id === activeTab);
+
+    return foundTab ? foundTab.component : null;
+  }, [tabs, activeTab]);
+
+  // Render tab button
+  const renderTabButton = R.curry((activeTab, setActiveTab, tab) => (
+    <TabButton
+      key={R.prop("id", tab)}
+      label={R.prop("label", tab)}
+      isActive={R.equals(activeTab, R.prop("id", tab))}
+      onClick={() => setActiveTab(R.prop("id", tab))}
+    />
+  ));
+
+  // Widget selection handler
+  const handleWidgetSelection = useCallback(
+    R.curry((widgetId) =>
+      setSelectedWidgets((prev) =>
+        R.pipe(
+          () => toggleInSet(widgetId, prev),
+          R.tap(
+            R.pipe(setToArray, saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS)),
+          ),
+        )(),
+      ),
+    ),
+    [],
+  );
+
+  // Add widget handler
+  const handleAddWidget = useCallback(() => {
+    if (
+      validateRequired(["caption", "path"], {
+        caption: newWidgetCaption,
+        path: newWidgetPath,
+      })
+    ) {
+      R.pipe(
+        () => createWidget(newWidgetCaption, newWidgetPath),
+        (newWidget) => [...widgets, newWidget],
+        R.tap(saveToStorage(STORAGE_KEYS.WIDGETS)),
+        setWidgets,
+        R.tap(() => {
+          setShowAddWidgetForm(false);
+          setShowWidgetModal(false);
+          setNewWidgetCaption("");
+          setNewWidgetPath("");
+        }),
+      )();
+    }
+  }, [newWidgetCaption, newWidgetPath, widgets]);
+
+  // Remove widget handler
+  const handleRemoveWidget = useCallback(
+    R.curry((widgetId) =>
+      R.pipe(
+        () => widgets,
+        R.filter(R.complement(R.propEq("id", widgetId))),
+        R.tap(saveToStorage(STORAGE_KEYS.WIDGETS)),
+        setWidgets,
+        R.tap(() =>
+          setSelectedWidgets((prev) =>
+            R.pipe(
+              () => toggleInSet(widgetId, prev),
+              R.tap(
+                R.pipe(
+                  setToArray,
+                  saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS),
+                ),
+              ),
+            )(),
+          ),
+        ),
+      )(),
+    ),
+    [widgets],
   );
 
   return (
@@ -589,14 +817,7 @@ function App() {
       </div>
 
       <div className="tabs">
-        {tabs.map((tab) => (
-          <TabButton
-            key={tab.id}
-            label={tab.label}
-            isActive={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
-          />
-        ))}
+        {R.map(renderTabButton(activeTab, setActiveTab), tabs)}
       </div>
 
       <div className="tab-content">{activeTabContent}</div>
@@ -671,10 +892,6 @@ function App() {
 
                   // Save to localStorage immediately
                   const selectedAppsArray = Array.from(newSet);
-                  console.log(
-                    "Updating selected apps after delete:",
-                    selectedAppsArray,
-                  );
                   localStorage.setItem(
                     "kirakiraSelectedApps",
                     JSON.stringify(selectedAppsArray),
@@ -687,7 +904,6 @@ function App() {
               setShowAppDeleteModal(false);
               setAppToDelete(null);
             } catch (error) {
-              console.error("Failed to delete app:", error);
               alert(`Failed to delete app: ${error}`);
               setIsLoading(false);
               setShowAppDeleteModal(false);

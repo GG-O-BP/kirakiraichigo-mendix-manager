@@ -1,91 +1,139 @@
-const WidgetModal = ({
-  showWidgetModal,
-  showAddWidgetForm,
-  setShowWidgetModal,
-  setShowAddWidgetForm,
-  newWidgetCaption,
-  setNewWidgetCaption,
-  newWidgetPath,
-  setNewWidgetPath,
-  setWidgets,
-}) => {
-  if (!showWidgetModal) return null;
+import * as R from "ramda";
+import { memo } from "react";
 
-  if (showAddWidgetForm) {
-    return (
-      <div className="modal-overlay">
-        <div className="modal-content">
-          <div className="modal-header">
-            <h3>Add Widget</h3>
-          </div>
-          <div className="modal-body">
-            <label className="property-label">
-              <span className="label-text">Widget Caption</span>
-              <input
-                type="text"
-                className="property-input"
-                value={newWidgetCaption}
-                onChange={(e) => setNewWidgetCaption(e.target.value)}
-                placeholder="Enter widget caption"
-              />
-            </label>
-            <label className="property-label">
-              <span className="label-text">Absolute Path</span>
-              <input
-                type="text"
-                className="property-input"
-                value={newWidgetPath}
-                onChange={(e) => setNewWidgetPath(e.target.value)}
-                placeholder="C:\path\to\widget\folder"
-              />
-            </label>
-          </div>
-          <div className="modal-footer">
-            <button
-              className="modal-button cancel-button"
-              onClick={() => {
-                setShowAddWidgetForm(false);
-                setShowWidgetModal(false);
-                setNewWidgetCaption("");
-                setNewWidgetPath("");
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              className="modal-button confirm-button"
-              onClick={() => {
-                if (newWidgetCaption && newWidgetPath) {
-                  setWidgets((prev) => {
-                    const newWidgets = [
-                      ...prev,
-                      {
-                        id: Date.now().toString(),
-                        caption: newWidgetCaption,
-                        path: newWidgetPath,
-                      },
-                    ];
-                    localStorage.setItem(
-                      "kirakiraWidgets",
-                      JSON.stringify(newWidgets),
-                    );
-                    return newWidgets;
-                  });
-                  setShowAddWidgetForm(false);
-                  setShowWidgetModal(false);
-                  setNewWidgetCaption("");
-                  setNewWidgetPath("");
-                }
-              }}
-              disabled={!newWidgetCaption || !newWidgetPath}
-            >
-              Add Widget
-            </button>
-          </div>
+// ============= Helper Functions =============
+
+// Check if should show add widget form
+const shouldShowAddForm = R.both(
+  R.prop("showWidgetModal"),
+  R.prop("showAddWidgetForm"),
+);
+
+// Check if should show widget modal
+const shouldShowModal = R.both(
+  R.prop("showWidgetModal"),
+  R.complement(R.prop("showAddWidgetForm")),
+);
+
+// Create widget from form data
+const createWidgetFromForm = R.curry((caption, path) => ({
+  id: Date.now().toString(),
+  caption,
+  path,
+}));
+
+// Validate widget form
+const isValidWidgetForm = R.both(
+  R.pipe(R.prop("newWidgetCaption"), R.complement(R.isEmpty)),
+  R.pipe(R.prop("newWidgetPath"), R.complement(R.isEmpty)),
+);
+
+// Reset form fields
+const resetFormFields = R.pipe(
+  R.tap(R.prop("setShowAddWidgetForm")(false)),
+  R.tap(R.prop("setShowWidgetModal")(false)),
+  R.tap(R.prop("setNewWidgetCaption")("")),
+  R.tap(R.prop("setNewWidgetPath")("")),
+);
+
+// Handle cancel action
+const handleCancel = R.pipe(resetFormFields, R.always(undefined));
+
+// Handle add widget
+const handleAddWidget = R.curry((props) => {
+  if (isValidWidgetForm(props)) {
+    const { newWidgetCaption, newWidgetPath, setWidgets } = props;
+
+    R.pipe(
+      () => createWidgetFromForm(newWidgetCaption, newWidgetPath),
+      (newWidget) =>
+        setWidgets((prev) => {
+          const newWidgets = [...prev, newWidget];
+          localStorage.setItem("kirakiraWidgets", JSON.stringify(newWidgets));
+          return newWidgets;
+        }),
+      () => resetFormFields(props),
+    )();
+  }
+});
+
+// ============= Render Functions =============
+
+// Render input field
+const renderInput = R.curry((type, value, onChange, placeholder) => (
+  <input
+    type={type}
+    className="property-input"
+    value={value}
+    onChange={R.pipe(R.path(["target", "value"]), onChange)}
+    placeholder={placeholder}
+  />
+));
+
+// Render label with input
+const renderLabeledInput = R.curry(
+  (label, type, value, onChange, placeholder) => (
+    <label className="property-label">
+      <span className="label-text">{label}</span>
+      {renderInput(type, value, onChange, placeholder)}
+    </label>
+  ),
+);
+
+// Render add widget form modal
+const renderAddWidgetForm = (props) => {
+  const {
+    newWidgetCaption,
+    setNewWidgetCaption,
+    newWidgetPath,
+    setNewWidgetPath,
+  } = props;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h3>Add Widget</h3>
+        </div>
+        <div className="modal-body">
+          {renderLabeledInput(
+            "Widget Caption",
+            "text",
+            newWidgetCaption,
+            setNewWidgetCaption,
+            "Enter widget caption",
+          )}
+          {renderLabeledInput(
+            "Absolute Path",
+            "text",
+            newWidgetPath,
+            setNewWidgetPath,
+            "C:\\path\\to\\widget\\folder",
+          )}
+        </div>
+        <div className="modal-footer">
+          <button
+            className="modal-button cancel-button"
+            onClick={() => handleCancel(props)}
+          >
+            Cancel
+          </button>
+          <button
+            className="modal-button confirm-button"
+            onClick={() => handleAddWidget(props)}
+            disabled={!isValidWidgetForm(props)}
+          >
+            Add Widget
+          </button>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+};
+
+// Render widget action modal
+const renderWidgetActionModal = (props) => {
+  const { setShowWidgetModal, setShowAddWidgetForm } = props;
 
   return (
     <div className="modal-overlay">
@@ -126,5 +174,17 @@ const WidgetModal = ({
     </div>
   );
 };
+
+// ============= Main Component =============
+
+const WidgetModal = memo((props) =>
+  R.cond([
+    [shouldShowAddForm, renderAddWidgetForm],
+    [shouldShowModal, renderWidgetActionModal],
+    [R.T, R.always(null)],
+  ])(props),
+);
+
+WidgetModal.displayName = "WidgetModal";
 
 export default WidgetModal;

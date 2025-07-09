@@ -1,121 +1,227 @@
-import { useMemo } from "react";
+import * as R from "ramda";
+import { memo, useMemo } from "react";
 import SearchBox from "../common/SearchBox";
 import ListItem from "../common/ListItem";
-import { ListArea, MendixVersionListItem, MendixAppListItem, createSearchFilter } from "../common/ListItems";
+import {
+  ListArea,
+  MendixVersionListItem,
+  MendixAppListItem,
+  createSearchFilter,
+} from "../common/ListItems";
 
-const StudioProManager = ({
-  searchTerm,
-  setSearchTerm,
-  versions,
-  filteredVersions,
-  selectedVersion,
-  handleVersionClick,
-  apps,
-  listData,
-  isLoading,
-  handleLaunchStudioPro,
-  handleUninstallClick,
-  handleItemClick,
-}) => {
-  const sortedAndFilteredMendixApps = useMemo(() => {
-    let filtered = apps.filter((app) =>
-      app.name.toLowerCase().includes(searchTerm.toLowerCase()),
+// ============= Helper Functions =============
+
+// Filter items by search term
+const filterBySearch = R.curry((searchTerm, items) =>
+  R.filter(createSearchFilter(searchTerm), items),
+);
+
+// Create app sorter by version and date
+const createAppSorter = R.curry((selectedVersion) => {
+  // Check if app version matches selected version
+  const versionMatches = R.propEq("version", selectedVersion);
+
+  // Compare by version match
+  const compareVersionMatch = R.curry((a, b) =>
+    R.cond([
+      [() => versionMatches(a) && !versionMatches(b), R.always(-1)],
+      [() => !versionMatches(a) && versionMatches(b), R.always(1)],
+      [R.T, R.always(0)],
+    ])(),
+  );
+
+  // Get date value for comparison
+  const getDateValue = R.pipe(
+    R.prop("last_modified"),
+    R.ifElse(R.identity, (dateStr) => new Date(dateStr).getTime(), R.always(0)),
+  );
+
+  // Compare by date
+  const compareByDate = (a, b) => getDateValue(b) - getDateValue(a);
+
+  // Combined comparator
+  return R.comparator((a, b) => {
+    const versionCompare = compareVersionMatch(a, b);
+    return versionCompare !== 0 ? versionCompare < 0 : compareByDate(a, b) < 0;
+  });
+});
+
+// Sort and filter apps
+const sortAndFilterApps = R.curry((searchTerm, selectedVersion, apps) =>
+  R.pipe(
+    filterBySearch(searchTerm),
+    R.ifElse(
+      () => R.isNil(selectedVersion),
+      R.sort(
+        R.comparator((a, b) => {
+          const aDate = a.last_modified
+            ? new Date(a.last_modified)
+            : new Date(0);
+          const bDate = b.last_modified
+            ? new Date(b.last_modified)
+            : new Date(0);
+          return bDate > aDate;
+        }),
+      ),
+      R.sort(createAppSorter(selectedVersion)),
+    ),
+  )(apps),
+);
+
+// Check if app is disabled
+const isAppDisabled = R.curry((selectedVersion, app) =>
+  R.both(
+    () => !R.isNil(selectedVersion),
+    () => !R.equals(R.prop("version", app), selectedVersion),
+  )(),
+);
+
+// ============= Render Functions =============
+
+// Render empty state
+const renderEmptyState = R.curry((icon, message) => (
+  <div className="loading-indicator">
+    <span className="loading-icon">{icon}</span>
+    <span>{message}</span>
+  </div>
+));
+
+// Render list items
+const renderListItems = R.curry((handleItemClick, items) =>
+  R.map(
+    (item) => <ListItem key={item.id} item={item} onClick={handleItemClick} />,
+    items,
+  ),
+);
+
+// Render version list items
+const renderVersionListItems = R.curry(
+  (
+    handleLaunchStudioPro,
+    handleUninstallClick,
+    isLoading,
+    selectedVersion,
+    handleVersionClick,
+    versions,
+  ) =>
+    R.map(
+      (version) => (
+        <MendixVersionListItem
+          key={version.version}
+          version={version}
+          onLaunch={handleLaunchStudioPro}
+          onUninstall={handleUninstallClick}
+          isLaunching={isLoading}
+          isUninstalling={isLoading}
+          isSelected={R.equals(selectedVersion, version.version)}
+          onClick={() => handleVersionClick(version)}
+        />
+      ),
+      versions,
+    ),
+);
+
+// Render app list items
+const renderAppListItems = R.curry((selectedVersion, handleItemClick, apps) =>
+  R.map(
+    (app) => (
+      <MendixAppListItem
+        key={app.name}
+        app={app}
+        isDisabled={isAppDisabled(selectedVersion, app)}
+        onClick={() => handleItemClick(app)}
+      />
+    ),
+    apps,
+  ),
+);
+
+// ============= Main Component =============
+
+const StudioProManager = memo(
+  ({
+    searchTerm,
+    setSearchTerm,
+    versions,
+    filteredVersions,
+    selectedVersion,
+    handleVersionClick,
+    apps,
+    listData,
+    isLoading,
+    handleLaunchStudioPro,
+    handleUninstallClick,
+    handleItemClick,
+  }) => {
+    // Memoized sorted and filtered apps
+    const sortedAndFilteredMendixApps = useMemo(
+      () => sortAndFilterApps(searchTerm, selectedVersion, apps),
+      [apps, searchTerm, selectedVersion],
     );
 
-    if (selectedVersion) {
-      // Sort apps: matching version first, then by last modified
-      filtered.sort((a, b) => {
-        const aMatches = a.version === selectedVersion;
-        const bMatches = b.version === selectedVersion;
+    // Memoized filtered list data
+    const filteredListData = useMemo(
+      () => filterBySearch(searchTerm, listData),
+      [listData, searchTerm],
+    );
 
-        if (aMatches && !bMatches) return -1;
-        if (!aMatches && bMatches) return 1;
+    return (
+      <div className="studio-pro-manager">
+        {/* Left Panel - List Items */}
+        <div className="list-container">
+          <SearchBox
+            placeholder="Search items..."
+            value={searchTerm}
+            onChange={setSearchTerm}
+          />
+          <div className="list-area">
+            {renderListItems(handleItemClick, filteredListData)}
+          </div>
+        </div>
 
-        // If both match or both don't match, sort by last modified
-        if (a.last_modified && b.last_modified) {
-          return new Date(b.last_modified) - new Date(a.last_modified);
-        }
-        return 0;
-      });
-    } else {
-      // Default sort by last modified
-      filtered.sort((a, b) => {
-        if (a.last_modified && b.last_modified) {
-          return new Date(b.last_modified) - new Date(a.last_modified);
-        }
-        return 0;
-      });
-    }
+        {/* Middle Panel - Installed Versions */}
+        <div className="list-container">
+          <SearchBox
+            placeholder="Search installed versions..."
+            value={searchTerm}
+            onChange={setSearchTerm}
+          />
+          <div className="list-area">
+            {R.ifElse(
+              R.isEmpty,
+              () =>
+                renderEmptyState("🍓", "No Mendix Studio Pro versions found"),
+              renderVersionListItems(
+                handleLaunchStudioPro,
+                handleUninstallClick,
+                isLoading,
+                selectedVersion,
+                handleVersionClick,
+              ),
+            )(filteredVersions)}
+          </div>
+        </div>
 
-    return filtered;
-  }, [apps, searchTerm, selectedVersion]);
-
-  return (
-    <div className="studio-pro-manager">
-      <div className="list-container">
-        <SearchBox
-          placeholder="Search items..."
-          value={searchTerm}
-          onChange={setSearchTerm}
-        />
-        <div className="list-area">
-          {listData.filter(createSearchFilter(searchTerm)).map((item) => (
-            <ListItem key={item.id} item={item} onClick={handleItemClick} />
-          ))}
+        {/* Right Panel - Mendix Apps */}
+        <div className="list-container narrow">
+          <SearchBox
+            placeholder="Search Mendix apps..."
+            value={searchTerm}
+            onChange={setSearchTerm}
+          />
+          <div className="list-area">
+            {R.ifElse(
+              R.isEmpty,
+              () => renderEmptyState("🍓", "No Mendix apps found"),
+              renderAppListItems(selectedVersion, handleItemClick),
+            )(sortedAndFilteredMendixApps)}
+          </div>
         </div>
       </div>
-      <div className="list-container">
-        <SearchBox
-          placeholder="Search installed versions..."
-          value={searchTerm}
-          onChange={setSearchTerm}
-        />
-        <div className="list-area">
-          {filteredVersions.map((version) => (
-            <MendixVersionListItem
-              key={version.version}
-              version={version}
-              onLaunch={handleLaunchStudioPro}
-              onUninstall={handleUninstallClick}
-              isLaunching={isLoading}
-              isUninstalling={isLoading}
-              isSelected={selectedVersion === version.version}
-              onClick={() => handleVersionClick(version)}
-            />
-          ))}
-          {versions.length === 0 && (
-            <div className="loading-indicator">
-              <span className="loading-icon">🍓</span>
-              <span>No Mendix Studio Pro versions found</span>
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="list-container narrow">
-        <SearchBox
-          placeholder="Search Mendix apps..."
-          value={searchTerm}
-          onChange={setSearchTerm}
-        />
-        <div className="list-area">
-          {sortedAndFilteredMendixApps.map((app) => (
-            <MendixAppListItem
-              key={app.name}
-              app={app}
-              isDisabled={selectedVersion && app.version !== selectedVersion}
-              onClick={() => handleItemClick(app)}
-            />
-          ))}
-          {apps.length === 0 && (
-            <div className="loading-indicator">
-              <span className="loading-icon">🍓</span>
-              <span>No Mendix apps found</span>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
+    );
+  },
+);
+
+StudioProManager.displayName = "StudioProManager";
 
 export default StudioProManager;
