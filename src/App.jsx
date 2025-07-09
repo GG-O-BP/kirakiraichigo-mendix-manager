@@ -366,7 +366,14 @@ function App() {
       return;
     }
 
-    setIsBuilding(true);
+    // Reset modal state before starting
+    const resetModalState = R.pipe(
+      R.tap(() => setShowResultModal(false)),
+      R.tap(() => setBuildResults({ successful: [], failed: [] })),
+      R.tap(() => setIsBuilding(true)),
+    );
+
+    resetModalState();
 
     const widgetsList = R.filter((w) => selectedWidgets.has(w.id), widgets);
     const appsList = R.filter((a) => selectedApps.has(a.path), apps);
@@ -410,9 +417,25 @@ function App() {
       }),
     )(widgetsList);
 
-    setBuildResults(results);
-    setIsBuilding(false);
-    setShowResultModal(true);
+    // Only show modal if there are results
+    const hasResults = R.pipe(
+      R.juxt([
+        R.pipe(R.prop("successful"), R.complement(R.isEmpty)),
+        R.pipe(R.prop("failed"), R.complement(R.isEmpty)),
+      ]),
+      R.any(R.identity),
+    )(results);
+
+    const finalizeResults = R.pipe(
+      R.tap(() => setBuildResults(results)),
+      R.tap(() => setIsBuilding(false)),
+      R.when(
+        () => hasResults,
+        R.tap(() => setShowResultModal(true)),
+      ),
+    );
+
+    finalizeResults();
   }, [selectedWidgets, selectedApps, widgets, apps, packageManager]);
 
   // Memoized data

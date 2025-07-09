@@ -28,6 +28,7 @@ const getFailedResults = R.path(["buildResults", "failed"]);
 const getResultsCount = R.pipe(R.length);
 
 // Handle close action
+// Handle close action with functional approach
 const handleClose = R.curry((setShowResultModal, setBuildResults) =>
   R.pipe(
     R.tap(() => setShowResultModal(false)),
