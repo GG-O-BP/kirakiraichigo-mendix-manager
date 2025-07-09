@@ -15,7 +15,7 @@
 - [x] Filter and view apps by specific Studio Pro version
 - [ ] Delete Local Mendix App
 - **Generate & Build & Deploy Widgets** - Create widget and Transform your widget code into deployable packages with one click
-- [x] Generate Mendix Widget
+- [] Generate Mendix Widget
 - [x] Build Mendix Widget
 - [ ] Preview Mendix Widget + Properties Set
 - [x] Deploy Mendix Widget
