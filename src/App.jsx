@@ -366,14 +366,15 @@ function App() {
       return;
     }
 
-    // Reset modal state before starting
-    const resetModalState = R.pipe(
+    // Initialize state with pure functional composition
+    const initializeBuildState = R.pipe(
       R.tap(() => setShowResultModal(false)),
       R.tap(() => setBuildResults({ successful: [], failed: [] })),
       R.tap(() => setIsBuilding(true)),
+      R.always(null),
     );
 
-    resetModalState();
+    initializeBuildState();
 
     const widgetsList = R.filter((w) => selectedWidgets.has(w.id), widgets);
     const appsList = R.filter((a) => selectedApps.has(a.path), apps);
@@ -407,35 +408,39 @@ function App() {
       }
     };
 
-    const results = await R.pipe(
+    const processResults = R.pipe(
       R.map(buildAndDeployWidget),
       (promises) => Promise.all(promises),
-      R.partition(R.prop("success")),
-      ([successful, failed]) => ({
+      R.andThen(R.partition(R.prop("success"))),
+      R.andThen(([successful, failed]) => ({
         successful: R.map(R.omit(["success"]), successful),
         failed: R.map(R.omit(["success"]), failed),
-      }),
-    )(widgetsList);
+      })),
+    );
 
-    // Only show modal if there are results
-    const hasResults = R.pipe(
+    const results = await processResults(widgetsList);
+
+    // Determine if modal should be shown using pure functions
+    const shouldShowModal = R.pipe(
       R.juxt([
         R.pipe(R.prop("successful"), R.complement(R.isEmpty)),
         R.pipe(R.prop("failed"), R.complement(R.isEmpty)),
       ]),
       R.any(R.identity),
-    )(results);
+    );
 
+    // Finalize with strict functional composition
     const finalizeResults = R.pipe(
       R.tap(() => setBuildResults(results)),
       R.tap(() => setIsBuilding(false)),
       R.when(
-        () => hasResults,
+        () => shouldShowModal(results),
         R.tap(() => setShowResultModal(true)),
       ),
+      R.always(results),
     );
 
-    finalizeResults();
+    finalizeResults(results);
   }, [selectedWidgets, selectedApps, widgets, apps, packageManager]);
 
   // Memoized data
