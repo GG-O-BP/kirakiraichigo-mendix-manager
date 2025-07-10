@@ -1,7 +1,6 @@
 use quick_xml::events::Event;
 use quick_xml::Reader;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -35,7 +34,6 @@ pub struct WidgetDefinition {
 pub enum ParseError {
     FileNotFound(String),
     XmlParseError(String),
-    InvalidStructure(String),
 }
 
 impl std::fmt::Display for ParseError {
@@ -43,7 +41,6 @@ impl std::fmt::Display for ParseError {
         match self {
             ParseError::FileNotFound(msg) => write!(f, "File not found: {}", msg),
             ParseError::XmlParseError(msg) => write!(f, "XML parse error: {}", msg),
-            ParseError::InvalidStructure(msg) => write!(f, "Invalid XML structure: {}", msg),
         }
     }
 }

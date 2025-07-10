@@ -71,7 +71,8 @@ const createInitialState = () => ({
 
   // UI states
   versionFilter: "all",
-  isLoading: false,
+  isLaunching: false,
+  isUninstalling: false,
   downloadProgress: {},
   currentPage: 1,
   hasMore: true,
@@ -152,7 +153,10 @@ function App() {
   const [versionFilter, setVersionFilter] = useState(
     initialState.versionFilter,
   );
-  const [isLoading, setIsLoading] = useState(initialState.isLoading);
+  const [isLaunching, setIsLaunching] = useState(initialState.isLaunching);
+  const [isUninstalling, setIsUninstalling] = useState(
+    initialState.isUninstalling,
+  );
   const [downloadProgress, setDownloadProgress] = useState(
     initialState.downloadProgress,
   );
@@ -464,20 +468,20 @@ function App() {
   // Launch Studio Pro handler
   const handleLaunchStudioPro = useCallback(
     async (version) => {
-      if (isLoading) return; // Prevent multiple launches
+      if (isLaunching || isUninstalling) return; // Prevent multiple operations
 
-      setIsLoading(true);
+      setIsLaunching(true);
       try {
         await invoke("launch_studio_pro", {
           version: version.version,
         });
-        setTimeout(() => setIsLoading(false), 8000);
+        setTimeout(() => setIsLaunching(false), 8000);
       } catch (error) {
         alert(`Failed to launch Studio Pro: ${error}`);
-        setIsLoading(false);
+        setIsLaunching(false);
       }
     },
-    [isLoading],
+    [isLaunching, isUninstalling],
   );
 
   // Uninstall click handler
@@ -498,7 +502,7 @@ function App() {
 
   const handleUninstallStudioPro = useCallback(
     async (version, deleteApps = false, relatedAppsList = []) => {
-      setIsLoading(true);
+      setIsUninstalling(true);
 
       try {
         // Delete related apps first if requested
@@ -529,7 +533,7 @@ function App() {
               if (deleteApps) {
                 await loadApps();
               }
-              setIsLoading(false);
+              setIsUninstalling(false);
               setShowUninstallModal(false);
               setVersionToUninstall(null);
               setRelatedApps([]);
@@ -542,7 +546,7 @@ function App() {
         // Fallback timeout after 60 seconds
         setTimeout(() => {
           clearInterval(monitorDeletion);
-          setIsLoading(false);
+          setIsUninstalling(false);
           setShowUninstallModal(false);
           setVersionToUninstall(null);
           setRelatedApps([]);
@@ -552,7 +556,7 @@ function App() {
           ? `Failed to uninstall Studio Pro ${version.version} with apps: ${error}`
           : `Failed to uninstall Studio Pro ${version.version}: ${error}`;
         alert(errorMsg);
-        setIsLoading(false);
+        setIsUninstalling(false);
         setShowUninstallModal(false);
         setVersionToUninstall(null);
         setRelatedApps([]);
@@ -596,7 +600,8 @@ function App() {
     "handleVersionClick",
     "apps",
     "listData",
-    "isLoading",
+    "isLaunching",
+    "isUninstalling",
     "handleLaunchStudioPro",
     "handleUninstallClick",
     "handleItemClick",
@@ -675,7 +680,8 @@ function App() {
     handleVersionClick,
     apps,
     listData,
-    isLoading,
+    isLaunching,
+    isUninstalling,
     handleLaunchStudioPro,
     handleUninstallClick,
     handleItemClick,
@@ -728,7 +734,8 @@ function App() {
       handleVersionClick,
       apps,
       listData,
-      isLoading,
+      isLaunching,
+      isUninstalling,
       handleLaunchStudioPro,
       handleUninstallClick,
       handleItemClick,
@@ -919,7 +926,7 @@ function App() {
             : null
         }
         onCancel={handleModalCancel}
-        isLoading={isLoading}
+        isLoading={isUninstalling}
         relatedApps={relatedApps}
       />
 
@@ -933,7 +940,7 @@ function App() {
         }
         onConfirm={async () => {
           if (appToDelete) {
-            setIsLoading(true);
+            setIsUninstalling(true);
             try {
               await invoke("delete_mendix_app", { appPath: appToDelete.path });
               await loadApps();
@@ -954,12 +961,12 @@ function App() {
                 return newSet;
               });
 
-              setIsLoading(false);
+              setIsUninstalling(false);
               setShowAppDeleteModal(false);
               setAppToDelete(null);
             } catch (error) {
               alert(`Failed to delete app: ${error}`);
-              setIsLoading(false);
+              setIsUninstalling(false);
               setShowAppDeleteModal(false);
               setAppToDelete(null);
             }
@@ -969,7 +976,7 @@ function App() {
           setShowAppDeleteModal(false);
           setAppToDelete(null);
         }}
-        isLoading={isLoading}
+        isLoading={isUninstalling}
         relatedApps={[]}
       />
 
