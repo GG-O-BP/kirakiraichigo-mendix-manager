@@ -2,6 +2,7 @@ mod config;
 mod mendix;
 mod package_manager;
 mod utils;
+mod widget_parser;
 
 pub use config::PackageManagerConfig;
 pub use mendix::{
@@ -11,6 +12,7 @@ pub use mendix::{
 };
 pub use package_manager::run_package_manager_command;
 pub use utils::{copy_widget_to_apps, greet};
+pub use widget_parser::parse_widget_properties;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -26,7 +28,8 @@ pub fn run() {
             get_apps_by_version,
             get_installed_mendix_apps,
             run_package_manager_command,
-            copy_widget_to_apps
+            copy_widget_to_apps,
+            parse_widget_properties
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
