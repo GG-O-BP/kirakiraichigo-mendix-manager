@@ -23,6 +23,7 @@ import {
   toggleInSet,
   createWidget,
   filterAppsByVersionAndSearch,
+  filterWidgetsBySearchTerm,
   hasMorePages,
   createTab,
   findActiveTab,
@@ -190,6 +191,10 @@ function App() {
   );
   const [properties, setProperties] = useState(initialState.properties);
 
+  // Widget Preview specific state
+  const [selectedWidgetForPreview, setSelectedWidgetForPreview] =
+    useState(null);
+
   // Package manager state
   const [packageManager, setPackageManager] = useState(
     initialState.packageManager,
@@ -272,17 +277,7 @@ function App() {
   // Filter widgets based on search term
   useEffect(() => {
     R.pipe(
-      R.ifElse(
-        () => R.isEmpty(widgetSearchTerm),
-        R.identity,
-        R.filter(
-          R.pipe(
-            R.prop("caption"),
-            R.toLower,
-            R.includes(R.toLower(widgetSearchTerm)),
-          ),
-        ),
-      ),
+      filterWidgetsBySearchTerm(widgetSearchTerm),
       setFilteredWidgets,
     )(widgets);
   }, [widgets, widgetSearchTerm]);
@@ -647,6 +642,17 @@ function App() {
     "handleItemClick",
     "properties",
     "updateProperty",
+    "widgets",
+    "filteredWidgets",
+    "widgetSearchTerm",
+    "setWidgetSearchTerm",
+    "selectedWidgetForPreview",
+    "setSelectedWidgetForPreview",
+    "setWidgets",
+    "setShowWidgetModal",
+    "setShowAddWidgetForm",
+    "setNewWidgetCaption",
+    "setNewWidgetPath",
   ];
 
   // Create tab props generator using simple functional composition
@@ -704,6 +710,8 @@ function App() {
     setWidgetPreviewSearch,
     properties,
     updateProperty,
+    selectedWidgetForPreview,
+    setSelectedWidgetForPreview,
     inlineResults,
     setInlineResults,
   };
@@ -742,6 +750,7 @@ function App() {
       widgetPreviewSearch,
       properties,
       updateProperty,
+      selectedWidgetForPreview,
       inlineResults,
     ],
   );

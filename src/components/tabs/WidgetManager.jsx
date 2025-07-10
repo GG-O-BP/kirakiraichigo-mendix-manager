@@ -203,34 +203,31 @@ const renderWidgetItem = R.curry(
             e.stopPropagation();
           }),
           R.always(R.prop("id", widget)),
-          (widgetId) =>
-            R.pipe(
-              R.tap(() => {
-                setWidgets((prevWidgets) => {
-                  const newWidgets = R.filter(
-                    R.pipe(R.prop("id"), R.complement(R.equals(widgetId))),
-                    prevWidgets,
-                  );
-                  localStorage.setItem(
-                    "kirakiraWidgets",
-                    JSON.stringify(newWidgets),
-                  );
-                  return newWidgets;
-                });
-              }),
-              R.tap(() => {
-                setSelectedWidgets((prevSelected) => {
-                  const newSet = new Set(prevSelected);
-                  newSet.delete(widgetId);
-                  localStorage.setItem(
-                    "kirakiraSelectedWidgets",
-                    JSON.stringify(Array.from(newSet)),
-                  );
-                  return newSet;
-                });
-              }),
-              R.always(undefined),
-            )(),
+          R.tap((widgetId) => {
+            setWidgets((prevWidgets) => {
+              const newWidgets = R.filter(
+                R.pipe(R.prop("id"), R.complement(R.equals(widgetId))),
+                prevWidgets,
+              );
+              localStorage.setItem(
+                "kirakiraWidgets",
+                JSON.stringify(newWidgets),
+              );
+              return newWidgets;
+            });
+          }),
+          R.tap((widgetId) => {
+            setSelectedWidgets((prevSelected) => {
+              const newSet = new Set(prevSelected);
+              newSet.delete(widgetId);
+              localStorage.setItem(
+                "kirakiraSelectedWidgets",
+                JSON.stringify(Array.from(newSet)),
+              );
+              return newSet;
+            });
+          }),
+          R.always(undefined),
         )}
         style={{
           background:
