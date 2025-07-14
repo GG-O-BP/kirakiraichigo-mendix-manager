@@ -29,3 +29,7 @@ dirs = "5"
 quick-xml = "0.36"
 rc-zip = "5.3.1"
 rc-zip-sync = "4.3.0"
+chromiumoxide = "0.5"
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+scraper = "0.17"

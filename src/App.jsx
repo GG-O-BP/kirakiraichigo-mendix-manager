@@ -42,6 +42,8 @@ import { WidgetModal, BuildResultModal } from "./components/modals";
 
 // Initial state factory
 const createInitialState = () => ({
+  downloadableVersions: [],
+  isLoadingDownloadableVersions: false,
   // Tab state
   activeTab: "studio-pro",
 
@@ -109,6 +111,74 @@ const createInitialState = () => ({
 
 // Main App component with functional approach
 function App() {
+  // Web scraping functions for downloadable versions
+  const fetchDownloadableVersions = useCallback(async () => {
+    try {
+      setIsLoadingDownloadableVersions(true);
+
+      // Test simple browser functionality first
+      const browserTest = await invoke("test_browser_only");
+      console.log("Browser test result:", browserTest);
+
+      // If browser test succeeds, try full scraping
+      const downloadableVersions = await invoke(
+        "get_downloadable_mendix_versions",
+      );
+      setDownloadableVersions(downloadableVersions);
+      setIsLoadingDownloadableVersions(false);
+
+      console.log("Fetched downloadable versions:", downloadableVersions);
+    } catch (error) {
+      console.error("Failed to fetch downloadable versions:", error);
+      setIsLoadingDownloadableVersions(false);
+    }
+  }, []);
+
+  const fetchVersionsByType = useCallback(async () => {
+    try {
+      const [stableVersions, betaVersions] = await invoke(
+        "get_downloadable_versions_by_type",
+      );
+      console.log("Stable versions:", stableVersions);
+      console.log("Beta versions:", betaVersions);
+      return { stableVersions, betaVersions };
+    } catch (error) {
+      console.error("Failed to fetch versions by type:", error);
+      return { stableVersions: [], betaVersions: [] };
+    }
+  }, []);
+
+  const fetchVersionsFromDatagrid = useCallback(async (page = 1) => {
+    try {
+      console.log(`Fetching versions from datagrid (page ${page})...`);
+      setIsLoadingDownloadableVersions(true);
+      const versions = await invoke("get_downloadable_versions_from_datagrid", {
+        page,
+      });
+      console.log("Fetched versions from datagrid:", versions);
+      setDownloadableVersions((prev) => [...prev, ...versions]);
+      setIsLoadingDownloadableVersions(false);
+      return versions;
+    } catch (error) {
+      console.error("Failed to fetch versions from datagrid:", error);
+      setIsLoadingDownloadableVersions(false);
+      return [];
+    }
+  }, []);
+
+  const handleDownloadVersion = useCallback(async (version) => {
+    try {
+      console.log("Downloading version:", version.version);
+      // TODO: Implement actual download logic
+      // This could call a Tauri command to download and install the version
+      alert(
+        `Download functionality for version ${version.version} will be implemented soon!`,
+      );
+    } catch (error) {
+      console.error("Failed to download version:", error);
+    }
+  }, []);
+
   // Initialize state using factory
   const initialState = useMemo(createInitialState, []);
 
@@ -117,6 +187,11 @@ function App() {
   const [versions, setVersions] = useState(initialState.versions);
   const [apps, setApps] = useState(initialState.apps);
   const [widgets, setWidgets] = useState(initialState.widgets);
+  const [downloadableVersions, setDownloadableVersions] = useState(
+    initialState.downloadableVersions,
+  );
+  const [isLoadingDownloadableVersions, setIsLoadingDownloadableVersions] =
+    useState(initialState.isLoadingDownloadableVersions);
 
   // Filtered state
   const [filteredVersions, setFilteredVersions] = useState(
@@ -605,6 +680,10 @@ function App() {
     "handleLaunchStudioPro",
     "handleUninstallClick",
     "handleItemClick",
+    "fetchVersionsFromDatagrid",
+    "downloadableVersions",
+    "isLoadingDownloadableVersions",
+    "handleDownloadVersion",
   ];
 
   const widgetManagerKeys = [
@@ -685,6 +764,9 @@ function App() {
     handleLaunchStudioPro,
     handleUninstallClick,
     handleItemClick,
+    fetchVersionsFromDatagrid,
+    downloadableVersions,
+    isLoadingDownloadableVersions,
     versionFilter,
     setVersionFilter,
     appSearchTerm,
@@ -739,6 +821,9 @@ function App() {
       handleLaunchStudioPro,
       handleUninstallClick,
       handleItemClick,
+      fetchVersionsFromDatagrid,
+      downloadableVersions,
+      isLoadingDownloadableVersions,
       versionFilter,
       filteredApps,
       currentPage,

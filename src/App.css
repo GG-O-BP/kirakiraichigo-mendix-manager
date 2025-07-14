@@ -2013,3 +2013,108 @@ body {
         justify-content: center;
     }
 }
+
+/* Load More Button Styles */
+.load-more-container {
+    padding: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 8px;
+}
+
+.load-more-btn {
+    width: 100%;
+    padding: 12px 16px;
+    background: linear-gradient(45deg, #ff6b9d, #c44569);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(255, 107, 157, 0.3);
+}
+
+.load-more-btn:hover {
+    background: linear-gradient(45deg, #ff5252, #ad1457);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 107, 157, 0.4);
+}
+
+.load-more-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(255, 107, 157, 0.3);
+}
+
+.load-more-btn:disabled {
+    background: rgba(255, 255, 255, 0.1);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.load-more-btn .button-icon {
+    font-size: 14px;
+    animation: spin 1s linear infinite;
+}
+
+.load-more-btn:not(:disabled) .button-icon {
+    animation: none;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Version List Item for Load More */
+.version-list-item .install-button {
+    min-width: 80px;
+    padding: 8px 12px;
+}
+
+.version-list-item .version-date {
+    font-style: italic;
+    opacity: 0.8;
+}
+
+/* Loading state for downloadable versions */
+.downloadable-version-item.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.downloadable-version-item.loading .download-btn {
+    background: rgba(255, 255, 255, 0.1);
+    cursor: not-allowed;
+}
+
+/* Badge styles for new version types */
+.mts-badge {
+    background: linear-gradient(45deg, #9c27b0, #673ab7);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-left: 8px;
+    text-transform: uppercase;
+}
+
+.latest-badge {
+    background: linear-gradient(45deg, #ff9800, #f57c00);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-left: 8px;
+    text-transform: uppercase;
+}

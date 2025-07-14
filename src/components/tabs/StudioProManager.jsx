@@ -1,5 +1,5 @@
 import * as R from "ramda";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useEffect } from "react";
 import SearchBox from "../common/SearchBox";
 import ListItem from "../common/ListItem";
 import {
@@ -219,23 +219,36 @@ const StudioProManager = memo(
     handleVersionClick,
     apps,
     listData,
+    downloadableVersions,
+    isLoadingDownloadableVersions,
     isLaunching,
     isUninstalling,
     handleLaunchStudioPro,
     handleUninstallClick,
     handleItemClick,
+    handleDownloadVersion,
+    fetchVersionsFromDatagrid,
   }) => {
+    // Debug effect to track downloadableVersions changes
+    useEffect(() => {
+      console.log("downloadableVersions changed:", downloadableVersions);
+      console.log(
+        "downloadableVersions length:",
+        downloadableVersions?.length || 0,
+      );
+    }, [downloadableVersions]);
+
     // Enhanced memoized computations with functional composition
     const computedData = useMemo(() => {
       const loadingStates = createLoadingState(isLaunching, isUninstalling);
 
-      return R.applySpec({
+      const result = R.applySpec({
         sortedAndFilteredMendixApps: R.pipe(
           R.always(apps),
           sortAndFilterApps(searchTerm, selectedVersion),
         ),
-        filteredListData: R.pipe(
-          R.always(listData),
+        filteredDownloadableVersions: R.pipe(
+          R.always(downloadableVersions),
           filterBySearch(searchTerm),
         ),
         loadingStates: R.always(loadingStates),
@@ -244,11 +257,22 @@ const StudioProManager = memo(
           hasAnyLoadingOperation,
         ),
       })();
+
+      console.log(
+        "computedData.filteredDownloadableVersions:",
+        result.filteredDownloadableVersions,
+      );
+      console.log(
+        "filteredDownloadableVersions length:",
+        result.filteredDownloadableVersions?.length || 0,
+      );
+
+      return result;
     }, [
       apps,
       searchTerm,
       selectedVersion,
-      listData,
+      downloadableVersions,
       isLaunching,
       isUninstalling,
     ]);
@@ -257,13 +281,95 @@ const StudioProManager = memo(
     const panelConfigs = useMemo(
       () => [
         {
-          key: "list-items",
+          key: "downloadable-versions",
           className: "list-container",
-          placeholder: "Search items...",
-          content: R.pipe(
-            R.always(computedData.filteredListData),
-            renderListItems(handleItemClick),
-          ),
+          placeholder: "Search downloadable versions...",
+          content: () => {
+            if (
+              isLoadingDownloadableVersions &&
+              (!downloadableVersions || downloadableVersions.length === 0)
+            ) {
+              return renderEmptyState("🔄", "Loading downloadable versions...");
+            }
+
+            const filteredVersions =
+              computedData.filteredDownloadableVersions || [];
+            const versionItems = filteredVersions.map((version) => (
+              <div key={version.version} className="version-list-item">
+                <div className="version-info">
+                  <span className="version-icon">📦</span>
+                  <div className="version-details">
+                    <span className="version-number">
+                      {version.version}
+                      {version.is_lts && (
+                        <span className="version-badge lts">LTS</span>
+                      )}
+                      {version.is_mts && (
+                        <span className="version-badge mts">MTS</span>
+                      )}
+                      {version.is_latest && (
+                        <span className="version-badge">LATEST</span>
+                      )}
+                      {version.is_beta && (
+                        <span className="version-badge">Beta</span>
+                      )}
+                    </span>
+                    {version.release_date && (
+                      <span className="version-date">
+                        {version.release_date}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  className="install-button"
+                  onClick={() =>
+                    handleDownloadVersion && handleDownloadVersion(version)
+                  }
+                >
+                  <span className="button-icon">📥</span>
+                  Download
+                </button>
+              </div>
+            ));
+
+            const loadMoreButton = (
+              <div
+                key="load-more-btn"
+                className="version-list-item"
+                style={{
+                  cursor: isLoadingDownloadableVersions ? "default" : "pointer",
+                  opacity: isLoadingDownloadableVersions ? 0.6 : 1,
+                }}
+                onClick={() => {
+                  if (!isLoadingDownloadableVersions) {
+                    console.log("Load button clicked");
+                    fetchVersionsFromDatagrid && fetchVersionsFromDatagrid(1);
+                  }
+                }}
+              >
+                <div className="version-info">
+                  <span className="version-icon">
+                    {isLoadingDownloadableVersions ? "⏳" : "🔄"}
+                  </span>
+                  <div className="version-details">
+                    <span className="version-number">
+                      {isLoadingDownloadableVersions
+                        ? "Loading More Versions..."
+                        : "📥 Load More Versions"}
+                    </span>
+                    <span className="version-date">
+                      {isLoadingDownloadableVersions
+                        ? "Please wait..."
+                        : "Click to fetch from Mendix Marketplace"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+
+            return [...versionItems, loadMoreButton];
+          },
         },
         {
           key: "versions",
@@ -271,10 +377,12 @@ const StudioProManager = memo(
           placeholder: "Search installed versions...",
           content: R.pipe(
             R.always(filteredVersions),
+            R.defaultTo([]),
             R.ifElse(
               R.isEmpty,
-              () =>
+              R.always(
                 renderEmptyState("🍓", "No Mendix Studio Pro versions found"),
+              ),
               renderVersionListItems(
                 handleLaunchStudioPro,
                 handleUninstallClick,
@@ -292,9 +400,10 @@ const StudioProManager = memo(
           placeholder: "Search Mendix apps...",
           content: R.pipe(
             R.always(computedData.sortedAndFilteredMendixApps),
+            R.defaultTo([]),
             R.ifElse(
               R.isEmpty,
-              () => renderEmptyState("🍓", "No Mendix apps found"),
+              R.always(renderEmptyState("🍓", "No Mendix apps found")),
               renderAppListItems(selectedVersion, handleItemClick),
             ),
           ),
@@ -303,9 +412,11 @@ const StudioProManager = memo(
       [
         computedData,
         filteredVersions,
+        isLoadingDownloadableVersions,
         handleItemClick,
         handleLaunchStudioPro,
         handleUninstallClick,
+        handleDownloadVersion,
         isLaunching,
         isUninstalling,
         selectedVersion,
