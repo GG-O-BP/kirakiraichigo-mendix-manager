@@ -27,3 +27,5 @@ chrono = { version = "0.4", features = ["serde"] }
 walkdir = "2"
 dirs = "5"
 quick-xml = "0.36"
+rc-zip = "5.3.1"
+rc-zip-sync = "4.3.0"
