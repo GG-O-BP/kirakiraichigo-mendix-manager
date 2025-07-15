@@ -69,27 +69,6 @@ struct ParseState {
     current_group: Option<WidgetPropertyGroup>,
 }
 
-// Pure constructor functions
-fn create_empty_property() -> WidgetProperty {
-    WidgetProperty {
-        key: String::new(),
-        property_type: String::new(),
-        caption: String::new(),
-        description: String::new(),
-        default_value: None,
-        required: false,
-        options: Vec::new(),
-        category: None,
-    }
-}
-
-fn create_empty_group() -> WidgetPropertyGroup {
-    WidgetPropertyGroup {
-        caption: String::new(),
-        properties: Vec::new(),
-    }
-}
-
 fn create_initial_context() -> ParseContext {
     ParseContext {
         depth: 0,
@@ -554,25 +533,5 @@ mod tests {
         let alignment_prop = &result.properties[2];
         assert_eq!(alignment_prop.options.len(), 3);
         assert!(alignment_prop.options.contains(&"left".to_string()));
-    }
-
-    #[test]
-    fn test_create_empty_property() {
-        let prop = create_empty_property();
-        assert_eq!(prop.key, "");
-        assert_eq!(prop.property_type, "");
-        assert_eq!(prop.required, false);
-        assert!(prop.options.is_empty());
-    }
-
-    #[test]
-    fn test_is_widget_xml_file() {
-        let widget_xml = Path::new("widget.xml");
-        let package_xml = Path::new("package.xml");
-        let js_file = Path::new("widget.js");
-
-        assert!(is_widget_xml_file(widget_xml));
-        assert!(!is_widget_xml_file(package_xml));
-        assert!(!is_widget_xml_file(js_file));
     }
 }

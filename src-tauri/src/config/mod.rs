@@ -19,18 +19,6 @@ fn create_empty_config() -> PackageManagerConfig {
     }
 }
 
-fn create_config_with_methods(
-    npm_method: Option<String>,
-    yarn_method: Option<String>,
-    pnpm_method: Option<String>,
-) -> PackageManagerConfig {
-    PackageManagerConfig {
-        npm_method,
-        yarn_method,
-        pnpm_method,
-    }
-}
-
 // Pure query functions
 fn get_method_from_config<'a>(
     config: &'a PackageManagerConfig,
@@ -77,11 +65,6 @@ fn update_method_for_package_manager(
         "pnpm" => set_pnpm_method(config, method),
         _ => config,
     }
-}
-
-// Pure validation functions
-fn is_valid_package_manager(package_manager: &str) -> bool {
-    matches!(package_manager, "npm" | "yarn" | "pnpm")
 }
 
 fn is_empty_method(method: &str) -> bool {
@@ -216,167 +199,5 @@ impl PackageManagerConfig {
             .filter(|&&manager| self.has_method(manager))
             .copied()
             .collect()
-    }
-}
-
-// Pure utility functions for external use
-pub fn validate_package_manager_name(name: &str) -> Result<(), String> {
-    if is_valid_package_manager(name) {
-        Ok(())
-    } else {
-        Err(format!("Invalid package manager: {}", name))
-    }
-}
-
-pub fn validate_method_value(method: &str) -> Result<(), String> {
-    if is_empty_method(method) {
-        Err("Method value cannot be empty".to_string())
-    } else {
-        Ok(())
-    }
-}
-
-// Pure configuration builders for complex scenarios
-pub fn build_config_from_pairs(pairs: Vec<(&str, String)>) -> Result<PackageManagerConfig, String> {
-    pairs
-        .into_iter()
-        .try_fold(create_empty_config(), |config, (manager, method)| {
-            validate_package_manager_name(manager)?;
-            validate_method_value(&method)?;
-            Ok(update_method_for_package_manager(config, manager, method))
-        })
-}
-
-pub fn merge_configs(
-    base: PackageManagerConfig,
-    override_config: PackageManagerConfig,
-) -> PackageManagerConfig {
-    PackageManagerConfig {
-        npm_method: override_config.npm_method.or(base.npm_method),
-        yarn_method: override_config.yarn_method.or(base.yarn_method),
-        pnpm_method: override_config.pnpm_method.or(base.pnpm_method),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_create_empty_config() {
-        let config = create_empty_config();
-        assert!(config.npm_method.is_none());
-        assert!(config.yarn_method.is_none());
-        assert!(config.pnpm_method.is_none());
-    }
-
-    #[test]
-    fn test_set_methods() {
-        let config = create_empty_config();
-        let config = set_npm_method(config, "npm install".to_string());
-        let config = set_yarn_method(config, "yarn add".to_string());
-
-        assert_eq!(config.npm_method, Some("npm install".to_string()));
-        assert_eq!(config.yarn_method, Some("yarn add".to_string()));
-        assert!(config.pnpm_method.is_none());
-    }
-
-    #[test]
-    fn test_get_method_from_config() {
-        let config = create_config_with_methods(
-            Some("npm install".to_string()),
-            Some("yarn add".to_string()),
-            None,
-        );
-
-        assert_eq!(
-            get_method_from_config(&config, "npm"),
-            Some(&"npm install".to_string())
-        );
-        assert_eq!(
-            get_method_from_config(&config, "yarn"),
-            Some(&"yarn add".to_string())
-        );
-        assert_eq!(get_method_from_config(&config, "pnpm"), None);
-        assert_eq!(get_method_from_config(&config, "invalid"), None);
-    }
-
-    #[test]
-    fn test_is_valid_package_manager() {
-        assert!(is_valid_package_manager("npm"));
-        assert!(is_valid_package_manager("yarn"));
-        assert!(is_valid_package_manager("pnpm"));
-        assert!(!is_valid_package_manager("invalid"));
-    }
-
-    #[test]
-    fn test_is_empty_method() {
-        assert!(is_empty_method(""));
-        assert!(is_empty_method("   "));
-        assert!(!is_empty_method("npm install"));
-    }
-
-    #[test]
-    fn test_update_method_for_package_manager() {
-        let config = create_empty_config();
-        let config = update_method_for_package_manager(config, "npm", "npm install".to_string());
-
-        assert_eq!(config.npm_method, Some("npm install".to_string()));
-        assert!(config.yarn_method.is_none());
-    }
-
-    #[test]
-    fn test_build_config_from_pairs() {
-        let pairs = vec![
-            ("npm", "npm install".to_string()),
-            ("yarn", "yarn add".to_string()),
-        ];
-
-        let config = build_config_from_pairs(pairs).unwrap();
-        assert_eq!(config.npm_method, Some("npm install".to_string()));
-        assert_eq!(config.yarn_method, Some("yarn add".to_string()));
-        assert!(config.pnpm_method.is_none());
-    }
-
-    #[test]
-    fn test_merge_configs() {
-        let base = create_config_with_methods(
-            Some("npm install".to_string()),
-            Some("yarn add".to_string()),
-            None,
-        );
-
-        let override_config = create_config_with_methods(
-            Some("npm ci".to_string()),
-            None,
-            Some("pnpm install".to_string()),
-        );
-
-        let merged = merge_configs(base, override_config);
-
-        assert_eq!(merged.npm_method, Some("npm ci".to_string())); // overridden
-        assert_eq!(merged.yarn_method, Some("yarn add".to_string())); // from base
-        assert_eq!(merged.pnpm_method, Some("pnpm install".to_string())); // from override
-    }
-
-    #[test]
-    fn test_functional_builder_methods() {
-        let config = PackageManagerConfig::new()
-            .with_npm_method("npm install".to_string())
-            .with_yarn_method("yarn add".to_string());
-
-        assert_eq!(config.npm_method, Some("npm install".to_string()));
-        assert_eq!(config.yarn_method, Some("yarn add".to_string()));
-        assert!(config.pnpm_method.is_none());
-    }
-
-    #[test]
-    fn test_validation_functions() {
-        assert!(validate_package_manager_name("npm").is_ok());
-        assert!(validate_package_manager_name("invalid").is_err());
-
-        assert!(validate_method_value("npm install").is_ok());
-        assert!(validate_method_value("").is_err());
-        assert!(validate_method_value("   ").is_err());
     }
 }

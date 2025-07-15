@@ -4,7 +4,7 @@
 ## 🌟 Features
 
 - **Studio Pro Version Management** - Manage multiple Studio Pro versions with magical ease
-- [ ] Show All Studio Pro Versions
+- [x] Show All Studio Pro Versions
 - [ ] Install Studio Pro
 - [x] Show Installed Studio Pro Versions
 - [x] Uninstall Studio Pro
@@ -20,7 +20,7 @@
 - [x] Properties Set
 - [ ] Preview Mendix Widget
 - [x] Deploy Mendix Widget
-- [ ] Delete Mendix Widget
+- [x] Delete Mendix Widget
 
 ## 💖 Why KiraKira Ichigo?
 

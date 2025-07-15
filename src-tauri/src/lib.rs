@@ -16,8 +16,7 @@ pub use package_manager::run_package_manager_command;
 pub use utils::{copy_widget_to_apps, greet};
 pub use web_scraper::{
     debug_page_structure, get_downloadable_mendix_versions, get_downloadable_versions_by_type,
-    get_downloadable_versions_from_datagrid, test_browser_only, wait_for_datagrid_content,
-    DownloadableVersion,
+    get_downloadable_versions_from_datagrid, wait_for_datagrid_content, DownloadableVersion,
 };
 pub use widget_loader::{
     extract_widget_contents, get_widget_file_content, get_widget_preview_data, list_widget_files,
@@ -49,7 +48,6 @@ pub fn run() {
             get_downloadable_versions_by_type,
             get_downloadable_versions_from_datagrid,
             debug_page_structure,
-            test_browser_only,
             wait_for_datagrid_content
         ])
         .run(tauri::generate_context!())

@@ -2076,7 +2076,6 @@ body {
 
 /* Version List Item for Load More */
 .version-list-item .install-button {
-    min-width: 80px;
     padding: 8px 12px;
 }
 

@@ -248,19 +248,6 @@ pub fn copy_widget_to_apps(
     }
 }
 
-// Additional utility functions for future extensibility
-pub fn get_widget_dist_path(widget_path: &str) -> PathBuf {
-    construct_widget_source_path(widget_path)
-}
-
-pub fn validate_widget_structure(widget_path: &str) -> bool {
-    is_valid_widget_path(widget_path)
-}
-
-pub fn get_app_widgets_path(app_path: &str) -> PathBuf {
-    construct_app_target_path(app_path)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

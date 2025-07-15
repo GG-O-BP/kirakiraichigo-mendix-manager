@@ -116,10 +116,6 @@ function App() {
     try {
       setIsLoadingDownloadableVersions(true);
 
-      // Test simple browser functionality first
-      const browserTest = await invoke("test_browser_only");
-      console.log("Browser test result:", browserTest);
-
       // If browser test succeeds, try full scraping
       const downloadableVersions = await invoke(
         "get_downloadable_mendix_versions",
