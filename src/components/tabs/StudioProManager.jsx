@@ -153,6 +153,16 @@ const isAppDisabled = R.curry((selectedVersion, app) =>
   )(),
 );
 
+// Check if a version is already installed using functional composition
+const isVersionAlreadyInstalled = R.curry((installedVersions, version) =>
+  R.pipe(
+    R.always(installedVersions),
+    R.defaultTo([]),
+    R.map(R.pipe(R.prop("version"), toVersionString)),
+    R.includes(R.pipe(R.prop("version"), toVersionString)(version)),
+  )(),
+);
+
 // ============= Render Functions =============
 
 // Enhanced empty state renderer with functional composition
@@ -325,57 +335,75 @@ const StudioProManager = memo(
 
             const filteredVersions =
               computedData.filteredDownloadableVersions || [];
-            const versionItems = filteredVersions.map((version) => (
-              <div key={version.version} className="version-list-item">
-                <div className="version-info">
-                  <span className="version-icon">📦</span>
-                  <div className="version-details">
-                    <span className="version-number">
-                      {version.version}
-                      {version.is_lts && (
-                        <span className="version-badge lts">LTS</span>
-                      )}
-                      {version.is_mts && (
-                        <span className="version-badge mts">MTS</span>
-                      )}
-                      {version.is_latest && (
-                        <span className="version-badge">LATEST</span>
-                      )}
-                      {version.is_beta && (
-                        <span className="version-badge">Beta</span>
-                      )}
-                    </span>
-                    {version.release_date && (
-                      <span className="version-date">
-                        {version.release_date}
+            const versionItems = filteredVersions.map((version) => {
+              const isAlreadyInstalled = isVersionAlreadyInstalled(
+                versions,
+                version,
+              );
+              const isButtonDisabled =
+                isLoadingDownloadableVersions || isAlreadyInstalled;
+
+              return (
+                <div key={version.version} className="version-list-item">
+                  <div className="version-info">
+                    <span className="version-icon">📦</span>
+                    <div className="version-details">
+                      <span className="version-number">
+                        {version.version}
+                        {version.is_lts && (
+                          <span className="version-badge lts">LTS</span>
+                        )}
+                        {version.is_mts && (
+                          <span className="version-badge mts">MTS</span>
+                        )}
+                        {version.is_latest && (
+                          <span className="version-badge">LATEST</span>
+                        )}
+                        {version.is_beta && (
+                          <span className="version-badge">Beta</span>
+                        )}
+                        {isAlreadyInstalled && (
+                          <span className="version-badge installed">
+                            INSTALLED
+                          </span>
+                        )}
                       </span>
-                    )}
+                      {version.release_date && (
+                        <span className="version-date">
+                          {version.release_date}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  <button
+                    className="install-button"
+                    disabled={isButtonDisabled}
+                    onClick={() => {
+                      if (handleDownloadVersion && !isAlreadyInstalled) {
+                        handleDownloadVersion(version);
+                      }
+                    }}
+                    style={{
+                      opacity: isButtonDisabled ? 0.6 : 1,
+                      cursor: isButtonDisabled ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    <span className="button-icon">
+                      {isLoadingDownloadableVersions
+                        ? "⏳"
+                        : isAlreadyInstalled
+                          ? "✅"
+                          : "📥"}
+                    </span>
+                    {isLoadingDownloadableVersions
+                      ? "Downloading..."
+                      : isAlreadyInstalled
+                        ? "Installed"
+                        : "Download"}
+                  </button>
                 </div>
-                <button
-                  className="install-button"
-                  disabled={isLoadingDownloadableVersions}
-                  onClick={() => {
-                    if (handleDownloadVersion) {
-                      handleDownloadVersion(version);
-                    }
-                  }}
-                  style={{
-                    opacity: isLoadingDownloadableVersions ? 0.6 : 1,
-                    cursor: isLoadingDownloadableVersions
-                      ? "not-allowed"
-                      : "pointer",
-                  }}
-                >
-                  <span className="button-icon">
-                    {isLoadingDownloadableVersions ? "⏳" : "📥"}
-                  </span>
-                  {isLoadingDownloadableVersions
-                    ? "Downloading..."
-                    : "Download"}
-                </button>
-              </div>
-            ));
+              );
+            });
 
             const loadMoreButton = (
               <div
@@ -460,6 +488,7 @@ const StudioProManager = memo(
       [
         computedData,
         filteredVersions,
+        versions,
         isLoadingDownloadableVersions,
         handleItemClick,
         handleLaunchStudioPro,

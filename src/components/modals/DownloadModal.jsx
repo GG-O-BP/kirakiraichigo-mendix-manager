@@ -342,7 +342,6 @@ const DownloadModal = memo(
 
             {currentStep === DOWNLOAD_STEPS.COMPLETED && (
               <>
-                <span style={{ fontSize: "2rem" }}>🍓</span>
                 <span style={{ fontSize: "1.5rem", marginLeft: "4px" }}>
                   ✨
                 </span>
