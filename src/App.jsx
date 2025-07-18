@@ -38,10 +38,16 @@ import {
   WidgetManager,
   WidgetPreview,
 } from "./components/tabs";
-import { WidgetModal, BuildResultModal } from "./components/modals";
+import {
+  WidgetModal,
+  BuildResultModal,
+  DownloadModal,
+} from "./components/modals";
 
 // Initial state factory
 const createInitialState = () => ({
+  downloadableVersions: [],
+  isLoadingDownloadableVersions: false,
   // Tab state
   activeTab: "studio-pro",
 
@@ -71,7 +77,8 @@ const createInitialState = () => ({
 
   // UI states
   versionFilter: "all",
-  isLoading: false,
+  isLaunching: false,
+  isUninstalling: false,
   downloadProgress: {},
   currentPage: 1,
   hasMore: true,
@@ -85,6 +92,8 @@ const createInitialState = () => ({
   showWidgetModal: false,
   showAddWidgetForm: false,
   showResultModal: false,
+  showDownloadModal: false,
+  versionToDownload: null,
 
   // Form states
   newWidgetCaption: "",
@@ -108,6 +117,72 @@ const createInitialState = () => ({
 
 // Main App component with functional approach
 function App() {
+  // Web scraping functions for downloadable versions
+  const fetchDownloadableVersions = useCallback(async () => {
+    try {
+      setIsLoadingDownloadableVersions(true);
+
+      // If browser test succeeds, try full scraping
+      const downloadableVersions = await invoke(
+        "get_downloadable_mendix_versions",
+      );
+      setDownloadableVersions(downloadableVersions);
+      setIsLoadingDownloadableVersions(false);
+    } catch (error) {
+      console.error("Failed to fetch downloadable versions:", error);
+      setIsLoadingDownloadableVersions(false);
+    }
+  }, []);
+
+  const fetchVersionsByType = useCallback(async () => {
+    try {
+      const [stableVersions, betaVersions] = await invoke(
+        "get_downloadable_versions_by_type",
+      );
+      return { stableVersions, betaVersions };
+    } catch (error) {
+      console.error("Failed to fetch versions by type:", error);
+      return { stableVersions: [], betaVersions: [] };
+    }
+  }, []);
+
+  // Functional pagination logic with Ramda.js
+  const createVersionsUpdater = R.curry(
+    (isFirstPage, newVersions, prevVersions) =>
+      R.ifElse(
+        R.always(isFirstPage),
+        R.always(newVersions),
+        R.pipe(R.defaultTo([]), R.concat(R.__, newVersions)),
+      )(prevVersions),
+  );
+
+  const fetchVersionsFromDatagrid = useCallback(async (page = 1) => {
+    const isFirstPage = page === 1;
+
+    try {
+      // Functional composition for page handling
+      const processedPage = R.pipe(R.defaultTo(1), R.max(1))(page);
+
+      setIsLoadingDownloadableVersions(true);
+
+      const versions = await R.pipe(
+        R.always({ page: processedPage }),
+        (params) => invoke("get_downloadable_versions_from_datagrid", params),
+        R.andThen(R.defaultTo([])),
+      )();
+
+      // Update versions using functional approach
+      setDownloadableVersions(createVersionsUpdater(isFirstPage, versions));
+
+      setIsLoadingDownloadableVersions(false);
+      return versions;
+    } catch (error) {
+      console.error("Failed to fetch versions from datagrid:", error);
+      setIsLoadingDownloadableVersions(false);
+      return [];
+    }
+  }, []);
+
   // Initialize state using factory
   const initialState = useMemo(createInitialState, []);
 
@@ -116,6 +191,11 @@ function App() {
   const [versions, setVersions] = useState(initialState.versions);
   const [apps, setApps] = useState(initialState.apps);
   const [widgets, setWidgets] = useState(initialState.widgets);
+  const [downloadableVersions, setDownloadableVersions] = useState(
+    initialState.downloadableVersions,
+  );
+  const [isLoadingDownloadableVersions, setIsLoadingDownloadableVersions] =
+    useState(initialState.isLoadingDownloadableVersions);
 
   // Filtered state
   const [filteredVersions, setFilteredVersions] = useState(
@@ -152,7 +232,10 @@ function App() {
   const [versionFilter, setVersionFilter] = useState(
     initialState.versionFilter,
   );
-  const [isLoading, setIsLoading] = useState(initialState.isLoading);
+  const [isLaunching, setIsLaunching] = useState(initialState.isLaunching);
+  const [isUninstalling, setIsUninstalling] = useState(
+    initialState.isUninstalling,
+  );
   const [downloadProgress, setDownloadProgress] = useState(
     initialState.downloadProgress,
   );
@@ -179,6 +262,12 @@ function App() {
   );
   const [showResultModal, setShowResultModal] = useState(
     initialState.showResultModal,
+  );
+  const [showDownloadModal, setShowDownloadModal] = useState(
+    initialState.showDownloadModal,
+  );
+  const [versionToDownload, setVersionToDownload] = useState(
+    initialState.versionToDownload,
   );
   const [inlineResults, setInlineResults] = useState(null);
 
@@ -223,6 +312,52 @@ function App() {
     ),
     [],
   );
+
+  const handleDownloadVersion = useCallback((version) => {
+    // Validation
+    if (!version || !version.version) {
+      alert("❌ Invalid version data");
+      return;
+    }
+
+    // Show download modal instead of confirm dialog
+    setVersionToDownload(version);
+    setShowDownloadModal(true);
+  }, []);
+
+  const handleModalDownload = useCallback(
+    async (version) => {
+      try {
+        setIsLoadingDownloadableVersions(true);
+
+        // Call Tauri command to download and install
+        const result = await invoke("download_and_install_mendix_version", {
+          version: version.version,
+        });
+
+        // Refresh installed versions to show the new installation
+        await loadVersions();
+
+        return result;
+      } catch (error) {
+        console.error("Error in download process:", error);
+        throw error;
+      } finally {
+        setIsLoadingDownloadableVersions(false);
+      }
+    },
+    [loadVersions],
+  );
+
+  const handleDownloadModalClose = useCallback(() => {
+    setShowDownloadModal(false);
+    setVersionToDownload(null);
+  }, []);
+
+  const handleDownloadModalCancel = useCallback(() => {
+    setShowDownloadModal(false);
+    setVersionToDownload(null);
+  }, []);
 
   const loadApps = useCallback(
     wrapAsync(
@@ -286,6 +421,19 @@ function App() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.PACKAGE_MANAGER)(packageManager);
   }, [packageManager]);
+
+  // Load first page of downloadable versions on component mount
+  useEffect(() => {
+    const loadInitialDownloadableVersions = async () => {
+      try {
+        await fetchVersionsFromDatagrid(1);
+      } catch (error) {
+        console.error("Failed to load initial downloadable versions:", error);
+      }
+    };
+
+    loadInitialDownloadableVersions();
+  }, [fetchVersionsFromDatagrid]);
 
   // Toggle app selection
   const handleAppClick = useCallback(
@@ -464,20 +612,20 @@ function App() {
   // Launch Studio Pro handler
   const handleLaunchStudioPro = useCallback(
     async (version) => {
-      if (isLoading) return; // Prevent multiple launches
+      if (isLaunching || isUninstalling) return; // Prevent multiple operations
 
-      setIsLoading(true);
+      setIsLaunching(true);
       try {
         await invoke("launch_studio_pro", {
           version: version.version,
         });
-        setTimeout(() => setIsLoading(false), 8000);
+        setTimeout(() => setIsLaunching(false), 8000);
       } catch (error) {
         alert(`Failed to launch Studio Pro: ${error}`);
-        setIsLoading(false);
+        setIsLaunching(false);
       }
     },
-    [isLoading],
+    [isLaunching, isUninstalling],
   );
 
   // Uninstall click handler
@@ -498,7 +646,7 @@ function App() {
 
   const handleUninstallStudioPro = useCallback(
     async (version, deleteApps = false, relatedAppsList = []) => {
-      setIsLoading(true);
+      setIsUninstalling(true);
 
       try {
         // Delete related apps first if requested
@@ -529,7 +677,7 @@ function App() {
               if (deleteApps) {
                 await loadApps();
               }
-              setIsLoading(false);
+              setIsUninstalling(false);
               setShowUninstallModal(false);
               setVersionToUninstall(null);
               setRelatedApps([]);
@@ -542,7 +690,7 @@ function App() {
         // Fallback timeout after 60 seconds
         setTimeout(() => {
           clearInterval(monitorDeletion);
-          setIsLoading(false);
+          setIsUninstalling(false);
           setShowUninstallModal(false);
           setVersionToUninstall(null);
           setRelatedApps([]);
@@ -552,7 +700,7 @@ function App() {
           ? `Failed to uninstall Studio Pro ${version.version} with apps: ${error}`
           : `Failed to uninstall Studio Pro ${version.version}: ${error}`;
         alert(errorMsg);
-        setIsLoading(false);
+        setIsUninstalling(false);
         setShowUninstallModal(false);
         setVersionToUninstall(null);
         setRelatedApps([]);
@@ -596,10 +744,15 @@ function App() {
     "handleVersionClick",
     "apps",
     "listData",
-    "isLoading",
+    "isLaunching",
+    "isUninstalling",
     "handleLaunchStudioPro",
     "handleUninstallClick",
     "handleItemClick",
+    "fetchVersionsFromDatagrid",
+    "downloadableVersions",
+    "isLoadingDownloadableVersions",
+    "handleDownloadVersion",
   ];
 
   const widgetManagerKeys = [
@@ -675,10 +828,15 @@ function App() {
     handleVersionClick,
     apps,
     listData,
-    isLoading,
+    isLaunching,
+    isUninstalling,
     handleLaunchStudioPro,
     handleUninstallClick,
     handleItemClick,
+    fetchVersionsFromDatagrid,
+    downloadableVersions,
+    isLoadingDownloadableVersions,
+    handleDownloadVersion,
     versionFilter,
     setVersionFilter,
     appSearchTerm,
@@ -728,10 +886,14 @@ function App() {
       handleVersionClick,
       apps,
       listData,
-      isLoading,
+      isLaunching,
+      isUninstalling,
       handleLaunchStudioPro,
       handleUninstallClick,
       handleItemClick,
+      fetchVersionsFromDatagrid,
+      downloadableVersions,
+      isLoadingDownloadableVersions,
       versionFilter,
       filteredApps,
       currentPage,
@@ -919,7 +1081,7 @@ function App() {
             : null
         }
         onCancel={handleModalCancel}
-        isLoading={isLoading}
+        isLoading={isUninstalling}
         relatedApps={relatedApps}
       />
 
@@ -933,7 +1095,7 @@ function App() {
         }
         onConfirm={async () => {
           if (appToDelete) {
-            setIsLoading(true);
+            setIsUninstalling(true);
             try {
               await invoke("delete_mendix_app", { appPath: appToDelete.path });
               await loadApps();
@@ -954,12 +1116,12 @@ function App() {
                 return newSet;
               });
 
-              setIsLoading(false);
+              setIsUninstalling(false);
               setShowAppDeleteModal(false);
               setAppToDelete(null);
             } catch (error) {
               alert(`Failed to delete app: ${error}`);
-              setIsLoading(false);
+              setIsUninstalling(false);
               setShowAppDeleteModal(false);
               setAppToDelete(null);
             }
@@ -969,7 +1131,7 @@ function App() {
           setShowAppDeleteModal(false);
           setAppToDelete(null);
         }}
-        isLoading={isLoading}
+        isLoading={isUninstalling}
         relatedApps={[]}
       />
 
@@ -978,6 +1140,14 @@ function App() {
         buildResults={buildResults}
         setShowResultModal={setShowResultModal}
         setBuildResults={setBuildResults}
+      />
+
+      <DownloadModal
+        isOpen={showDownloadModal}
+        version={versionToDownload}
+        onDownload={handleModalDownload}
+        onClose={handleDownloadModalClose}
+        onCancel={handleDownloadModalCancel}
       />
     </main>
   );

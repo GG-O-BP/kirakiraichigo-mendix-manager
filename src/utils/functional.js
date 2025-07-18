@@ -476,3 +476,146 @@ export const STORAGE_KEYS = {
 export const PACKAGE_MANAGERS = ["npm", "yarn", "pnpm", "bun"];
 
 export const ITEMS_PER_PAGE = 20;
+
+// ============= Loading State Management =============
+
+// Create loading state object
+export const createLoadingState = R.curry((isLaunching, isUninstalling) => ({
+  isLaunching,
+  isUninstalling,
+  isLoading: isLaunching || isUninstalling,
+}));
+
+// Update loading state for specific operation
+export const updateLoadingState = R.curry((operation, value, state) =>
+  R.cond([
+    [R.equals("launch"), () => R.assoc("isLaunching", value, state)],
+    [R.equals("uninstall"), () => R.assoc("isUninstalling", value, state)],
+    [R.T, R.always(state)],
+  ])(operation),
+);
+
+// Check if any loading operation is active
+export const hasAnyLoadingOperation = R.anyPass([
+  R.prop("isLaunching"),
+  R.prop("isUninstalling"),
+]);
+
+// Check if specific operation is loading
+export const isOperationLoading = R.curry((operation, state) =>
+  R.cond([
+    [R.equals("launch"), R.prop("isLaunching")],
+    [R.equals("uninstall"), R.prop("isUninstalling")],
+    [R.T, R.always(false)],
+  ])(operation)(state),
+);
+
+// Create operation state updater
+export const createOperationStateUpdater = R.curry((operation, setState) =>
+  R.pipe(
+    R.curry(updateLoadingState)(operation),
+    R.over(R.lensProp("isLoading"), hasAnyLoadingOperation),
+    setState,
+  ),
+);
+
+// Get loading text for operation
+export const getLoadingText = R.curry((operation, defaultText) =>
+  R.cond([
+    [R.equals("launch"), R.always("Launching...")],
+    [R.equals("uninstall"), R.always("Uninstalling...")],
+    [R.T, R.always(defaultText)],
+  ])(operation),
+);
+
+// Create version-specific loading state
+export const createVersionLoadingState = R.curry(
+  (versionId, operation, value) => ({
+    versionId,
+    operation,
+    value,
+    timestamp: Date.now(),
+  }),
+);
+
+// Update version loading states map
+export const updateVersionLoadingStates = R.curry(
+  (versionId, operation, value, statesMap) =>
+    R.pipe(
+      R.assoc(
+        versionId,
+        createVersionLoadingState(versionId, operation, value),
+      ),
+      R.when(() => !value, R.dissoc(versionId)),
+    )(statesMap),
+);
+
+// Get loading state for specific version
+export const getVersionLoadingState = R.curry(
+  (versionId, operation, statesMap) =>
+    R.pipe(
+      R.prop(versionId),
+      R.ifElse(
+        R.identity,
+        R.pipe(
+          R.prop("operation"),
+          R.equals(operation),
+          R.and(R.pipe(R.prop("value"), R.identity)),
+        ),
+        R.always(false),
+      ),
+    )(statesMap),
+);
+
+// Check if version has any loading operation
+export const hasVersionLoadingOperation = R.curry((versionId, statesMap) =>
+  R.pipe(
+    R.prop(versionId),
+    R.ifElse(R.identity, R.prop("value"), R.always(false)),
+  )(statesMap),
+);
+
+// Clear all loading states
+export const clearAllLoadingStates = R.always({});
+
+// Filter active loading states
+export const filterActiveLoadingStates = R.filter(
+  R.pipe(R.prop("value"), R.identity),
+);
+
+// ============= Version Operation State Management =============
+
+// Create version operation manager
+export const createVersionOperationManager = R.curry((initialState) => ({
+  state: initialState || {},
+
+  // Set operation state
+  setOperationState: R.curry((versionId, operation, value) =>
+    updateVersionLoadingStates(versionId, operation, value),
+  ),
+
+  // Get operation state
+  getOperationState: R.curry((versionId, operation) =>
+    getVersionLoadingState(versionId, operation),
+  ),
+
+  // Check if version is busy
+  isVersionBusy: R.curry((versionId) => hasVersionLoadingOperation(versionId)),
+
+  // Clear version state
+  clearVersionState: R.curry((versionId) => R.dissoc(versionId)),
+
+  // Get all active operations
+  getActiveOperations: filterActiveLoadingStates,
+}));
+
+// Create state lens for version operations
+export const versionOperationLens = R.curry((versionId, operation) =>
+  R.lensPath([versionId, operation]),
+);
+
+// Update version operation state with lens
+export const updateVersionOperationWithLens = R.curry(
+  (versionId, operation, value, state) =>
+    R.set(versionOperationLens(versionId, operation), value, state),
+);

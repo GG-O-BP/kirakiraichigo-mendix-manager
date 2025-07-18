@@ -1,10 +1,10 @@
 use quick_xml::events::Event;
 use quick_xml::Reader;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
+// Pure data types - immutable by design
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WidgetProperty {
     pub key: String,
@@ -13,7 +13,7 @@ pub struct WidgetProperty {
     pub description: String,
     pub default_value: Option<String>,
     pub required: bool,
-    pub options: Vec<String>, // For enumeration types
+    pub options: Vec<String>,
     pub category: Option<String>,
 }
 
@@ -35,7 +35,6 @@ pub struct WidgetDefinition {
 pub enum ParseError {
     FileNotFound(String),
     XmlParseError(String),
-    InvalidStructure(String),
 }
 
 impl std::fmt::Display for ParseError {
@@ -43,19 +42,419 @@ impl std::fmt::Display for ParseError {
         match self {
             ParseError::FileNotFound(msg) => write!(f, "File not found: {}", msg),
             ParseError::XmlParseError(msg) => write!(f, "XML parse error: {}", msg),
-            ParseError::InvalidStructure(msg) => write!(f, "Invalid XML structure: {}", msg),
         }
     }
 }
 
 impl std::error::Error for ParseError {}
 
-pub fn parse_widget_xml(widget_path: &str) -> Result<WidgetDefinition, ParseError> {
-    let xml_path = find_widget_xml_file(widget_path)?;
-    let xml_content = fs::read_to_string(&xml_path)
-        .map_err(|e| ParseError::FileNotFound(format!("Failed to read {}: {}", xml_path, e)))?;
+// Pure data structures for parsing state
+#[derive(Debug, Clone)]
+struct ParseContext {
+    depth: usize,
+    in_properties: bool,
+    in_property_group: bool,
+    current_element: String,
+    text_buffer: String,
+}
 
-    parse_xml_content(&xml_content)
+#[derive(Debug, Clone)]
+struct ParseState {
+    context: ParseContext,
+    widget_name: String,
+    widget_description: String,
+    properties: Vec<WidgetProperty>,
+    property_groups: Vec<WidgetPropertyGroup>,
+    current_property: Option<WidgetProperty>,
+    current_group: Option<WidgetPropertyGroup>,
+}
+
+fn create_initial_context() -> ParseContext {
+    ParseContext {
+        depth: 0,
+        in_properties: false,
+        in_property_group: false,
+        current_element: String::new(),
+        text_buffer: String::new(),
+    }
+}
+
+fn create_initial_state() -> ParseState {
+    ParseState {
+        context: create_initial_context(),
+        widget_name: String::new(),
+        widget_description: String::new(),
+        properties: Vec::new(),
+        property_groups: Vec::new(),
+        current_property: None,
+        current_group: None,
+    }
+}
+
+// Pure attribute extraction functions
+fn extract_string_attribute(
+    attributes: &[quick_xml::events::attributes::Attribute],
+    key: &[u8],
+) -> Option<String> {
+    attributes
+        .iter()
+        .find(|attr| attr.key.as_ref() == key)
+        .map(|attr| String::from_utf8_lossy(&attr.value).to_string())
+}
+
+fn extract_bool_attribute(
+    attributes: &[quick_xml::events::attributes::Attribute],
+    key: &[u8],
+) -> bool {
+    extract_string_attribute(attributes, key)
+        .map(|value| value == "true")
+        .unwrap_or(false)
+}
+
+fn extract_property_attributes(
+    attributes: Vec<quick_xml::events::attributes::Attribute>,
+) -> WidgetProperty {
+    let attrs: Vec<_> = attributes.into_iter().collect();
+
+    WidgetProperty {
+        key: extract_string_attribute(&attrs, b"key").unwrap_or_default(),
+        property_type: extract_string_attribute(&attrs, b"type").unwrap_or_default(),
+        caption: String::new(),
+        description: String::new(),
+        default_value: extract_string_attribute(&attrs, b"defaultValue"),
+        required: extract_bool_attribute(&attrs, b"required"),
+        options: Vec::new(),
+        category: None,
+    }
+}
+
+fn extract_group_caption(attributes: Vec<quick_xml::events::attributes::Attribute>) -> String {
+    let attrs: Vec<_> = attributes.into_iter().collect();
+    extract_string_attribute(&attrs, b"caption").unwrap_or_default()
+}
+
+fn extract_enumeration_value(
+    attributes: Vec<quick_xml::events::attributes::Attribute>,
+) -> Option<String> {
+    let attrs: Vec<_> = attributes.into_iter().collect();
+    extract_string_attribute(&attrs, b"key")
+}
+
+// Pure state transformation functions
+fn increment_depth(state: ParseState) -> ParseState {
+    ParseState {
+        context: ParseContext {
+            depth: state.context.depth + 1,
+            ..state.context
+        },
+        ..state
+    }
+}
+
+fn decrement_depth(state: ParseState) -> ParseState {
+    ParseState {
+        context: ParseContext {
+            depth: state.context.depth.saturating_sub(1),
+            ..state.context
+        },
+        ..state
+    }
+}
+
+fn set_in_properties(state: ParseState, value: bool) -> ParseState {
+    ParseState {
+        context: ParseContext {
+            in_properties: value,
+            ..state.context
+        },
+        ..state
+    }
+}
+
+fn set_in_property_group(state: ParseState, value: bool) -> ParseState {
+    ParseState {
+        context: ParseContext {
+            in_property_group: value,
+            ..state.context
+        },
+        ..state
+    }
+}
+
+fn set_current_element(state: ParseState, element: String) -> ParseState {
+    ParseState {
+        context: ParseContext {
+            current_element: element,
+            text_buffer: String::new(),
+            ..state.context
+        },
+        ..state
+    }
+}
+
+fn append_text_buffer(state: ParseState, text: &str) -> ParseState {
+    ParseState {
+        context: ParseContext {
+            text_buffer: format!("{}{}", state.context.text_buffer, text),
+            ..state.context
+        },
+        ..state
+    }
+}
+
+fn set_current_property(state: ParseState, property: WidgetProperty) -> ParseState {
+    ParseState {
+        current_property: Some(property),
+        ..state
+    }
+}
+
+fn set_current_group(state: ParseState, group: WidgetPropertyGroup) -> ParseState {
+    ParseState {
+        current_group: Some(group),
+        ..state
+    }
+}
+
+fn add_option_to_current_property(mut state: ParseState, option: String) -> ParseState {
+    if let Some(mut prop) = state.current_property.take() {
+        prop.options.push(option);
+        state.current_property = Some(prop);
+    }
+    state
+}
+
+fn update_property_caption(mut state: ParseState) -> ParseState {
+    if let Some(mut prop) = state.current_property.take() {
+        prop.caption = state.context.text_buffer.clone();
+        state.current_property = Some(prop);
+    }
+    state
+}
+
+fn update_property_description(mut state: ParseState) -> ParseState {
+    if let Some(mut prop) = state.current_property.take() {
+        prop.description = state.context.text_buffer.clone();
+        state.current_property = Some(prop);
+    }
+    state
+}
+
+fn update_widget_name(state: ParseState) -> ParseState {
+    ParseState {
+        widget_name: state.context.text_buffer.clone(),
+        ..state
+    }
+}
+
+fn update_widget_description(state: ParseState) -> ParseState {
+    if state.context.depth == 2 {
+        ParseState {
+            widget_description: state.context.text_buffer.clone(),
+            ..state
+        }
+    } else {
+        update_property_description(state)
+    }
+}
+
+fn finalize_current_property(mut state: ParseState) -> ParseState {
+    if let Some(property) = state.current_property.take() {
+        if state.context.in_property_group {
+            finalize_property_to_group(state, property)
+        } else {
+            finalize_property_to_root(state, property)
+        }
+    } else {
+        state
+    }
+}
+
+fn finalize_property_to_group(mut state: ParseState, property: WidgetProperty) -> ParseState {
+    if let Some(mut group) = state.current_group.take() {
+        group.properties.push(property);
+        state.current_group = Some(group);
+    }
+    state.current_property = None;
+    state
+}
+
+fn finalize_property_to_root(mut state: ParseState, property: WidgetProperty) -> ParseState {
+    state.properties.push(property);
+    state.current_property = None;
+    state
+}
+
+fn finalize_current_group(mut state: ParseState) -> ParseState {
+    if let Some(group) = state.current_group.take() {
+        state.property_groups.push(group);
+    }
+    state.current_group = None;
+    state
+}
+
+// Pure event processing functions
+fn process_start_event(
+    state: ParseState,
+    name: &[u8],
+    attributes: Vec<quick_xml::events::attributes::Attribute>,
+) -> ParseState {
+    let incremented_state = increment_depth(state);
+
+    match name {
+        b"widget" => incremented_state,
+        b"name" => set_current_element(incremented_state, "name".to_string()),
+        b"description" => set_current_element(incremented_state, "description".to_string()),
+        b"properties" => set_in_properties(incremented_state, true),
+        b"propertyGroup" => {
+            let group_caption = extract_group_caption(attributes);
+            let group = WidgetPropertyGroup {
+                caption: group_caption,
+                properties: Vec::new(),
+            };
+            set_current_group(set_in_property_group(incremented_state, true), group)
+        }
+        b"property" => {
+            if incremented_state.context.in_properties {
+                let property = extract_property_attributes(attributes);
+                set_current_property(incremented_state, property)
+            } else {
+                incremented_state
+            }
+        }
+        b"caption" => set_current_element(incremented_state, "caption".to_string()),
+        b"enumerationValue" => extract_enumeration_value(attributes)
+            .map_or(incremented_state.clone(), |value| {
+                add_option_to_current_property(incremented_state, value)
+            }),
+        _ => {
+            let element_name = String::from_utf8_lossy(name).to_string();
+            set_current_element(incremented_state, element_name)
+        }
+    }
+}
+
+fn process_end_event(state: ParseState, name: &[u8]) -> ParseState {
+    let decremented_state = decrement_depth(state);
+
+    match name {
+        b"properties" => set_in_properties(decremented_state, false),
+        b"propertyGroup" => finalize_current_group(set_in_property_group(decremented_state, false)),
+        b"property" => finalize_current_property(decremented_state),
+        _ => set_current_element(decremented_state, String::new()),
+    }
+}
+
+fn process_text_event(state: ParseState, text: &str) -> ParseState {
+    let text_updated_state = append_text_buffer(state, text);
+    let element = text_updated_state.context.current_element.clone();
+
+    match element.as_str() {
+        "name" => update_widget_name(text_updated_state),
+        "description" => update_widget_description(text_updated_state),
+        "caption" => update_property_caption(text_updated_state),
+        _ => text_updated_state,
+    }
+}
+
+// Pure XML parsing function
+fn parse_xml_events<F>(xml_content: &str, mut event_processor: F) -> Result<ParseState, ParseError>
+where
+    F: FnMut(ParseState, Event) -> ParseState,
+{
+    let mut reader = Reader::from_str(xml_content);
+    reader.config_mut().trim_text(true);
+    let mut buf = Vec::new();
+    let mut state = create_initial_state();
+
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Err(e) => {
+                return Err(ParseError::XmlParseError(format!(
+                    "XML parsing error: {}",
+                    e
+                )))
+            }
+            Ok(Event::Eof) => break,
+            Ok(event) => {
+                state = event_processor(state, event);
+            }
+        }
+        buf.clear();
+    }
+
+    Ok(state)
+}
+
+fn process_xml_event(state: ParseState, event: Event) -> ParseState {
+    match event {
+        Event::Start(e) => {
+            let attributes: Result<Vec<_>, _> = e.attributes().collect();
+            match attributes {
+                Ok(attrs) => process_start_event(state, e.name().as_ref(), attrs),
+                Err(_) => state,
+            }
+        }
+        Event::End(e) => process_end_event(state, e.name().as_ref()),
+        Event::Text(e) => match e.decode() {
+            Ok(text) => process_text_event(state, &text),
+            Err(_) => state,
+        },
+        Event::CData(e) => match std::str::from_utf8(e.as_ref()) {
+            Ok(text) => process_text_event(state, text),
+            Err(_) => state,
+        },
+        _ => state,
+    }
+}
+
+// Pure conversion functions
+fn state_to_widget_definition(state: ParseState) -> WidgetDefinition {
+    WidgetDefinition {
+        name: state.widget_name,
+        description: state.widget_description,
+        properties: state.properties,
+        property_groups: state.property_groups,
+    }
+}
+
+fn parse_xml_content(xml_content: &str) -> Result<WidgetDefinition, ParseError> {
+    parse_xml_events(xml_content, process_xml_event).map(state_to_widget_definition)
+}
+
+// Pure file filtering functions
+fn is_xml_file(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext == "xml")
+        .unwrap_or(false)
+}
+
+fn is_not_package_xml(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name != "package.xml")
+        .unwrap_or(false)
+}
+
+fn is_widget_xml_file(path: &Path) -> bool {
+    is_xml_file(path) && is_not_package_xml(path)
+}
+
+// IO functions - only these perform side effects
+fn read_directory_entries(dir_path: &Path) -> Result<Vec<std::fs::DirEntry>, ParseError> {
+    fs::read_dir(dir_path)
+        .map_err(|e| ParseError::FileNotFound(format!("Cannot read src directory: {}", e)))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| ParseError::FileNotFound(format!("Cannot read directory entry: {}", e)))
+}
+
+fn find_widget_xml_in_entries(entries: Vec<std::fs::DirEntry>) -> Option<String> {
+    entries
+        .into_iter()
+        .map(|entry| entry.path())
+        .find(|path| is_widget_xml_file(path))
+        .map(|path| path.to_string_lossy().to_string())
 }
 
 fn find_widget_xml_file(widget_path: &str) -> Result<String, ParseError> {
@@ -68,241 +467,22 @@ fn find_widget_xml_file(widget_path: &str) -> Result<String, ParseError> {
         )));
     }
 
-    // Find XML files in src directory
-    let entries = fs::read_dir(&src_path)
-        .map_err(|e| ParseError::FileNotFound(format!("Cannot read src directory: {}", e)))?;
-
-    for entry in entries {
-        let entry = entry
-            .map_err(|e| ParseError::FileNotFound(format!("Cannot read directory entry: {}", e)))?;
-        let path = entry.path();
-
-        if let Some(extension) = path.extension() {
-            if extension == "xml" {
-                if let Some(file_name) = path.file_name() {
-                    let file_name_str = file_name.to_string_lossy();
-                    // Skip package.xml, find the widget definition XML
-                    if file_name_str != "package.xml" {
-                        return Ok(path.to_string_lossy().to_string());
-                    }
-                }
-            }
-        }
-    }
-
-    Err(ParseError::FileNotFound(
-        "Widget XML file not found".to_string(),
-    ))
+    read_directory_entries(&src_path).and_then(|entries| {
+        find_widget_xml_in_entries(entries)
+            .ok_or_else(|| ParseError::FileNotFound("Widget XML file not found".to_string()))
+    })
 }
 
-fn parse_xml_content(xml_content: &str) -> Result<WidgetDefinition, ParseError> {
-    let mut reader = Reader::from_str(xml_content);
-    reader.config_mut().trim_text(true);
+fn read_file_content(file_path: &str) -> Result<String, ParseError> {
+    fs::read_to_string(file_path)
+        .map_err(|e| ParseError::FileNotFound(format!("Failed to read {}: {}", file_path, e)))
+}
 
-    let mut buf = Vec::new();
-    let mut widget_name = String::new();
-    let mut widget_description = String::new();
-    let mut properties = Vec::new();
-    let mut property_groups = Vec::new();
-
-    let mut current_property: Option<WidgetProperty> = None;
-    let mut current_group: Option<WidgetPropertyGroup> = None;
-    let mut current_element = String::new();
-    let mut text_buffer = String::new();
-    let mut in_properties = false;
-    let mut in_property_group = false;
-    let mut depth = 0;
-
-    loop {
-        match reader.read_event_into(&mut buf) {
-            Err(e) => {
-                return Err(ParseError::XmlParseError(format!(
-                    "XML parsing error: {}",
-                    e
-                )))
-            }
-            Ok(Event::Eof) => break,
-
-            Ok(Event::Start(e)) => {
-                depth += 1;
-
-                match e.name().as_ref() {
-                    b"widget" => {
-                        // Widget root element - extract attributes if needed
-                    }
-                    b"name" => {
-                        current_element = "name".to_string();
-                        text_buffer.clear();
-                    }
-                    b"description" => {
-                        current_element = "description".to_string();
-                        text_buffer.clear();
-                    }
-                    b"properties" => {
-                        in_properties = true;
-                    }
-                    b"propertyGroup" => {
-                        in_property_group = true;
-                        let mut group_caption = String::new();
-
-                        // Extract caption from attributes
-                        for attr in e.attributes() {
-                            if let Ok(attr) = attr {
-                                if attr.key.as_ref() == b"caption" {
-                                    group_caption =
-                                        String::from_utf8_lossy(&attr.value).to_string();
-                                }
-                            }
-                        }
-
-                        current_group = Some(WidgetPropertyGroup {
-                            caption: group_caption,
-                            properties: Vec::new(),
-                        });
-                    }
-                    b"property" => {
-                        if in_properties {
-                            let mut prop_key = String::new();
-                            let mut prop_type = String::new();
-                            let mut prop_required = false;
-                            let mut prop_default = None;
-
-                            // Extract attributes
-                            for attr in e.attributes() {
-                                if let Ok(attr) = attr {
-                                    match attr.key.as_ref() {
-                                        b"key" => {
-                                            prop_key =
-                                                String::from_utf8_lossy(&attr.value).to_string()
-                                        }
-                                        b"type" => {
-                                            prop_type =
-                                                String::from_utf8_lossy(&attr.value).to_string()
-                                        }
-                                        b"required" => {
-                                            prop_required =
-                                                String::from_utf8_lossy(&attr.value) == "true"
-                                        }
-                                        b"defaultValue" => {
-                                            prop_default = Some(
-                                                String::from_utf8_lossy(&attr.value).to_string(),
-                                            )
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
-
-                            current_property = Some(WidgetProperty {
-                                key: prop_key,
-                                property_type: prop_type,
-                                caption: String::new(),
-                                description: String::new(),
-                                default_value: prop_default,
-                                required: prop_required,
-                                options: Vec::new(),
-                                category: None,
-                            });
-                        }
-                    }
-                    b"caption" => {
-                        current_element = "caption".to_string();
-                        text_buffer.clear();
-                    }
-                    b"enumerationValue" => {
-                        if let Some(ref mut prop) = current_property {
-                            // Extract enumeration value
-                            for attr in e.attributes() {
-                                if let Ok(attr) = attr {
-                                    if attr.key.as_ref() == b"key" {
-                                        prop.options
-                                            .push(String::from_utf8_lossy(&attr.value).to_string());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    _ => {
-                        current_element = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                        text_buffer.clear();
-                    }
-                }
-            }
-
-            Ok(Event::End(e)) => {
-                depth -= 1;
-
-                match e.name().as_ref() {
-                    b"properties" => {
-                        in_properties = false;
-                    }
-                    b"propertyGroup" => {
-                        if let Some(group) = current_group.take() {
-                            property_groups.push(group);
-                        }
-                        in_property_group = false;
-                    }
-                    b"property" => {
-                        if let Some(prop) = current_property.take() {
-                            if in_property_group {
-                                if let Some(ref mut group) = current_group {
-                                    group.properties.push(prop);
-                                }
-                            } else {
-                                properties.push(prop);
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-
-                current_element.clear();
-            }
-
-            Ok(Event::Text(e)) => {
-                let text = e
-                    .unescape()
-                    .map_err(|e| ParseError::XmlParseError(format!("Text decode error: {}", e)))?;
-                text_buffer.push_str(&text);
-
-                // Assign text to appropriate fields
-                match current_element.as_str() {
-                    "name" => widget_name = text_buffer.clone(),
-                    "description" => {
-                        if depth == 2 {
-                            // Widget description
-                            widget_description = text_buffer.clone();
-                        } else if let Some(ref mut prop) = current_property {
-                            prop.description = text_buffer.clone();
-                        }
-                    }
-                    "caption" => {
-                        if let Some(ref mut prop) = current_property {
-                            prop.caption = text_buffer.clone();
-                        }
-                    }
-                    _ => {}
-                }
-            }
-
-            Ok(Event::CData(e)) => {
-                let text = std::str::from_utf8(e.as_ref())
-                    .map_err(|e| ParseError::XmlParseError(format!("CData decode error: {}", e)))?;
-                text_buffer.push_str(&text);
-            }
-
-            _ => {}
-        }
-
-        buf.clear();
-    }
-
-    Ok(WidgetDefinition {
-        name: widget_name,
-        description: widget_description,
-        properties,
-        property_groups,
-    })
+// Main API function - composes pure functions with minimal IO
+pub fn parse_widget_xml(widget_path: &str) -> Result<WidgetDefinition, ParseError> {
+    find_widget_xml_file(widget_path)
+        .and_then(|xml_path| read_file_content(&xml_path))
+        .and_then(|xml_content| parse_xml_content(&xml_content))
 }
 
 #[tauri::command]

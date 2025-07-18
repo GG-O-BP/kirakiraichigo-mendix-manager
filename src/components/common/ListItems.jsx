@@ -70,11 +70,14 @@ const renderVersionBadge = R.curry((badge, badgeClass) =>
   badge ? <span className={`version-badge ${badgeClass}`}>{badge}</span> : null,
 );
 
-const getVersionDate = R.ifElse(
-  R.prop("isUninstalling"),
-  R.always("Uninstalling..."),
-  R.pipe(R.prop("install_date"), formatDate("Installation date unknown")),
-);
+const getVersionDate = R.cond([
+  [R.prop("isLaunching"), R.always("Launching...")],
+  [R.prop("isUninstalling"), R.always("Uninstalling...")],
+  [
+    R.T,
+    R.pipe(R.prop("install_date"), formatDate("Installation date unknown")),
+  ],
+]);
 
 const renderLaunchButton = R.curry(
   (onLaunch, version, isLaunching, isUninstalling) => (
@@ -102,7 +105,7 @@ const renderUninstallButton = R.curry(
       }}
     >
       <span className="button-icon">🗑️</span>
-      {isUninstalling ? "ing..." : ""}
+      {isUninstalling ? "..." : ""}
     </button>
   ),
 );
@@ -139,7 +142,7 @@ export const MendixVersionListItem = memo(
               {renderVersionBadge(getVersionBadge(version), "lts")}
             </span>
             <span className="version-date">
-              {getVersionDate({ ...version, isUninstalling })}
+              {getVersionDate({ ...version, isLaunching, isUninstalling })}
             </span>
           </div>
         </div>

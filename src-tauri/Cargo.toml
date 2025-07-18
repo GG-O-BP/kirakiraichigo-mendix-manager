@@ -1,6 +1,6 @@
 [package]
 name = "KiraIchi"
-version = "0.3.1"
+version = "0.3.2"
 description = "Magical Mendix management tool for Studio Pro version control, widget development, and deployment. Sparkle your way through Mendix development!"
 authors = ["GG-O-BP"]
 edition = "2021"
@@ -25,5 +25,12 @@ serde_json = "1"
 regex = "1"
 chrono = { version = "0.4", features = ["serde"] }
 walkdir = "2"
-dirs = "5"
-quick-xml = "0.36"
+dirs = "6"
+quick-xml = "0.38"
+rc-zip = "5.3.1"
+rc-zip-sync = "4.3.0"
+chromiumoxide = "0.7"
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+scraper = "0.23"
+reqwest = { version = "0.11", features = ["stream"] }

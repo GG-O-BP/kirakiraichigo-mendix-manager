@@ -14,6 +14,7 @@ pub fn run_package_manager_command(
     command: String,
     working_directory: String,
 ) -> Result<String, String> {
+    let mut config = PackageManagerConfig::load().unwrap_or_else(|_| PackageManagerConfig::new());
     println!(
         "[Package Manager] Executing {} {} in {}",
         package_manager, command, working_directory
@@ -37,7 +38,6 @@ pub fn run_package_manager_command(
     println!("[Package Manager] Working directory validated");
 
     // Load saved configuration
-    let mut config = PackageManagerConfig::load().unwrap_or_else(|_| PackageManagerConfig::new());
 
     // Try saved method first if available
     if let Some(saved_method) = config.get_method(&package_manager) {
@@ -68,7 +68,7 @@ pub fn run_package_manager_command(
     // Try method 1: Direct Node.js search (bypass fnm)
     match run_with_direct_node_search(&package_manager, &command, &working_directory) {
         Ok(output) => {
-            config.set_method(&package_manager, "direct_node".to_string());
+            config = config.with_method(&package_manager, "direct_node".to_string());
             let _ = config.save();
             return Ok(output);
         }
@@ -80,7 +80,7 @@ pub fn run_package_manager_command(
     // Try method 2: Simple fnm method
     match run_with_fnm_simple(&package_manager, &command, &working_directory) {
         Ok(output) => {
-            config.set_method(&package_manager, "fnm_simple".to_string());
+            config = config.with_method(&package_manager, "fnm_simple".to_string());
             let _ = config.save();
             return Ok(output);
         }
@@ -92,7 +92,7 @@ pub fn run_package_manager_command(
     // Try method 3: PowerShell with fnm support
     match run_with_powershell_fnm(&package_manager, &command, &working_directory) {
         Ok(output) => {
-            config.set_method(&package_manager, "powershell_fnm".to_string());
+            config = config.with_method(&package_manager, "powershell_fnm".to_string());
             let _ = config.save();
             return Ok(output);
         }
@@ -104,7 +104,7 @@ pub fn run_package_manager_command(
     // Try method 4: PowerShell without fnm
     match run_with_powershell_simple(&package_manager, &command, &working_directory) {
         Ok(output) => {
-            config.set_method(&package_manager, "powershell_simple".to_string());
+            config = config.with_method(&package_manager, "powershell_simple".to_string());
             let _ = config.save();
             return Ok(output);
         }
@@ -116,7 +116,7 @@ pub fn run_package_manager_command(
     // Try method 5: Direct command execution
     match run_direct_command(&package_manager, &command, &working_directory) {
         Ok(output) => {
-            config.set_method(&package_manager, "direct_command".to_string());
+            config = config.with_method(&package_manager, "direct_command".to_string());
             let _ = config.save();
             return Ok(output);
         }
