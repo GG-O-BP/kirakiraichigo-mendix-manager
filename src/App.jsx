@@ -38,7 +38,11 @@ import {
   WidgetManager,
   WidgetPreview,
 } from "./components/tabs";
-import { WidgetModal, BuildResultModal } from "./components/modals";
+import {
+  WidgetModal,
+  BuildResultModal,
+  DownloadModal,
+} from "./components/modals";
 
 // Initial state factory
 const createInitialState = () => ({
@@ -88,6 +92,8 @@ const createInitialState = () => ({
   showWidgetModal: false,
   showAddWidgetForm: false,
   showResultModal: false,
+  showDownloadModal: false,
+  versionToDownload: null,
 
   // Form states
   newWidgetCaption: "",
@@ -177,18 +183,6 @@ function App() {
     }
   }, []);
 
-  const handleDownloadVersion = useCallback(async (version) => {
-    try {
-      // TODO: Implement actual download logic
-      // This could call a Tauri command to download and install the version
-      alert(
-        `Download functionality for version ${version.version} will be implemented soon!`,
-      );
-    } catch (error) {
-      console.error("Failed to download version:", error);
-    }
-  }, []);
-
   // Initialize state using factory
   const initialState = useMemo(createInitialState, []);
 
@@ -269,6 +263,12 @@ function App() {
   const [showResultModal, setShowResultModal] = useState(
     initialState.showResultModal,
   );
+  const [showDownloadModal, setShowDownloadModal] = useState(
+    initialState.showDownloadModal,
+  );
+  const [versionToDownload, setVersionToDownload] = useState(
+    initialState.versionToDownload,
+  );
   const [inlineResults, setInlineResults] = useState(null);
 
   // Form state
@@ -312,6 +312,52 @@ function App() {
     ),
     [],
   );
+
+  const handleDownloadVersion = useCallback((version) => {
+    // Validation
+    if (!version || !version.version) {
+      alert("❌ Invalid version data");
+      return;
+    }
+
+    // Show download modal instead of confirm dialog
+    setVersionToDownload(version);
+    setShowDownloadModal(true);
+  }, []);
+
+  const handleModalDownload = useCallback(
+    async (version) => {
+      try {
+        setIsLoadingDownloadableVersions(true);
+
+        // Call Tauri command to download and install
+        const result = await invoke("download_and_install_mendix_version", {
+          version: version.version,
+        });
+
+        // Refresh installed versions to show the new installation
+        await loadVersions();
+
+        return result;
+      } catch (error) {
+        console.error("Error in download process:", error);
+        throw error;
+      } finally {
+        setIsLoadingDownloadableVersions(false);
+      }
+    },
+    [loadVersions],
+  );
+
+  const handleDownloadModalClose = useCallback(() => {
+    setShowDownloadModal(false);
+    setVersionToDownload(null);
+  }, []);
+
+  const handleDownloadModalCancel = useCallback(() => {
+    setShowDownloadModal(false);
+    setVersionToDownload(null);
+  }, []);
 
   const loadApps = useCallback(
     wrapAsync(
@@ -790,6 +836,7 @@ function App() {
     fetchVersionsFromDatagrid,
     downloadableVersions,
     isLoadingDownloadableVersions,
+    handleDownloadVersion,
     versionFilter,
     setVersionFilter,
     appSearchTerm,
@@ -1093,6 +1140,14 @@ function App() {
         buildResults={buildResults}
         setShowResultModal={setShowResultModal}
         setBuildResults={setBuildResults}
+      />
+
+      <DownloadModal
+        isOpen={showDownloadModal}
+        version={versionToDownload}
+        onDownload={handleModalDownload}
+        onClose={handleDownloadModalClose}
+        onCancel={handleDownloadModalCancel}
       />
     </main>
   );

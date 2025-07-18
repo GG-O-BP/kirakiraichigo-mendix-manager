@@ -396,7 +396,7 @@ fn process_xml_event(state: ParseState, event: Event) -> ParseState {
             }
         }
         Event::End(e) => process_end_event(state, e.name().as_ref()),
-        Event::Text(e) => match e.unescape() {
+        Event::Text(e) => match e.decode() {
             Ok(text) => process_text_event(state, &text),
             Err(_) => state,
         },

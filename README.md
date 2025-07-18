@@ -5,7 +5,7 @@
 
 - **Studio Pro Version Management** - Manage multiple Studio Pro versions with magical ease
 - [x] Show All Studio Pro Versions
-- [ ] Install Studio Pro
+- [x] Install Studio Pro
 - [x] Show Installed Studio Pro Versions
 - [x] Uninstall Studio Pro
 - [x] Run Studio Pro

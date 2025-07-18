@@ -2,10 +2,14 @@ use chromiumoxide::browser::{Browser, BrowserConfig};
 use chromiumoxide::page::Page;
 use chromiumoxide::Element;
 use futures::StreamExt;
+use futures::TryStreamExt;
 use regex::Regex;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
+
+use std::process::Command;
 use std::time::Duration;
+use tokio::io::AsyncWriteExt;
 use tokio::time::timeout;
 
 // Pure data types - immutable by design
@@ -20,6 +24,19 @@ pub struct DownloadableVersion {
     pub is_beta: bool,
     pub is_mts: bool,
     pub is_latest: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BuildInfo {
+    pub build_number: String,
+    pub download_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DownloadProgress {
+    pub downloaded_bytes: u64,
+    pub total_bytes: Option<u64>,
+    pub percentage: Option<f32>,
 }
 
 #[derive(Debug, Clone)]
@@ -97,6 +114,34 @@ fn is_valid_version_string(version: &str) -> bool {
 
 fn is_valid_download_url(url: &str) -> bool {
     url.starts_with("https://") && url.contains("mendix.com")
+}
+
+// Pure build number extraction functions
+fn extract_build_number_from_text(text: &str) -> Option<String> {
+    Regex::new(r"Build\s+(\d{5})")
+        .ok()?
+        .captures(text)?
+        .get(1)
+        .map(|m| m.as_str().to_string())
+}
+
+fn construct_download_url(version: &str, build_number: &str) -> String {
+    format!(
+        "https://artifacts.rnd.mendix.com/modelers/Mendix-{}.{}-Setup.exe",
+        version, build_number
+    )
+}
+
+fn construct_marketplace_url(version: &str) -> String {
+    format!("https://marketplace.mendix.com/link/studiopro/{}", version)
+}
+
+fn create_build_info(build_number: String, version: &str) -> BuildInfo {
+    let download_url = construct_download_url(version, &build_number);
+    BuildInfo {
+        build_number,
+        download_url,
+    }
 }
 
 fn is_valid_version(version: &DownloadableVersion) -> bool {
@@ -681,4 +726,178 @@ pub async fn wait_for_datagrid_content() -> Result<String, String> {
 
     let _ = cleanup_browser_resources(browser, handler_task).await;
     result
+}
+
+// Pure build number extraction from marketplace page
+async fn extract_build_number_from_marketplace(
+    page: &Page,
+    version: &str,
+) -> Result<String, String> {
+    // Wait for page content to load
+    tokio::time::sleep(Duration::from_millis(3000)).await;
+
+    // Look for span elements with build information
+    let selector = "span.mx-text.pds-heading--sm.pds-mb-0";
+
+    let elements = page
+        .find_elements(selector)
+        .await
+        .map_err(|e| format!("Failed to find elements: {}", e))?;
+
+    for element in elements {
+        if let Ok(Some(text)) = element.inner_text().await {
+            if text.contains("Build") {
+                if let Some(build_number) = extract_build_number_from_text(&text) {
+                    println!("✅ Build number extracted: {}", build_number);
+                    return Ok(build_number);
+                }
+            }
+        }
+    }
+
+    Err(format!("Build number not found for version {}", version))
+}
+
+// Pure file download function
+async fn download_file_to_path(url: &str, file_path: &str) -> Result<(), String> {
+    let client = reqwest::Client::new();
+
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to start download: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Download failed with status: {}",
+            response.status()
+        ));
+    }
+
+    let mut file = tokio::fs::File::create(file_path)
+        .await
+        .map_err(|e| format!("Failed to create file: {}", e))?;
+
+    let mut stream = response.bytes_stream();
+    let mut total_bytes = 0;
+
+    while let Some(chunk) = stream
+        .try_next()
+        .await
+        .map_err(|e| format!("Failed to read chunk: {}", e))?
+    {
+        total_bytes += chunk.len();
+
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| format!("Failed to write chunk: {}", e))?;
+    }
+
+    println!("✅ Download completed: {} MB", total_bytes / (1024 * 1024));
+
+    file.flush()
+        .await
+        .map_err(|e| format!("Failed to flush file: {}", e))?;
+
+    Ok(())
+}
+
+// Pure installer execution function
+fn execute_installer(installer_path: &str) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        Command::new(installer_path)
+            .arg("/SILENT")
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .map_err(|e| format!("Failed to execute installer: {}", e))?;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Command::new(installer_path)
+            .spawn()
+            .map_err(|e| format!("Failed to execute installer: {}", e))?;
+    }
+
+    Ok(())
+}
+
+// Main API functions
+#[tauri::command]
+pub async fn extract_build_number(version: String) -> Result<BuildInfo, String> {
+    let url = construct_marketplace_url(&version);
+    let (browser, mut handler) = create_browser_instance().await?;
+
+    let handler_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let handler_flag = handler_running.clone();
+
+    let handler_task = tokio::spawn(async move {
+        while handler_flag.load(std::sync::atomic::Ordering::Relaxed) {
+            match tokio::time::timeout(Duration::from_millis(100), handler.next()).await {
+                Ok(Some(Ok(_))) => continue,
+                Ok(Some(Err(_))) => continue,
+                Ok(None) => break,
+                Err(_) => continue,
+            }
+        }
+    });
+
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+
+    let result = async {
+        let page = navigate_to_url(&browser, &url).await?;
+        handle_privacy_modal_if_present(&page).await?;
+        let build_number = extract_build_number_from_marketplace(&page, &version).await?;
+        let build_info = create_build_info(build_number, &version);
+        Ok(build_info)
+    }
+    .await;
+
+    handler_running.store(false, std::sync::atomic::Ordering::Relaxed);
+    let _ = cleanup_browser_resources(browser, handler_task).await;
+
+    result
+}
+
+#[tauri::command]
+pub async fn download_and_install_mendix_version(version: String) -> Result<String, String> {
+    // Step 1: Extract build number
+    println!("📋 Step 1: Extracting build number...");
+    let build_info = extract_build_number(version.clone()).await?;
+
+    // Step 2: Construct download path
+    println!("📁 Step 2: Setting up download path...");
+    let downloads_dir =
+        dirs::download_dir().ok_or_else(|| "Failed to get downloads directory".to_string())?;
+
+    let installer_filename = format!("Mendix-{}.{}-Setup.exe", version, build_info.build_number);
+    let installer_path = downloads_dir.join(&installer_filename);
+    let installer_path_str = installer_path
+        .to_str()
+        .ok_or_else(|| "Invalid installer path".to_string())?;
+
+    // Step 3: Download the installer
+    println!("⬇️ Step 3: Downloading installer...");
+    download_file_to_path(&build_info.download_url, installer_path_str).await?;
+
+    // Step 4: Execute the installer
+    println!("🚀 Step 4: Launching installer...");
+    execute_installer(installer_path_str)?;
+    println!("✅ Installer launched successfully");
+
+    Ok(format!(
+        "Successfully started installation of Mendix Studio Pro {}",
+        version
+    ))
+}
+
+#[tauri::command]
+pub async fn get_download_url_for_version(version: String) -> Result<String, String> {
+    let build_info = extract_build_number(version).await?;
+    Ok(build_info.download_url)
 }

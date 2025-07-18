@@ -60,21 +60,31 @@ const hasMorePages = R.curry((currentCount, totalAvailable) =>
 
 // Create safe pagination handler with functional composition
 const createPaginationHandler = R.curry(
-  (downloadableVersions, isLoading, fetchFunction) =>
-    R.pipe(
+  (downloadableVersions, isLoading, fetchFunction) => {
+    if (isLoading) {
+      return null;
+    }
+
+    return R.pipe(
       R.always(downloadableVersions),
       R.ifElse(
-        R.always(isLoading),
+        R.always(false),
+        R.identity,
         R.pipe(
           calculateNextPage,
           R.when(
             R.pipe(R.gte(R.__, 1), R.and(R.lt(R.__, 100))), // Validate page range
-            (page) => () => fetchFunction && fetchFunction(page),
+            (page) => () => {
+              if (fetchFunction) {
+                return fetchFunction(page);
+              }
+            },
           ),
           R.defaultTo(() => console.warn("Invalid page calculation")),
         ),
       ),
-    )(),
+    )();
+  },
 );
 
 // Enhanced version string conversion with error handling
@@ -344,12 +354,25 @@ const StudioProManager = memo(
                 </div>
                 <button
                   className="install-button"
-                  onClick={() =>
-                    handleDownloadVersion && handleDownloadVersion(version)
-                  }
+                  disabled={isLoadingDownloadableVersions}
+                  onClick={() => {
+                    if (handleDownloadVersion) {
+                      handleDownloadVersion(version);
+                    }
+                  }}
+                  style={{
+                    opacity: isLoadingDownloadableVersions ? 0.6 : 1,
+                    cursor: isLoadingDownloadableVersions
+                      ? "not-allowed"
+                      : "pointer",
+                  }}
                 >
-                  <span className="button-icon">📥</span>
-                  Download
+                  <span className="button-icon">
+                    {isLoadingDownloadableVersions ? "⏳" : "📥"}
+                  </span>
+                  {isLoadingDownloadableVersions
+                    ? "Downloading..."
+                    : "Download"}
                 </button>
               </div>
             ));
@@ -362,11 +385,16 @@ const StudioProManager = memo(
                   cursor: isLoadingDownloadableVersions ? "default" : "pointer",
                   opacity: isLoadingDownloadableVersions ? 0.6 : 1,
                 }}
-                onClick={createPaginationHandler(
-                  downloadableVersions,
-                  isLoadingDownloadableVersions,
-                  fetchVersionsFromDatagrid,
-                )}
+                onClick={() => {
+                  const handler = createPaginationHandler(
+                    downloadableVersions,
+                    isLoadingDownloadableVersions,
+                    fetchVersionsFromDatagrid,
+                  );
+                  if (handler) {
+                    handler();
+                  }
+                }}
               >
                 <div className="version-info">
                   <span className="version-icon">
