@@ -15,12 +15,7 @@ import {
 // Widget content loading functions
 const loadWidgetContents = R.curry(async (widgetPath) => {
   try {
-    console.log("🍓 Loading widget contents from:", widgetPath);
     const contents = await invoke("extract_widget_contents", { widgetPath });
-    console.log("✨ Widget contents loaded successfully:", {
-      totalFiles: contents.total_files,
-      webFiles: contents.web_files?.length || 0,
-    });
     return contents;
   } catch (error) {
     console.error("❌ Failed to load widget contents:", error);
@@ -32,14 +27,9 @@ const loadWidgetContents = R.curry(async (widgetPath) => {
 
 const loadWidgetFileContent = R.curry(async (widgetPath, filePath) => {
   try {
-    console.log("📄 Loading file content:", { widgetPath, filePath });
     const content = await invoke("get_widget_file_content", {
       widgetPath,
       filePath,
-    });
-    console.log("✨ File content loaded successfully:", {
-      filePath,
-      length: content.length,
     });
     return content;
   } catch (error) {
@@ -50,12 +40,7 @@ const loadWidgetFileContent = R.curry(async (widgetPath, filePath) => {
 
 const listWidgetFiles = R.curry(async (widgetPath) => {
   try {
-    console.log("📋 Listing widget files:", widgetPath);
     const files = await invoke("list_widget_files", { widgetPath });
-    console.log("✨ Widget files listed successfully:", {
-      count: files.length,
-      files: files.slice(0, 5), // Show first 5 files
-    });
     return files;
   } catch (error) {
     console.error("❌ Failed to list widget files:", error);
@@ -65,15 +50,7 @@ const listWidgetFiles = R.curry(async (widgetPath) => {
 
 const loadWidgetPreviewData = R.curry(async (widgetPath) => {
   try {
-    console.log("🎭 Loading widget preview data from:", widgetPath);
     const previewData = await invoke("get_widget_preview_data", { widgetPath });
-    console.log("✨ Widget preview data loaded successfully:", {
-      componentName: previewData.component_name,
-      componentType: previewData.component_type,
-      hasReact: previewData.has_react,
-      cssClasses: previewData.css_classes?.length || 0,
-      props: previewData.props?.length || 0,
-    });
     return previewData;
   } catch (error) {
     console.error("❌ Failed to load widget preview data:", error);
@@ -110,20 +87,11 @@ const renderWidgetContentPreview = R.curry((widgetContents, selectedFile) => {
 });
 
 const logWidgetContents = R.curry((widgetContents) => {
-  console.log("✨ Widget Preview - Contents Analysis:");
-  console.log("📊 Total files:", R.propOr(0, "total_files", widgetContents));
-  console.log(
-    "🌐 Web files:",
-    R.pipe(R.propOr([], "web_files"), R.length)(widgetContents),
-  );
-
   const filesByType = R.pipe(
     R.propOr([], "web_files"),
     groupFilesByExtension,
     R.map(R.length),
   )(widgetContents);
-
-  console.log("📁 Files by type:", filesByType);
 
   return widgetContents;
 });
@@ -729,9 +697,6 @@ const WidgetPreview = memo(
           loadWidgetPreviewData(R.prop("path", selectedWidget)),
         ])
           .then(([contents, previewData]) => {
-            console.log(
-              "🎭 Both widget contents and preview data loaded successfully",
-            );
             setWidgetContents(logWidgetContents(contents));
             setWidgetPreviewData(previewData);
             setLoadingState(createLoadingState(false, ""));
@@ -764,12 +729,10 @@ const WidgetPreview = memo(
     // File selection handler
     const handleFileSelect = R.curry((filePath) => {
       setSelectedFile(filePath);
-      console.log("🔍 Selected file:", filePath);
     });
 
     // Error retry handler
     const handleRetry = R.curry(() => {
-      console.log("🔄 Retrying widget content load...");
       setRetryCount(R.inc);
     });
 

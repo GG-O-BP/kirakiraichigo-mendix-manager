@@ -122,8 +122,6 @@ function App() {
       );
       setDownloadableVersions(downloadableVersions);
       setIsLoadingDownloadableVersions(false);
-
-      console.log("Fetched downloadable versions:", downloadableVersions);
     } catch (error) {
       console.error("Failed to fetch downloadable versions:", error);
       setIsLoadingDownloadableVersions(false);
@@ -135,8 +133,6 @@ function App() {
       const [stableVersions, betaVersions] = await invoke(
         "get_downloadable_versions_by_type",
       );
-      console.log("Stable versions:", stableVersions);
-      console.log("Beta versions:", betaVersions);
       return { stableVersions, betaVersions };
     } catch (error) {
       console.error("Failed to fetch versions by type:", error);
@@ -144,15 +140,34 @@ function App() {
     }
   }, []);
 
+  // Functional pagination logic with Ramda.js
+  const createVersionsUpdater = R.curry(
+    (isFirstPage, newVersions, prevVersions) =>
+      R.ifElse(
+        R.always(isFirstPage),
+        R.always(newVersions),
+        R.pipe(R.defaultTo([]), R.concat(R.__, newVersions)),
+      )(prevVersions),
+  );
+
   const fetchVersionsFromDatagrid = useCallback(async (page = 1) => {
+    const isFirstPage = page === 1;
+
     try {
-      console.log(`Fetching versions from datagrid (page ${page})...`);
+      // Functional composition for page handling
+      const processedPage = R.pipe(R.defaultTo(1), R.max(1))(page);
+
       setIsLoadingDownloadableVersions(true);
-      const versions = await invoke("get_downloadable_versions_from_datagrid", {
-        page,
-      });
-      console.log("Fetched versions from datagrid:", versions);
-      setDownloadableVersions((prev) => [...prev, ...versions]);
+
+      const versions = await R.pipe(
+        R.always({ page: processedPage }),
+        (params) => invoke("get_downloadable_versions_from_datagrid", params),
+        R.andThen(R.defaultTo([])),
+      )();
+
+      // Update versions using functional approach
+      setDownloadableVersions(createVersionsUpdater(isFirstPage, versions));
+
       setIsLoadingDownloadableVersions(false);
       return versions;
     } catch (error) {
@@ -164,7 +179,6 @@ function App() {
 
   const handleDownloadVersion = useCallback(async (version) => {
     try {
-      console.log("Downloading version:", version.version);
       // TODO: Implement actual download logic
       // This could call a Tauri command to download and install the version
       alert(
@@ -361,6 +375,19 @@ function App() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.PACKAGE_MANAGER)(packageManager);
   }, [packageManager]);
+
+  // Load first page of downloadable versions on component mount
+  useEffect(() => {
+    const loadInitialDownloadableVersions = async () => {
+      try {
+        await fetchVersionsFromDatagrid(1);
+      } catch (error) {
+        console.error("Failed to load initial downloadable versions:", error);
+      }
+    };
+
+    loadInitialDownloadableVersions();
+  }, [fetchVersionsFromDatagrid]);
 
   // Toggle app selection
   const handleAppClick = useCallback(

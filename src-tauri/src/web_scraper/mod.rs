@@ -2,6 +2,7 @@ use chromiumoxide::browser::{Browser, BrowserConfig};
 use chromiumoxide::page::Page;
 use chromiumoxide::Element;
 use futures::StreamExt;
+use regex::Regex;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -472,6 +473,78 @@ async fn extract_datagrid_content(page: &Page, config: &ScrapingConfig) -> Resul
     }
 }
 
+async fn click_next_page_button(page: &Page) -> Result<(), String> {
+    let selector = "button[aria-label='Go to next page']";
+
+    if let Ok(elements) = page.find_elements(selector).await {
+        if let Some(button) = elements.into_iter().next() {
+            // Check if button is enabled
+            if let Ok(disabled) = button.attribute("disabled").await {
+                if disabled.is_some() {
+                    return Err("Next page button is disabled".to_string());
+                }
+            }
+
+            button
+                .click()
+                .await
+                .map_err(|e| format!("Failed to click next page button: {}", e))?;
+
+            // Wait for page to load
+            tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+
+            Ok(())
+        } else {
+            Err("Next page button not found".to_string())
+        }
+    } else {
+        Err("Failed to find next page button".to_string())
+    }
+}
+
+async fn navigate_to_page(page: &Page, target_page: u32) -> Result<(), String> {
+    if target_page <= 1 {
+        return Ok(());
+    }
+
+    // Navigate to the target page by clicking next button (target_page - 1) times
+    for current_page in 1..target_page {
+        println!(
+            "Navigating to page {} (clicking next button)",
+            current_page + 1
+        );
+
+        // Click next page button
+        click_next_page_button(page).await?;
+
+        // Wait for content to load
+        tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+
+        // Verify we're on the correct page by checking paging status
+        if let Ok(elements) = page.find_elements("div.paging-status").await {
+            if let Some(status_element) = elements.into_iter().next() {
+                if let Ok(Some(status_text)) = status_element.inner_text().await {
+                    println!("Current page status: {}", status_text);
+
+                    // Extract current page info from status text (e.g., "1 to 10 of 290")
+                    if let Ok(re) = Regex::new(r"(\d+) to (\d+) of (\d+)") {
+                        if let Some(captures) = re.captures(&status_text) {
+                            let start_item: u32 = captures[1].parse().unwrap_or(0);
+                            let expected_start = (current_page) * 10 + 1;
+
+                            if start_item != expected_start {
+                                return Err(format!("Page navigation failed. Expected to start at item {}, but got {}", expected_start, start_item));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
 // Public API functions - compose pure functions with minimal IO
 #[tauri::command]
 pub async fn get_downloadable_mendix_versions() -> Result<Vec<DownloadableVersion>, String> {
@@ -490,7 +563,7 @@ pub async fn get_downloadable_versions_by_type(
 
 #[tauri::command]
 pub async fn get_downloadable_versions_from_datagrid(
-    _page: Option<u32>,
+    page: Option<u32>,
 ) -> Result<Vec<DownloadableVersion>, String> {
     let config = create_default_scraping_config();
     let url = "https://marketplace.mendix.com/link/studiopro";
@@ -512,11 +585,18 @@ pub async fn get_downloadable_versions_from_datagrid(
     });
 
     let result = async {
-        let page = navigate_to_url(&browser, url).await?;
+        let page_instance = navigate_to_url(&browser, url).await?;
 
-        handle_privacy_modal_if_present(&page).await?;
+        handle_privacy_modal_if_present(&page_instance).await?;
 
-        let html_content = extract_datagrid_content(&page, &config).await?;
+        // Navigate to the specified page if provided
+        if let Some(target_page) = page {
+            if target_page > 1 {
+                navigate_to_page(&page_instance, target_page).await?;
+            }
+        }
+
+        let html_content = extract_datagrid_content(&page_instance, &config).await?;
         parse_datagrid_html(&html_content)
     }
     .await;

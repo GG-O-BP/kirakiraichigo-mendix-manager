@@ -35,6 +35,48 @@ const filterBySearch = R.curry((searchTerm, items) =>
   )(items),
 );
 
+// Enhanced pagination logic with better functional composition and error handling
+const ITEMS_PER_PAGE = 10;
+
+// Safe page calculation with validation and error handling
+const calculateNextPage = R.pipe(
+  R.defaultTo([]),
+  R.length,
+  R.max(0), // Ensure non-negative count
+  R.divide(R.__, ITEMS_PER_PAGE),
+  Math.floor,
+  R.add(1),
+  R.max(1), // Ensure minimum page is 1
+);
+
+// Check if more pages are available based on current count and total
+const hasMorePages = R.curry((currentCount, totalAvailable) =>
+  R.pipe(
+    R.always(currentCount),
+    R.defaultTo(0),
+    R.lt(R.__, totalAvailable || Infinity),
+  )(),
+);
+
+// Create safe pagination handler with functional composition
+const createPaginationHandler = R.curry(
+  (downloadableVersions, isLoading, fetchFunction) =>
+    R.pipe(
+      R.always(downloadableVersions),
+      R.ifElse(
+        R.always(isLoading),
+        R.pipe(
+          calculateNextPage,
+          R.when(
+            R.pipe(R.gte(R.__, 1), R.and(R.lt(R.__, 100))), // Validate page range
+            (page) => () => fetchFunction && fetchFunction(page),
+          ),
+          R.defaultTo(() => console.warn("Invalid page calculation")),
+        ),
+      ),
+    )(),
+);
+
 // Enhanced version string conversion with error handling
 const toVersionString = R.pipe(R.defaultTo(""), String, R.trim);
 
@@ -229,15 +271,6 @@ const StudioProManager = memo(
     handleDownloadVersion,
     fetchVersionsFromDatagrid,
   }) => {
-    // Debug effect to track downloadableVersions changes
-    useEffect(() => {
-      console.log("downloadableVersions changed:", downloadableVersions);
-      console.log(
-        "downloadableVersions length:",
-        downloadableVersions?.length || 0,
-      );
-    }, [downloadableVersions]);
-
     // Enhanced memoized computations with functional composition
     const computedData = useMemo(() => {
       const loadingStates = createLoadingState(isLaunching, isUninstalling);
@@ -258,15 +291,6 @@ const StudioProManager = memo(
         ),
       })();
 
-      console.log(
-        "computedData.filteredDownloadableVersions:",
-        result.filteredDownloadableVersions,
-      );
-      console.log(
-        "filteredDownloadableVersions length:",
-        result.filteredDownloadableVersions?.length || 0,
-      );
-
       return result;
     }, [
       apps,
@@ -285,10 +309,7 @@ const StudioProManager = memo(
           className: "list-container",
           placeholder: "Search downloadable versions...",
           content: () => {
-            if (
-              isLoadingDownloadableVersions &&
-              (!downloadableVersions || downloadableVersions.length === 0)
-            ) {
+            if (!downloadableVersions || downloadableVersions.length === 0) {
               return renderEmptyState("🔄", "Loading downloadable versions...");
             }
 
@@ -341,12 +362,11 @@ const StudioProManager = memo(
                   cursor: isLoadingDownloadableVersions ? "default" : "pointer",
                   opacity: isLoadingDownloadableVersions ? 0.6 : 1,
                 }}
-                onClick={() => {
-                  if (!isLoadingDownloadableVersions) {
-                    console.log("Load button clicked");
-                    fetchVersionsFromDatagrid && fetchVersionsFromDatagrid(1);
-                  }
-                }}
+                onClick={createPaginationHandler(
+                  downloadableVersions,
+                  isLoadingDownloadableVersions,
+                  fetchVersionsFromDatagrid,
+                )}
               >
                 <div className="version-info">
                   <span className="version-icon">
