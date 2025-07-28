@@ -165,11 +165,9 @@ function App() {
 
       setIsLoadingDownloadableVersions(true);
 
-      const versions = await R.pipe(
-        R.always({ page: processedPage }),
-        (params) => invoke("get_downloadable_versions_from_datagrid", params),
-        R.andThen(R.defaultTo([])),
-      )();
+      const versions = await invoke("get_downloadable_versions_from_datagrid", {
+        page: processedPage,
+      });
 
       // Update versions using functional approach
       setDownloadableVersions(createVersionsUpdater(isFirstPage, versions));
@@ -422,13 +420,24 @@ function App() {
     saveToStorage(STORAGE_KEYS.PACKAGE_MANAGER)(packageManager);
   }, [packageManager]);
 
+  // Ref to prevent duplicate initial loading in React Strict Mode
+  const hasLoadedInitialVersions = useRef(false);
+
   // Load first page of downloadable versions on component mount
   useEffect(() => {
+    // Prevent duplicate execution in React Strict Mode
+    if (hasLoadedInitialVersions.current) {
+      return;
+    }
+
     const loadInitialDownloadableVersions = async () => {
       try {
+        hasLoadedInitialVersions.current = true;
         await fetchVersionsFromDatagrid(1);
       } catch (error) {
         console.error("Failed to load initial downloadable versions:", error);
+        // Reset flag on error so it can be retried
+        hasLoadedInitialVersions.current = false;
       }
     };
 

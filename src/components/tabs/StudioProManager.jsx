@@ -362,11 +362,6 @@ const StudioProManager = memo(
                         {version.is_beta && (
                           <span className="version-badge">Beta</span>
                         )}
-                        {isAlreadyInstalled && (
-                          <span className="version-badge installed">
-                            INSTALLED
-                          </span>
-                        )}
                       </span>
                       {version.release_date && (
                         <span className="version-date">

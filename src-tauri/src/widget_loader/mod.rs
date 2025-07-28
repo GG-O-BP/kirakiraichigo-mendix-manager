@@ -11,6 +11,7 @@ pub struct WidgetFile {
     pub content: String,
     pub is_text: bool,
     pub size: u64,
+    pub extension: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,11 +111,19 @@ pub async fn extract_widget_contents(widget_path: String) -> Result<WidgetConten
             format!("[Binary file - {} bytes]", content.len())
         };
 
+        // Extract file extension
+        let extension = Path::new(&entry_name)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_lowercase())
+            .unwrap_or_default();
+
         let widget_file = WidgetFile {
             path: entry_name.clone(),
             content: content_string.clone(),
             is_text,
             size: entry_size,
+            extension: extension.clone(),
         };
 
         // Check if this is a web-related file

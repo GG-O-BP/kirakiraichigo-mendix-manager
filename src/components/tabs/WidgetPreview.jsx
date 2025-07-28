@@ -9,6 +9,8 @@ import {
   createPropertyChangeHandler,
   groupPropertiesByCategory,
 } from "../../utils/functional";
+import WidgetRenderer from "./WidgetRenderer";
+import "./WidgetRenderer.css";
 
 // ============= Helper Functions =============
 
@@ -25,29 +27,6 @@ const loadWidgetContents = R.curry(async (widgetPath) => {
   }
 });
 
-const loadWidgetFileContent = R.curry(async (widgetPath, filePath) => {
-  try {
-    const content = await invoke("get_widget_file_content", {
-      widgetPath,
-      filePath,
-    });
-    return content;
-  } catch (error) {
-    console.error("❌ Failed to load file content:", error);
-    throw new Error(`Failed to load file content: ${error.message || error}`);
-  }
-});
-
-const listWidgetFiles = R.curry(async (widgetPath) => {
-  try {
-    const files = await invoke("list_widget_files", { widgetPath });
-    return files;
-  } catch (error) {
-    console.error("❌ Failed to list widget files:", error);
-    throw new Error(`Failed to list widget files: ${error.message || error}`);
-  }
-});
-
 const loadWidgetPreviewData = R.curry(async (widgetPath) => {
   try {
     const previewData = await invoke("get_widget_preview_data", { widgetPath });
@@ -58,42 +37,6 @@ const loadWidgetPreviewData = R.curry(async (widgetPath) => {
       `Failed to load widget preview data: ${error.message || error}`,
     );
   }
-});
-
-// Widget content processing functions
-const filterWebFiles = R.filter(R.prop("is_text"));
-const sortFilesByPath = R.sortBy(R.prop("path"));
-const groupFilesByExtension = R.groupBy(
-  R.pipe(R.prop("path"), R.split("."), R.last, R.defaultTo("unknown")),
-);
-
-// Widget content rendering helpers
-const renderWidgetContentPreview = R.curry((widgetContents, selectedFile) => {
-  const webFiles = R.pipe(
-    R.propOr([], "web_files"),
-    filterWebFiles,
-    sortFilesByPath,
-  )(widgetContents);
-
-  const fileGroups = groupFilesByExtension(webFiles);
-
-  return {
-    webFiles,
-    fileGroups,
-    selectedFileContent: selectedFile
-      ? R.find(R.propEq(selectedFile, "path"), webFiles)
-      : null,
-  };
-});
-
-const logWidgetContents = R.curry((widgetContents) => {
-  const filesByType = R.pipe(
-    R.propOr([], "web_files"),
-    groupFilesByExtension,
-    R.map(R.length),
-  )(widgetContents);
-
-  return widgetContents;
 });
 
 // Loading state helpers
@@ -204,27 +147,6 @@ const renderWidgetPreview = R.curry((previewData, properties) => {
                       +{cssClasses.length - 5} more
                     </span>
                   )}
-                </div>
-              </div>
-            </div>
-
-            <div className="preview-mockup">
-              <div
-                className={`widget-mockup ${cssClasses[0] || "default-widget"}`}
-              >
-                <div className="mockup-header">
-                  <span className="mockup-title">{componentName}</span>
-                  <span className="mockup-type">{componentType}</span>
-                </div>
-                <div className="mockup-content">
-                  <p>🎭 This is a preview of your widget</p>
-                  <p>Properties: {Object.keys(properties).length} configured</p>
-                  <div className="mockup-actions">
-                    <button className="mockup-button">Sample Action</button>
-                    <button className="mockup-button secondary">
-                      Another Action
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
@@ -379,194 +301,109 @@ const renderDynamicPropertiesSection = R.curry(
   ),
 );
 
-// Render widget file explorer
-const renderWidgetFileExplorer = R.curry(
-  (widgetContents, selectedFile, onFileSelect) => {
-    const webFiles = R.pipe(
-      R.propOr([], "web_files"),
-      filterWebFiles,
-      sortFilesByPath,
-    )(widgetContents);
-
-    const fileGroups = groupFilesByExtension(webFiles);
-
-    return (
-      <div className="widget-file-explorer">
-        <h4>📁 Widget Files</h4>
-        {R.map(
-          ([extension, files]) => (
-            <div key={extension} className="file-group">
-              <h5 className="file-group-title">
-                📄 {extension.toUpperCase()} Files ({files.length})
-              </h5>
-              {R.map(
-                (file) => (
-                  <div
-                    key={R.prop("path", file)}
-                    className={`file-item ${selectedFile === R.prop("path", file) ? "selected" : ""}`}
-                    onClick={() => onFileSelect(R.prop("path", file))}
-                    style={{ cursor: "pointer" }}
+// Render preview content based on selected widget
+const renderPreviewContent = R.curryN(3, (widgetData, uiState, handlers) =>
+  R.ifElse(
+    R.path(["widget"]),
+    (data) => (
+      <div className="widget-preview-content">
+        {R.cond([
+          [
+            () => isLoadingState(uiState.loadingState),
+            () => (
+              <div className="loading-indicator">
+                <span className="loading-icon">⏳</span>
+                <span>{getLoadingMessage(uiState.loadingState)}</span>
+              </div>
+            ),
+          ],
+          [
+            () => !R.isNil(handlers.errorState),
+            () => (
+              <div className="error-state">
+                <span className="error-icon">❌</span>
+                <h4>Failed to load widget contents</h4>
+                <p className="error-message">
+                  {R.propOr("Unknown error", "message", handlers.errorState)}
+                </p>
+                <div className="error-actions">
+                  <button
+                    className="retry-button"
+                    onClick={handlers.handleRetry}
                   >
-                    <span className="file-name">{R.prop("path", file)}</span>
-                    <span className="file-size">
-                      ({R.prop("size", file)} bytes)
-                    </span>
-                  </div>
-                ),
-                files,
-              )}
-            </div>
-          ),
-          R.toPairs(fileGroups),
-        )}
-      </div>
-    );
-  },
-);
-
-// Render widget content viewer
-const renderWidgetContentViewer = R.curry((widgetContents, selectedFile) => {
-  const selectedFileData = R.pipe(
-    R.propOr([], "web_files"),
-    R.find(R.propEq(selectedFile, "path")),
-  )(widgetContents);
-
-  return R.ifElse(
-    R.identity,
-    (fileData) => (
-      <div className="widget-content-viewer">
-        <h4>📄 {R.prop("path", fileData)}</h4>
-        <div className="content-preview">
-          <pre className="code-preview">
-            {R.pipe(
-              R.prop("content"),
-              R.take(2000), // Show first 2000 characters
-            )(fileData)}
-          </pre>
-        </div>
+                    <span className="button-icon">🔄</span>
+                    Retry
+                  </button>
+                  <button
+                    className="clear-error-button"
+                    onClick={handlers.handleClearError}
+                  >
+                    <span className="button-icon">✨</span>
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ),
+          ],
+          [
+            () => R.isNil(widgetData.contents),
+            () => (
+              <div className="no-content">
+                <span className="berry-icon">🍓</span>
+                <p>Click to load widget contents</p>
+              </div>
+            ),
+          ],
+          [
+            () => uiState.activeTab === "preview",
+            () => (
+              <WidgetRenderer
+                widgetContents={widgetData.contents}
+                widgetPreviewData={widgetData.previewData}
+                properties={uiState.properties}
+                selectedWidget={widgetData.widget}
+                onError={(error) => {
+                  console.error("Widget rendering error:", error);
+                  handlers.setErrorState({
+                    message: `Rendering failed: ${error.message}`,
+                    widgetPath: widgetData.widget?.path,
+                    timestamp: new Date().toISOString(),
+                  });
+                }}
+              />
+            ),
+          ],
+          [
+            R.T,
+            () =>
+              renderWidgetPreview(widgetData.previewData, uiState.properties),
+          ],
+        ])()}
       </div>
     ),
     () => (
-      <div className="no-file-selected">
-        <span className="file-icon">📄</span>
-        <p>Select a file to view its content</p>
+      <div className="preview-placeholder">
+        <span className="berry-icon">🍓</span>
+        <p>Select a widget to preview</p>
+        <div className="sparkle-animation">✨ ✨ ✨</div>
       </div>
     ),
-  )(selectedFileData);
-});
-
-// Render preview content based on selected widget
-const renderPreviewContent = R.curry(
-  (
-    selectedWidget,
-    properties,
-    widgetDefinition,
-    widgetContents,
-    widgetPreviewData,
-    loadingState,
-    selectedFile,
-    onFileSelect,
-    errorHandling,
-  ) =>
-    R.ifElse(
-      R.identity,
-      (widget) => (
-        <div className="widget-preview-content">
-          <div className="preview-tabs">
-            <div className="tab-buttons">
-              <button className="tab-button active">🎭 Preview</button>
-              <button className="tab-button">📁 Files</button>
-            </div>
-          </div>
-          <div className="tab-content">
-            {R.cond([
-              [
-                () => isLoadingState(loadingState),
-                () => (
-                  <div className="loading-indicator">
-                    <span className="loading-icon">⏳</span>
-                    <span>{getLoadingMessage(loadingState)}</span>
-                  </div>
-                ),
-              ],
-              [
-                () => !R.isNil(errorHandling.errorState),
-                () => (
-                  <div className="error-state">
-                    <span className="error-icon">❌</span>
-                    <h4>Failed to load widget contents</h4>
-                    <p className="error-message">
-                      {R.propOr(
-                        "Unknown error",
-                        "message",
-                        errorHandling.errorState,
-                      )}
-                    </p>
-                    <div className="error-actions">
-                      <button
-                        className="retry-button"
-                        onClick={errorHandling.handleRetry}
-                      >
-                        <span className="button-icon">🔄</span>
-                        Retry
-                      </button>
-                      <button
-                        className="clear-error-button"
-                        onClick={errorHandling.handleClearError}
-                      >
-                        <span className="button-icon">✨</span>
-                        Clear
-                      </button>
-                    </div>
-                  </div>
-                ),
-              ],
-              [
-                () => R.isNil(widgetContents),
-                () => (
-                  <div className="no-content">
-                    <span className="berry-icon">🍓</span>
-                    <p>Click to load widget contents</p>
-                  </div>
-                ),
-              ],
-              [R.T, () => renderWidgetPreview(widgetPreviewData, properties)],
-            ])()}
-          </div>
-        </div>
-      ),
-      () => (
-        <div className="preview-placeholder">
-          <span className="berry-icon">🍓</span>
-          <p>Select a widget to preview</p>
-          <div className="sparkle-animation">✨ ✨ ✨</div>
-        </div>
-      ),
-    )(selectedWidget),
+  )(widgetData),
 );
 
 // Render widget list area
-const renderWidgetListArea = R.curry(
-  (
-    filteredWidgets,
-    widgetSearchTerm,
-    selectedWidgetForPreview,
-    setSelectedWidgetForPreview,
-    setWidgets,
-    setShowWidgetModal,
-    setShowAddWidgetForm,
-    setNewWidgetCaption,
-    setNewWidgetPath,
-  ) => (
+const renderWidgetListArea = R.curryN(
+  3,
+  (widgetData, widgetHandlers, modalHandlers) => (
     <div className="list-area">
       {/* Add Widget Button */}
       <div
         className="version-list-item"
         onClick={R.pipe(
-          R.tap(() => setShowWidgetModal(true)),
-          R.tap(() => setShowAddWidgetForm(false)),
-          R.tap(() => setNewWidgetCaption("")),
-          R.tap(() => setNewWidgetPath("")),
+          R.tap(() => modalHandlers.setShowWidgetModal(true)),
+          R.tap(() => modalHandlers.setShowAddWidgetForm(false)),
+          R.tap(() => modalHandlers.setNewWidgetCaption("")),
+          R.tap(() => modalHandlers.setNewWidgetPath("")),
           R.always(undefined),
         )}
         style={{
@@ -586,15 +423,19 @@ const renderWidgetListArea = R.curry(
       {/* Widget List */}
       {R.cond([
         [
-          () => R.isEmpty(filteredWidgets) && R.isEmpty(widgetSearchTerm),
+          () =>
+            R.isEmpty(widgetData.filteredWidgets) &&
+            R.isEmpty(widgetData.widgetSearchTerm),
           () => renderEmptyState("🧩", "No widgets registered"),
         ],
         [
-          () => R.isEmpty(filteredWidgets) && !R.isEmpty(widgetSearchTerm),
+          () =>
+            R.isEmpty(widgetData.filteredWidgets) &&
+            !R.isEmpty(widgetData.widgetSearchTerm),
           () =>
             renderEmptyState(
               "🔍",
-              `No widgets found matching "${widgetSearchTerm}"`,
+              `No widgets found matching "${widgetData.widgetSearchTerm}"`,
             ),
         ],
         [
@@ -602,11 +443,11 @@ const renderWidgetListArea = R.curry(
           () =>
             R.map(
               renderWidgetItem(
-                selectedWidgetForPreview,
-                setSelectedWidgetForPreview,
-                setWidgets,
+                widgetData.selectedWidgetForPreview,
+                widgetHandlers.setSelectedWidgetForPreview,
+                widgetHandlers.setWidgets,
               ),
-              filteredWidgets,
+              widgetData.filteredWidgets,
             ),
         ],
       ])()}
@@ -636,7 +477,6 @@ const WidgetPreview = memo(
   }) => {
     // State for widget definition and dynamic properties
     const [widgetDefinition, setWidgetDefinition] = useState(null);
-    const [isLoadingDefinition, setIsLoadingDefinition] = useState(false);
     const [dynamicProperties, setDynamicProperties] = useState({});
 
     // State for widget contents
@@ -646,9 +486,9 @@ const WidgetPreview = memo(
       createLoadingState(false, ""),
     );
     const [selectedFile, setSelectedFile] = useState(null);
-    const [widgetFiles, setWidgetFiles] = useState([]);
     const [errorState, setErrorState] = useState(null);
     const [retryCount, setRetryCount] = useState(0);
+    const [activeTab, setActiveTab] = useState("preview");
 
     // Get selected widget (convert to string for comparison)
     const selectedWidget = R.pipe(
@@ -659,7 +499,6 @@ const WidgetPreview = memo(
     // Load widget definition when widget is selected
     useEffect(() => {
       if (selectedWidget) {
-        setIsLoadingDefinition(true);
         invoke("parse_widget_properties", {
           widgetPath: R.prop("path", selectedWidget),
         })
@@ -673,9 +512,6 @@ const WidgetPreview = memo(
             console.error("Failed to parse widget properties:", error);
             setWidgetDefinition(null);
             setDynamicProperties({});
-          })
-          .finally(() => {
-            setIsLoadingDefinition(false);
           });
       } else {
         setWidgetDefinition(null);
@@ -697,7 +533,7 @@ const WidgetPreview = memo(
           loadWidgetPreviewData(R.prop("path", selectedWidget)),
         ])
           .then(([contents, previewData]) => {
-            setWidgetContents(logWidgetContents(contents));
+            setWidgetContents(contents);
             setWidgetPreviewData(previewData);
             setLoadingState(createLoadingState(false, ""));
             setErrorState(null);
@@ -741,6 +577,14 @@ const WidgetPreview = memo(
       setErrorState(null);
     });
 
+    // Enhanced error handling for widget renderer
+    const enhancedErrorHandling = {
+      errorState,
+      handleRetry,
+      handleClearError,
+      setErrorState,
+    };
+
     // Combine static and dynamic properties for preview
     const combinedProperties = R.mergeRight(properties, dynamicProperties);
 
@@ -754,15 +598,21 @@ const WidgetPreview = memo(
             onChange={setWidgetSearchTerm}
           />
           {renderWidgetListArea(
-            filteredWidgets,
-            widgetSearchTerm,
-            selectedWidgetForPreview,
-            setSelectedWidgetForPreview,
-            setWidgets,
-            setShowWidgetModal,
-            setShowAddWidgetForm,
-            setNewWidgetCaption,
-            setNewWidgetPath,
+            {
+              filteredWidgets,
+              widgetSearchTerm,
+              selectedWidgetForPreview,
+            },
+            {
+              setSelectedWidgetForPreview,
+              setWidgets,
+            },
+            {
+              setShowWidgetModal,
+              setShowAddWidgetForm,
+              setNewWidgetCaption,
+              setNewWidgetPath,
+            },
           )}
         </div>
 
@@ -780,23 +630,28 @@ const WidgetPreview = memo(
         {/* Right Panel - Widget Preview */}
         <div className="preview-right">
           <h3>✨ Widget Preview</h3>
-          <div className="widget-content">
-            {renderPreviewContent(
-              selectedWidget,
-              combinedProperties,
-              widgetDefinition,
-              widgetContents,
-              widgetPreviewData,
-              loadingState,
-              selectedFile,
-              handleFileSelect,
-              {
-                errorState,
-                handleRetry,
-                handleClearError,
-              },
-            )}
-          </div>
+          {renderPreviewContent(
+            {
+              widget: selectedWidget,
+              definition: widgetDefinition,
+              contents: widgetContents,
+              previewData: widgetPreviewData,
+            },
+            {
+              properties: combinedProperties,
+              loadingState: loadingState,
+              selectedFile: selectedFile,
+              activeTab: activeTab,
+            },
+            {
+              onFileSelect: handleFileSelect,
+              setActiveTab: setActiveTab,
+              errorState: enhancedErrorHandling.errorState,
+              handleRetry: enhancedErrorHandling.handleRetry,
+              handleClearError: enhancedErrorHandling.handleClearError,
+              setErrorState: enhancedErrorHandling.setErrorState,
+            },
+          )}
         </div>
       </div>
     );
