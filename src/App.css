@@ -259,6 +259,221 @@ body {
     flex: 0.7;
 }
 
+/* Search Controls */
+.search-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 4px 0;
+}
+
+.search-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+}
+
+.search-row > *:first-child {
+    flex: 1;
+    min-width: 0;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #ffd1dc;
+    margin: 0;
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 22px;
+    background: linear-gradient(
+        135deg,
+        rgba(255, 182, 193, 0.15),
+        rgba(255, 107, 157, 0.1)
+    );
+    border: 2px solid rgba(255, 182, 193, 0.3);
+    transition: all 0.3s ease;
+    position: relative;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    margin-bottom: 12px;
+}
+
+.checkbox-input {
+    appearance: none;
+    margin: 0;
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffb6c1, #ff69b4);
+    border: 2px solid #ff1493;
+    position: relative;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(255, 20, 147, 0.2);
+}
+
+.checkbox-input::before {
+    content: "🍓";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    opacity: 0;
+    transition: all 0.3s ease;
+    filter: brightness(0.8) drop-shadow(0 0 2px rgba(255, 20, 147, 0.5));
+}
+
+.checkbox-input:checked {
+    background: linear-gradient(135deg, #ff1493, #dc143c);
+    box-shadow:
+        0 3px 8px rgba(255, 20, 147, 0.4),
+        0 0 0 3px rgba(255, 20, 147, 0.2);
+    transform: scale(1.1);
+}
+
+.checkbox-input:checked::before {
+    opacity: 1;
+    filter: brightness(1.2);
+    transform: translate(-50%, -50%) scale(1.2);
+}
+
+.checkbox-text {
+    user-select: none;
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.2;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.checkbox-label:hover {
+    color: #fff;
+    background: linear-gradient(
+        135deg,
+        rgba(255, 182, 193, 0.25),
+        rgba(255, 107, 157, 0.2)
+    );
+    border-color: rgba(255, 182, 193, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 107, 157, 0.3);
+}
+
+.checkbox-label:hover .checkbox-input {
+    box-shadow: 0 4px 8px rgba(255, 20, 147, 0.3);
+    transform: scale(1.05);
+}
+
+/* Version Type Filters */
+.version-type-filters {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.version-type-filters .checkbox-label {
+    width: calc(33.3333% - 8px);
+    margin-bottom: 0;
+}
+
+/* Special strawberry animations */
+.checkbox-input:hover::before {
+    animation: strawberry-bounce 0.5s ease;
+}
+
+@keyframes strawberry-bounce {
+    0%,
+    100% {
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    }
+    25% {
+        transform: translate(-50%, -50%) scale(1.2) rotate(-5deg);
+    }
+    75% {
+        transform: translate(-50%, -50%) scale(1.2) rotate(5deg);
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.3) rotate(0deg);
+    }
+}
+
+/* Special strawberry varieties for different filter types */
+.search-row .checkbox-input::before {
+    content: "🍓";
+    filter: brightness(1) drop-shadow(0 0 3px rgba(255, 20, 147, 0.6));
+}
+
+.version-type-filters .checkbox-label:nth-child(1) .checkbox-input::before {
+    content: "🍓";
+}
+
+.version-type-filters .checkbox-label:nth-child(2) .checkbox-input::before {
+    content: "🍓";
+}
+
+.version-type-filters .checkbox-label:nth-child(3) .checkbox-input::before {
+    content: "🍓";
+}
+
+/* Sparkle effect for checked strawberries */
+.checkbox-input:checked::after {
+    content: "✨";
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 8px;
+    animation: sparkle 2s infinite;
+    pointer-events: none;
+}
+
+@keyframes sparkle {
+    0%,
+    100% {
+        opacity: 0;
+        transform: scale(0.5) rotate(0deg);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1) rotate(180deg);
+    }
+}
+
+/* Sweet gradient backgrounds for different states */
+.checkbox-label:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 4px rgba(255, 107, 157, 0.4);
+}
+
+.checkbox-input:active {
+    transform: scale(0.95);
+}
+
+/* Cute berry animation on hover */
+.checkbox-label:hover .checkbox-input:not(:checked)::before {
+    opacity: 0.3;
+    animation: berry-wiggle 0.8s ease infinite;
+}
+
+@keyframes berry-wiggle {
+    0%,
+    100% {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+    25% {
+        transform: translate(-50%, -50%) rotate(-3deg);
+    }
+    75% {
+        transform: translate(-50%, -50%) rotate(3deg);
+    }
+}
+
 /* Widget Manager */
 .widget-manager {
     display: flex;

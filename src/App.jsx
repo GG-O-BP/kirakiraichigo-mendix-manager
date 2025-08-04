@@ -48,6 +48,10 @@ import {
 const createInitialState = () => ({
   downloadableVersions: [],
   isLoadingDownloadableVersions: false,
+  showOnlyDownloadableVersions: false,
+  showLTSOnly: false,
+  showMTSOnly: false,
+  showBetaOnly: false,
   // Tab state
   activeTab: "studio-pro",
 
@@ -194,6 +198,11 @@ function App() {
   );
   const [isLoadingDownloadableVersions, setIsLoadingDownloadableVersions] =
     useState(initialState.isLoadingDownloadableVersions);
+  const [showOnlyDownloadableVersions, setShowOnlyDownloadableVersions] =
+    useState(initialState.showOnlyDownloadableVersions);
+  const [showLTSOnly, setShowLTSOnly] = useState(initialState.showLTSOnly);
+  const [showMTSOnly, setShowMTSOnly] = useState(initialState.showMTSOnly);
+  const [showBetaOnly, setShowBetaOnly] = useState(initialState.showBetaOnly);
 
   // Filtered state
   const [filteredVersions, setFilteredVersions] = useState(
@@ -762,6 +771,14 @@ function App() {
     "downloadableVersions",
     "isLoadingDownloadableVersions",
     "handleDownloadVersion",
+    "showOnlyDownloadableVersions",
+    "setShowOnlyDownloadableVersions",
+    "showLTSOnly",
+    "setShowLTSOnly",
+    "showMTSOnly",
+    "setShowMTSOnly",
+    "showBetaOnly",
+    "setShowBetaOnly",
   ];
 
   const widgetManagerKeys = [
@@ -846,6 +863,14 @@ function App() {
     downloadableVersions,
     isLoadingDownloadableVersions,
     handleDownloadVersion,
+    showOnlyDownloadableVersions,
+    setShowOnlyDownloadableVersions,
+    showLTSOnly,
+    setShowLTSOnly,
+    showMTSOnly,
+    setShowMTSOnly,
+    showBetaOnly,
+    setShowBetaOnly,
     versionFilter,
     setVersionFilter,
     appSearchTerm,
@@ -923,6 +948,14 @@ function App() {
       updateProperty,
       selectedWidgetForPreview,
       inlineResults,
+      showOnlyDownloadableVersions,
+      setShowOnlyDownloadableVersions,
+      showLTSOnly,
+      setShowLTSOnly,
+      showMTSOnly,
+      setShowMTSOnly,
+      showBetaOnly,
+      setShowBetaOnly,
     ],
   );
 

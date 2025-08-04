@@ -3,7 +3,7 @@ mod mendix;
 mod package_manager;
 mod utils;
 mod web_scraper;
-mod widget_loader;
+
 mod widget_parser;
 
 pub use config::PackageManagerConfig;
@@ -20,10 +20,7 @@ pub use web_scraper::{
     get_downloadable_versions_by_type, get_downloadable_versions_from_datagrid,
     wait_for_datagrid_content, BuildInfo, DownloadProgress, DownloadableVersion,
 };
-pub use widget_loader::{
-    extract_widget_contents, get_widget_file_content, get_widget_preview_data, list_widget_files,
-    WidgetPreviewData,
-};
+
 pub use widget_parser::parse_widget_properties;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -42,10 +39,6 @@ pub fn run() {
             run_package_manager_command,
             copy_widget_to_apps,
             parse_widget_properties,
-            extract_widget_contents,
-            get_widget_file_content,
-            list_widget_files,
-            get_widget_preview_data,
             get_downloadable_mendix_versions,
             get_downloadable_versions_by_type,
             get_downloadable_versions_from_datagrid,
