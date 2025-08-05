@@ -163,6 +163,37 @@ const isVersionAlreadyInstalled = R.curry((installedVersions, version) =>
   )(),
 );
 
+// Filter out installed versions when showOnlyDownloadable is true
+const filterDownloadableOnly = R.curry(
+  (installedVersions, showOnlyDownloadable, versions) =>
+    R.pipe(
+      R.defaultTo([]),
+      R.ifElse(
+        () => showOnlyDownloadable,
+        R.filter(R.complement(isVersionAlreadyInstalled(installedVersions))),
+        R.identity,
+      ),
+    )(versions),
+);
+
+// Filter by version type (LTS, MTS, Beta) using functional composition
+const filterByVersionType = R.curry(
+  (showLTSOnly, showMTSOnly, showBetaOnly, versions) =>
+    R.pipe(
+      R.defaultTo([]),
+      R.when(
+        () => showLTSOnly || showMTSOnly || showBetaOnly,
+        R.filter(
+          R.anyPass([
+            R.both(() => showLTSOnly, R.propEq(true, "is_lts")),
+            R.both(() => showMTSOnly, R.propEq(true, "is_mts")),
+            R.both(() => showBetaOnly, R.propEq(true, "is_beta")),
+          ]),
+        ),
+      ),
+    )(versions),
+);
+
 // ============= Render Functions =============
 
 // Enhanced empty state renderer with functional composition
@@ -290,6 +321,14 @@ const StudioProManager = memo(
     handleItemClick,
     handleDownloadVersion,
     fetchVersionsFromDatagrid,
+    showOnlyDownloadableVersions,
+    setShowOnlyDownloadableVersions,
+    showLTSOnly,
+    setShowLTSOnly,
+    showMTSOnly,
+    setShowMTSOnly,
+    showBetaOnly,
+    setShowBetaOnly,
   }) => {
     // Enhanced memoized computations with functional composition
     const computedData = useMemo(() => {
@@ -302,6 +341,8 @@ const StudioProManager = memo(
         ),
         filteredDownloadableVersions: R.pipe(
           R.always(downloadableVersions),
+          filterDownloadableOnly(versions, showOnlyDownloadableVersions),
+          filterByVersionType(showLTSOnly, showMTSOnly, showBetaOnly),
           filterBySearch(searchTerm),
         ),
         loadingStates: R.always(loadingStates),
@@ -317,8 +358,13 @@ const StudioProManager = memo(
       searchTerm,
       selectedVersion,
       downloadableVersions,
+      versions,
       isLaunching,
       isUninstalling,
+      showOnlyDownloadableVersions,
+      showLTSOnly,
+      showMTSOnly,
+      showBetaOnly,
     ]);
 
     // Enhanced panel configuration with functional composition
@@ -328,6 +374,10 @@ const StudioProManager = memo(
           key: "downloadable-versions",
           className: "list-container",
           placeholder: "Search downloadable versions...",
+          hasCheckbox: true,
+          checkboxLabel: "New only",
+          checkboxChecked: showOnlyDownloadableVersions,
+          checkboxOnChange: setShowOnlyDownloadableVersions,
           content: () => {
             if (!downloadableVersions || downloadableVersions.length === 0) {
               return renderEmptyState("🔄", "Loading downloadable versions...");
@@ -361,11 +411,6 @@ const StudioProManager = memo(
                         )}
                         {version.is_beta && (
                           <span className="version-badge">Beta</span>
-                        )}
-                        {isAlreadyInstalled && (
-                          <span className="version-badge installed">
-                            INSTALLED
-                          </span>
                         )}
                       </span>
                       {version.release_date && (
@@ -451,6 +496,7 @@ const StudioProManager = memo(
           key: "versions",
           className: "list-container",
           placeholder: "Search installed versions...",
+          hasCheckbox: false,
           content: R.pipe(
             R.always(filteredVersions),
             R.defaultTo([]),
@@ -474,6 +520,7 @@ const StudioProManager = memo(
           key: "apps",
           className: "list-container narrow",
           placeholder: "Search Mendix apps...",
+          hasCheckbox: false,
           content: R.pipe(
             R.always(computedData.sortedAndFilteredMendixApps),
             R.defaultTo([]),
@@ -498,20 +545,84 @@ const StudioProManager = memo(
         isUninstalling,
         selectedVersion,
         handleVersionClick,
+        showOnlyDownloadableVersions,
+        setShowOnlyDownloadableVersions,
+        showLTSOnly,
+        setShowLTSOnly,
+        showMTSOnly,
+        setShowMTSOnly,
+        showBetaOnly,
+        setShowBetaOnly,
       ],
     );
 
     // Enhanced panel renderer with functional composition
-    const renderPanel = R.curry((config) => (
-      <div key={config.key} className={config.className}>
-        <SearchBox
-          placeholder={config.placeholder}
-          value={searchTerm}
-          onChange={setSearchTerm}
-        />
-        <div className="list-area">{config.content()}</div>
-      </div>
-    ));
+    const renderPanel = R.curry((config) => {
+      return (
+        <div key={config.key} className={config.className}>
+          <div className="search-controls">
+            <div className="search-row">
+              <SearchBox
+                placeholder={config.placeholder}
+                value={searchTerm}
+                onChange={setSearchTerm}
+              />
+              {config.key === "downloadable-versions" && (
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={showOnlyDownloadableVersions}
+                    onChange={(e) => {
+                      setShowOnlyDownloadableVersions(e.target.checked);
+                    }}
+                    className="checkbox-input"
+                  />
+                  <span className="checkbox-text">New only</span>
+                </label>
+              )}
+            </div>
+            {config.key === "downloadable-versions" && (
+              <div className="version-type-filters">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={showLTSOnly}
+                    onChange={(e) => {
+                      setShowLTSOnly(e.target.checked);
+                    }}
+                    className="checkbox-input"
+                  />
+                  <span className="checkbox-text">LTS</span>
+                </label>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={showMTSOnly}
+                    onChange={(e) => {
+                      setShowMTSOnly(e.target.checked);
+                    }}
+                    className="checkbox-input"
+                  />
+                  <span className="checkbox-text">MTS</span>
+                </label>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={showBetaOnly}
+                    onChange={(e) => {
+                      setShowBetaOnly(e.target.checked);
+                    }}
+                    className="checkbox-input"
+                  />
+                  <span className="checkbox-text">Beta</span>
+                </label>
+              </div>
+            )}
+          </div>
+          <div className="list-area">{config.content()}</div>
+        </div>
+      );
+    });
 
     return (
       <div className="studio-pro-manager">
