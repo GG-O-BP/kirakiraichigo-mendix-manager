@@ -7,6 +7,23 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [react()],
 
+  // CSS processing with lightningcss
+  css: {
+    transformer: "lightningcss",
+    lightningcss: {
+      targets: {
+        chrome: 95,
+        firefox: 91,
+        safari: 14,
+        edge: 95,
+      },
+      drafts: {
+        nesting: true,
+        customMedia: true,
+      },
+    },
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent vite from obscuring rust errors

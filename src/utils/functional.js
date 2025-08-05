@@ -619,3 +619,237 @@ export const updateVersionOperationWithLens = R.curry(
   (versionId, operation, value, state) =>
     R.set(versionOperationLens(versionId, operation), value, state),
 );
+
+// ============= Enhanced Functional Utilities for LightningCSS Integration =============
+
+// CSS class manipulation utilities
+export const createCSSClass = R.curry((baseClass, modifiers) =>
+  R.pipe(R.filter(R.identity), R.prepend(baseClass), R.join(" "))(modifiers),
+);
+
+// CSS variable utilities
+export const createCSSVariables = R.pipe(
+  R.toPairs,
+  R.map(([key, value]) => `--${key}: ${value}`),
+  R.join("; "),
+);
+
+// Style object to CSS string converter
+export const styleToCSSString = R.pipe(
+  R.toPairs,
+  R.map(
+    ([property, value]) =>
+      `${R.replace(/([A-Z])/g, "-$1", property).toLowerCase()}: ${value}`,
+  ),
+  R.join("; "),
+);
+
+// Responsive breakpoint utilities
+export const createBreakpointStyles = R.curry((breakpoints, styles) =>
+  R.pipe(
+    R.toPairs,
+    R.map(([breakpoint, breakpointStyles]) => ({
+      [`@media (min-width: ${breakpoints[breakpoint]})`]: breakpointStyles,
+    })),
+    R.mergeAll,
+  )(styles),
+);
+
+// ============= Advanced State Management Utilities =============
+
+// Immutable state updater with validation
+export const createValidatedStateUpdater = R.curry(
+  (validator, lens, setState) =>
+    R.pipe(
+      R.when(R.complement(validator), R.always(R.identity)),
+      R.when(validator, (value) => setState(R.set(lens, value))),
+    ),
+);
+
+// Batch state updates with transaction-like behavior
+export const batchStateUpdates = R.curry((updates, setState) =>
+  setState(R.pipe(...updates)),
+);
+
+// State subscription system
+export const createStateSubscription = R.curry((selector, callback, state) =>
+  R.pipe(
+    selector,
+    R.when(R.complement(R.equals(R.pipe(selector)(state))), callback),
+  ),
+);
+
+// ============= Advanced List and Data Manipulation =============
+
+// Paginated data with metadata
+export const createPaginatedData = R.curry(
+  (itemsPerPage, currentPage, items) => ({
+    items: R.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage,
+      items,
+    ),
+    totalItems: R.length(items),
+    currentPage,
+    totalPages: Math.ceil(R.length(items) / itemsPerPage),
+    hasNextPage: currentPage * itemsPerPage < R.length(items),
+    hasPreviousPage: currentPage > 1,
+  }),
+);
+
+// Advanced sorting with multiple criteria
+export const createMultiCriteriaSorter = R.curry((criteria) =>
+  R.sortWith(
+    R.map(({ path, direction = "asc" }) =>
+      direction === "asc" ? R.ascend(R.path(path)) : R.descend(R.path(path)),
+    )(criteria),
+  ),
+);
+
+// Data aggregation utilities
+export const aggregateData = R.curry((aggregators, data) =>
+  R.pipe(R.juxt(R.values(aggregators)), R.zipObj(R.keys(aggregators)))(data),
+);
+
+// ============= Enhanced Event Handling =============
+
+// Functional event handler with side effects isolation
+export const createEventHandler = R.curry((sideEffects, pureHandler) =>
+  R.pipe(pureHandler, R.tap(R.forEach(R.call)))(sideEffects),
+);
+
+// Debounced function creator
+export const createDebouncedFunction = R.curry((delay, fn) => {
+  let timeoutId;
+  return R.pipe(
+    R.tap(() => clearTimeout(timeoutId)),
+    R.tap((args) => {
+      timeoutId = setTimeout(() => fn(...args), delay);
+    }),
+  );
+});
+
+// Throttled function creator
+export const createThrottledFunction = R.curry((limit, fn) => {
+  let inThrottle;
+  return R.pipe(
+    R.unless(
+      () => inThrottle,
+      R.tap((args) => {
+        fn(...args);
+        inThrottle = true;
+        setTimeout(() => (inThrottle = false), limit);
+      }),
+    ),
+  );
+});
+
+// ============= Form and Validation Utilities =============
+
+// Field validation pipeline
+export const createFieldValidator = R.curry((rules) =>
+  R.pipe(R.juxt(rules), R.filter(R.identity), R.head),
+);
+
+// Form state manager
+export const createFormManager = R.curry((initialValues, validators) => ({
+  values: initialValues,
+  errors: R.map(R.always(null), initialValues),
+  touched: R.map(R.always(false), initialValues),
+  isValid: R.pipe(R.values, R.all(R.isNil)),
+  validateField: R.curry((field, value) => {
+    const validator = validators[field];
+    return validator ? validator(value) : null;
+  }),
+  updateField: R.curry((field, value, state) =>
+    R.pipe(
+      R.assocPath(["values", field], value),
+      R.assocPath(["touched", field], true),
+      R.assocPath(["errors", field], state.validateField(field, value)),
+    )(state),
+  ),
+}));
+
+// ============= API and Async Utilities =============
+
+// Functional API call wrapper
+export const createAPICall = R.curry(
+  (errorHandler, successHandler, apiFunction) =>
+    R.pipe(apiFunction, R.andThen(successHandler), R.otherwise(errorHandler)),
+);
+
+// Resource loading state manager
+export const createResourceState = () => ({
+  data: null,
+  loading: false,
+  error: null,
+  loaded: false,
+});
+
+// Resource state updaters
+export const setResourceLoading = R.assoc("loading", true);
+export const setResourceSuccess = R.curry((data) =>
+  R.pipe(
+    R.assoc("data", data),
+    R.assoc("loading", false),
+    R.assoc("error", null),
+    R.assoc("loaded", true),
+  ),
+);
+export const setResourceError = R.curry((error) =>
+  R.pipe(
+    R.assoc("error", error),
+    R.assoc("loading", false),
+    R.assoc("loaded", true),
+  ),
+);
+
+// ============= Widget and Component Utilities =============
+
+// Widget property transformer
+export const transformWidgetProperty = R.curry((transformers, property) => {
+  const transformer = transformers[property.type] || R.identity;
+  return transformer(property);
+});
+
+// Component props sanitizer
+export const sanitizeProps = R.curry((allowedProps, props) =>
+  R.pick(allowedProps, props),
+);
+
+// Style merger with precedence
+export const mergeStyles = R.reduce(R.mergeDeepRight, {});
+
+// ============= Performance Optimization Utilities =============
+
+// Memoization with custom equality
+export const createMemoizer = R.curry((equalityFn, fn) => {
+  const cache = new Map();
+  return R.pipe(
+    R.tap((args) => {
+      const key = JSON.stringify(args);
+      if (!cache.has(key) || !equalityFn(cache.get(key).args, args)) {
+        cache.set(key, { result: fn(...args), args });
+      }
+    }),
+    R.always(cache.get(JSON.stringify(arguments)).result),
+  );
+});
+
+// Shallow equality checker
+export const shallowEqual = R.curry((a, b) =>
+  R.and(
+    R.equals(R.keys(a).sort(), R.keys(b).sort()),
+    R.all(R.identity, R.zipWith(R.equals, R.values(a), R.values(b))),
+  ),
+);
+
+// Deep equality with custom comparators
+export const createDeepEqual = R.curry((comparators, a, b) => {
+  const compare = (x, y) => {
+    if (R.type(x) !== R.type(y)) return false;
+    const comparator = comparators[R.type(x)];
+    return comparator ? comparator(x, y) : R.equals(x, y);
+  };
+  return compare(a, b);
+});

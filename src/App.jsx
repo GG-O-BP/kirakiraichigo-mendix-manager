@@ -8,6 +8,8 @@ import React, {
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
+import "./components/functional/styles.css";
+import { flavors } from "@catppuccin/palette";
 
 // Import functional utilities
 import {
@@ -29,7 +31,149 @@ import {
   findActiveTab,
   validateRequired,
   updateProp,
+  createCSSClass,
+  createCSSVariables,
+  mergeStyles,
+  createPaginatedData,
+  createMultiCriteriaSorter,
+  createDebouncedFunction,
+  createThrottledFunction,
+  createAPICall,
+  createResourceState,
+  setResourceLoading,
+  setResourceSuccess,
+  setResourceError,
 } from "./utils/functional";
+
+// Import functional components
+import {
+  FunctionalComponents,
+  createPureComponent,
+  createClassName,
+} from "./components/functional";
+
+// ============= Pure Functional State Management =============
+
+// State lenses for immutable updates
+const stateLenses = {
+  versions: R.lensProp("versions"),
+  apps: R.lensProp("apps"),
+  widgets: R.lensProp("widgets"),
+  activeTab: R.lensProp("activeTab"),
+  searchTerm: R.lensProp("searchTerm"),
+  appSearchTerm: R.lensProp("appSearchTerm"),
+  widgetSearchTerm: R.lensProp("widgetSearchTerm"),
+  selectedApps: R.lensProp("selectedApps"),
+  selectedWidgets: R.lensProp("selectedWidgets"),
+  versionFilter: R.lensProp("versionFilter"),
+  packageManager: R.lensProp("packageManager"),
+  isLaunching: R.lensProp("isLaunching"),
+  isUninstalling: R.lensProp("isUninstalling"),
+  isInstalling: R.lensProp("isInstalling"),
+  isBuilding: R.lensProp("isBuilding"),
+  currentPage: R.lensProp("currentPage"),
+  buildResults: R.lensProp("buildResults"),
+  showDownloadModal: R.lensProp("showDownloadModal"),
+  versionToDownload: R.lensProp("versionToDownload"),
+};
+
+// Pure state updaters using lenses
+const createStateUpdater = R.curry((lens, transform) =>
+  R.over(lens, transform),
+);
+
+const setStateProp = R.curry((lens, value) => R.set(lens, value));
+
+// Functional state transformations
+const toggleSetValue = R.curry((value, set) => {
+  const newSet = new Set(set);
+  return newSet.has(value) ? (newSet.delete(value), newSet) : newSet.add(value);
+});
+
+const resetPage = setStateProp(stateLenses.currentPage, 1);
+
+const incrementPage = createStateUpdater(stateLenses.currentPage, R.inc);
+
+// Pure predicates and filters
+const isVersionDownloadable = R.has("download_url");
+const isVersionLTS = R.propEq("is_lts", true);
+const isVersionMTS = R.propEq("is_mts", true);
+const isVersionBeta = R.propEq("is_beta", true);
+
+// Search filters with Ramda composition
+const createVersionFilter = R.curry((searchTerm, version) =>
+  R.pipe(
+    R.props(["version", "release_date"]),
+    R.join(" "),
+    R.toLower,
+    R.includes(R.toLower(searchTerm)),
+  )(version),
+);
+
+const createAppFilter = R.curry((searchTerm, app) =>
+  R.pipe(
+    R.props(["name", "version"]),
+    R.filter(R.identity),
+    R.join(" "),
+    R.toLower,
+    R.includes(R.toLower(searchTerm)),
+  )(app),
+);
+
+// Version type filters using functional composition
+const applyVersionTypeFilters = R.curry((filters, versions) => {
+  const {
+    showLTSOnly,
+    showMTSOnly,
+    showBetaOnly,
+    showOnlyDownloadableVersions,
+  } = filters;
+
+  return R.pipe(
+    R.when(() => showOnlyDownloadableVersions, R.filter(isVersionDownloadable)),
+    R.when(() => showLTSOnly, R.filter(isVersionLTS)),
+    R.when(() => showMTSOnly, R.filter(isVersionMTS)),
+    R.when(() => showBetaOnly, R.filter(isVersionBeta)),
+  )(versions);
+});
+
+// Event handler creators with functional composition
+const createSearchHandler = R.curry((lens, setState) =>
+  R.pipe(R.path(["target", "value"]), (value) =>
+    setState(R.pipe(setStateProp(lens, value), resetPage)),
+  ),
+);
+
+const createSelectionToggler = R.curry((lens, storageKey, setState) =>
+  R.pipe(
+    (item) => setState(R.over(lens, toggleSetValue(item))),
+    R.tap(() => {
+      // Side effect: save to localStorage in a functional way
+      setTimeout(() => {
+        setState((state) => {
+          const selectedSet = R.view(lens, state);
+          saveToStorage(storageKey, setToArray(selectedSet));
+          return state;
+        });
+      }, 0);
+    }),
+  ),
+);
+
+// Pure async operation handlers
+const createAsyncHandler = R.curry((loadingLens, operation, setState) =>
+  R.pipe(
+    R.tap(() => setState(setStateProp(loadingLens, true))),
+    operation,
+    R.andThen(R.tap(() => setState(setStateProp(loadingLens, false)))),
+    R.otherwise(
+      R.tap((error) => {
+        console.error("Operation failed:", error);
+        setState(setStateProp(loadingLens, false));
+      }),
+    ),
+  ),
+);
 
 // Import components
 import { TabButton, ConfirmModal } from "./components/common";
@@ -44,6 +188,15 @@ import {
   DownloadModal,
 } from "./components/modals";
 
+// Destructure functional components for easier use
+const {
+  BerryButton,
+  FunctionalInput,
+  FunctionalDropdown,
+  FunctionalGrid,
+  FunctionalFlex,
+} = FunctionalComponents;
+
 // Initial state factory
 const createInitialState = () => ({
   downloadableVersions: [],
@@ -54,6 +207,8 @@ const createInitialState = () => ({
   showBetaOnly: false,
   // Tab state
   activeTab: "studio-pro",
+  // Theme state
+  currentTheme: "kiraichi",
 
   // Core data
   versions: [],
@@ -119,36 +274,248 @@ const createInitialState = () => ({
   },
 });
 
-// Main App component with functional approach
+// Main App component with pure functional approach
 function App() {
-  // Web scraping functions for downloadable versions
-  const fetchDownloadableVersions = useCallback(async () => {
-    try {
-      setIsLoadingDownloadableVersions(true);
+  // ============= State Management with Lenses =============
+  const [state, setState] = useState(createInitialState);
 
-      // If browser test succeeds, try full scraping
-      const downloadableVersions = await invoke(
-        "get_downloadable_mendix_versions",
-      );
-      setDownloadableVersions(downloadableVersions);
-      setIsLoadingDownloadableVersions(false);
-    } catch (error) {
-      console.error("Failed to fetch downloadable versions:", error);
-      setIsLoadingDownloadableVersions(false);
+  // Pure functional state updaters using lenses
+  const updateState = useCallback((updater) => setState(updater), []);
+  const setStateProperty = useCallback(
+    (lens, value) => updateState(setStateProp(lens, value)),
+    [updateState],
+  );
+  const updateStateProperty = useCallback(
+    (lens, transform) => updateState(createStateUpdater(lens, transform)),
+    [updateState],
+  );
+
+  // ============= Theme Management =============
+  const applyTheme = useCallback((themeName) => {
+    const root = document.documentElement;
+
+    // Remove all existing theme classes
+    root.classList.remove(
+      "theme-kiraichi",
+      "theme-latte",
+      "theme-frappe",
+      "theme-macchiato",
+      "theme-mocha",
+    );
+
+    if (themeName === "kiraichi") {
+      root.classList.add("theme-kiraichi");
+    } else {
+      // Apply catppuccin theme
+      root.classList.add(`theme-${themeName}`);
+      const flavor = flavors[themeName];
+
+      if (flavor) {
+        // Set CSS custom properties for catppuccin colors
+        root.style.setProperty(
+          "--catppuccin-rosewater",
+          flavor.colors.rosewater.hex,
+        );
+        root.style.setProperty(
+          "--catppuccin-flamingo",
+          flavor.colors.flamingo.hex,
+        );
+        root.style.setProperty("--catppuccin-pink", flavor.colors.pink.hex);
+        root.style.setProperty("--catppuccin-mauve", flavor.colors.mauve.hex);
+        root.style.setProperty("--catppuccin-red", flavor.colors.red.hex);
+        root.style.setProperty("--catppuccin-maroon", flavor.colors.maroon.hex);
+        root.style.setProperty("--catppuccin-peach", flavor.colors.peach.hex);
+        root.style.setProperty("--catppuccin-yellow", flavor.colors.yellow.hex);
+        root.style.setProperty("--catppuccin-green", flavor.colors.green.hex);
+        root.style.setProperty("--catppuccin-teal", flavor.colors.teal.hex);
+        root.style.setProperty("--catppuccin-sky", flavor.colors.sky.hex);
+        root.style.setProperty(
+          "--catppuccin-sapphire",
+          flavor.colors.sapphire.hex,
+        );
+        root.style.setProperty("--catppuccin-blue", flavor.colors.blue.hex);
+        root.style.setProperty(
+          "--catppuccin-lavender",
+          flavor.colors.lavender.hex,
+        );
+        root.style.setProperty("--catppuccin-text", flavor.colors.text.hex);
+        root.style.setProperty(
+          "--catppuccin-subtext1",
+          flavor.colors.subtext1.hex,
+        );
+        root.style.setProperty(
+          "--catppuccin-subtext0",
+          flavor.colors.subtext0.hex,
+        );
+        root.style.setProperty(
+          "--catppuccin-overlay2",
+          flavor.colors.overlay2.hex,
+        );
+        root.style.setProperty(
+          "--catppuccin-overlay1",
+          flavor.colors.overlay1.hex,
+        );
+        root.style.setProperty(
+          "--catppuccin-overlay0",
+          flavor.colors.overlay0.hex,
+        );
+        root.style.setProperty(
+          "--catppuccin-surface2",
+          flavor.colors.surface2.hex,
+        );
+        root.style.setProperty(
+          "--catppuccin-surface1",
+          flavor.colors.surface1.hex,
+        );
+        root.style.setProperty(
+          "--catppuccin-surface0",
+          flavor.colors.surface0.hex,
+        );
+        root.style.setProperty("--catppuccin-base", flavor.colors.base.hex);
+        root.style.setProperty("--catppuccin-mantle", flavor.colors.mantle.hex);
+        root.style.setProperty("--catppuccin-crust", flavor.colors.crust.hex);
+      }
     }
   }, []);
 
-  const fetchVersionsByType = useCallback(async () => {
-    try {
-      const [stableVersions, betaVersions] = await invoke(
-        "get_downloadable_versions_by_type",
-      );
-      return { stableVersions, betaVersions };
-    } catch (error) {
-      console.error("Failed to fetch versions by type:", error);
-      return { stableVersions: [], betaVersions: [] };
-    }
-  }, []);
+  const handleThemeChange = useCallback(
+    (event) => {
+      const newTheme = event.target.value;
+      setStateProperty(R.lensProp("currentTheme"), newTheme);
+      applyTheme(newTheme);
+    },
+    [setStateProperty, applyTheme],
+  );
+
+  // Apply initial theme on mount
+  useEffect(() => {
+    applyTheme(state.currentTheme);
+  }, [applyTheme, state.currentTheme]);
+
+  // ============= Pure Async Operations with Functional Composition =============
+
+  // Functional API call creator with error handling
+  const createSafeAPICall = useCallback(
+    R.curry((loadingLens, successLens, apiCall) =>
+      R.pipe(
+        R.tap(() => setStateProperty(loadingLens, true)),
+        apiCall,
+        R.andThen(
+          R.pipe(
+            R.tap((data) => setStateProperty(successLens, data)),
+            R.tap(() => setStateProperty(loadingLens, false)),
+          ),
+        ),
+        R.otherwise(
+          R.pipe(
+            R.tap((error) => console.error("API Error:", error)),
+            R.tap(() => setStateProperty(loadingLens, false)),
+          ),
+        ),
+      ),
+    ),
+    [setStateProperty],
+  );
+
+  // Pure async operation handlers
+  const fetchDownloadableVersions = useCallback(
+    createSafeAPICall(
+      stateLenses.isLoadingDownloadableVersions,
+      R.lensProp("downloadableVersions"),
+      () => invoke("get_downloadable_mendix_versions"),
+    ),
+    [createSafeAPICall],
+  );
+
+  const fetchVersionsByType = useCallback(
+    R.pipe(
+      () => invoke("get_downloadable_versions_by_type"),
+      R.andThen(([stableVersions, betaVersions]) => ({
+        stableVersions,
+        betaVersions,
+      })),
+    ),
+    [],
+  );
+
+  // ============= Pure Functional Component Handlers =============
+
+  // Create memoized event handlers with functional composition
+  const createFunctionalHandler = useCallback(
+    R.curry((transformation, sideEffect) =>
+      R.pipe(transformation, R.tap(sideEffect)),
+    ),
+    [],
+  );
+
+  // Search handlers using functional composition
+  const handleVersionSearch = useCallback(
+    createFunctionalHandler(R.path(["target", "value"]), (value) =>
+      updateState(
+        R.pipe(setStateProp(stateLenses.searchTerm, value), resetPage),
+      ),
+    ),
+    [createFunctionalHandler, updateState],
+  );
+
+  const handleAppSearch = useCallback(
+    createFunctionalHandler(R.path(["target", "value"]), (value) =>
+      updateState(
+        R.pipe(setStateProp(stateLenses.appSearchTerm, value), resetPage),
+      ),
+    ),
+    [createFunctionalHandler, updateState],
+  );
+
+  const handleWidgetSearch = useCallback(
+    createFunctionalHandler(R.path(["target", "value"]), (value) =>
+      setStateProperty(stateLenses.widgetSearchTerm, value),
+    ),
+    [createFunctionalHandler, setStateProperty],
+  );
+
+  // Selection handlers with functional composition
+  const createSelectionHandler = useCallback(
+    R.curry((lens, storageKey) =>
+      R.pipe(
+        (item) => updateStateProperty(lens, toggleSetValue(item)),
+        R.tap(() => {
+          setTimeout(() => {
+            setState((currentState) => {
+              const selectedSet = R.view(lens, currentState);
+              saveToStorage(storageKey, setToArray(selectedSet));
+              return currentState;
+            });
+          }, 0);
+        }),
+      ),
+    ),
+    [updateStateProperty],
+  );
+
+  const handleAppSelection = useCallback(
+    createSelectionHandler(
+      stateLenses.selectedApps,
+      STORAGE_KEYS.SELECTED_APPS,
+    ),
+    [createSelectionHandler],
+  );
+
+  const handleWidgetSelection = useCallback(
+    createSelectionHandler(
+      stateLenses.selectedWidgets,
+      STORAGE_KEYS.SELECTED_WIDGETS,
+    ),
+    [createSelectionHandler],
+  );
+
+  // Tab management with functional composition
+  const handleTabChange = useCallback(
+    R.pipe(R.prop("id"), (tabId) =>
+      setStateProperty(stateLenses.activeTab, tabId),
+    ),
+    [setStateProperty],
+  );
 
   // Functional pagination logic with Ramda.js
   const createVersionsUpdater = R.curry(
@@ -1000,21 +1367,6 @@ function App() {
     />
   ));
 
-  // Widget selection handler
-  const handleWidgetSelection = useCallback(
-    R.curry((widgetId) =>
-      setSelectedWidgets((prev) =>
-        R.pipe(
-          () => toggleInSet(widgetId, prev),
-          R.tap(
-            R.pipe(setToArray, saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS)),
-          ),
-        )(),
-      ),
-    ),
-    [],
-  );
-
   // Add widget handler
   const handleAddWidget = useCallback(() => {
     if (
@@ -1072,6 +1424,80 @@ function App() {
           Kirakira Ichigo Manager
           <span className="title-sparkle">✨</span>
         </h1>
+        <div className="theme-selector">
+          <div className="catppuccin-banner">
+            <img
+              src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/logos/exports/1544x1544_circle.png"
+              alt="Catppuccin"
+              className="catppuccin-logo"
+            />
+            <div className="catppuccin-info">
+              <span className="catppuccin-attribution">
+                Latte, Frappé, Macchiato, Mocha themes powered by
+              </span>
+              <a
+                href="https://catppuccin.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="catppuccin-link"
+              >
+                Catppuccin
+              </a>
+            </div>
+          </div>
+          <div className="theme-options">
+            <label className="theme-option">
+              <input
+                type="radio"
+                name="theme"
+                value="kiraichi"
+                checked={state.currentTheme === "kiraichi"}
+                onChange={handleThemeChange}
+              />
+              <span>Kiraichi</span>
+            </label>
+            <label className="theme-option catppuccin-theme">
+              <input
+                type="radio"
+                name="theme"
+                value="latte"
+                checked={state.currentTheme === "latte"}
+                onChange={handleThemeChange}
+              />
+              <span>Latte</span>
+            </label>
+            <label className="theme-option catppuccin-theme">
+              <input
+                type="radio"
+                name="theme"
+                value="frappe"
+                checked={state.currentTheme === "frappe"}
+                onChange={handleThemeChange}
+              />
+              <span>Frappé</span>
+            </label>
+            <label className="theme-option catppuccin-theme">
+              <input
+                type="radio"
+                name="theme"
+                value="macchiato"
+                checked={state.currentTheme === "macchiato"}
+                onChange={handleThemeChange}
+              />
+              <span>Macchiato</span>
+            </label>
+            <label className="theme-option catppuccin-theme">
+              <input
+                type="radio"
+                name="theme"
+                value="mocha"
+                checked={state.currentTheme === "mocha"}
+                onChange={handleThemeChange}
+              />
+              <span>Mocha</span>
+            </label>
+          </div>
+        </div>
       </div>
 
       <div className="tabs">
