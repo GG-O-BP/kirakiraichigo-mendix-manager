@@ -43,6 +43,8 @@ import {
   setResourceLoading,
   setResourceSuccess,
   setResourceError,
+  updateVersionLoadingStates,
+  getVersionLoadingState,
 } from "./utils/functional";
 
 // Import functional components
@@ -610,6 +612,7 @@ function App() {
   const [isUninstalling, setIsUninstalling] = useState(
     initialState.isUninstalling,
   );
+  const [versionLoadingStates, setVersionLoadingStates] = useState({});
   const [downloadProgress, setDownloadProgress] = useState(
     initialState.downloadProgress,
   );
@@ -701,8 +704,11 @@ function App() {
 
   const handleModalDownload = useCallback(
     async (version) => {
+      const versionId = version.version;
       try {
-        setIsLoadingDownloadableVersions(true);
+        setVersionLoadingStates((prev) =>
+          updateVersionLoadingStates(versionId, "download", true, prev),
+        );
 
         // Call Tauri command to download and install
         const result = await invoke("download_and_install_mendix_version", {
@@ -717,7 +723,9 @@ function App() {
         console.error("Error in download process:", error);
         throw error;
       } finally {
-        setIsLoadingDownloadableVersions(false);
+        setVersionLoadingStates((prev) =>
+          updateVersionLoadingStates(versionId, "download", false, prev),
+        );
       }
     },
     [loadVersions],
@@ -997,20 +1005,35 @@ function App() {
   // Launch Studio Pro handler
   const handleLaunchStudioPro = useCallback(
     async (version) => {
-      if (isLaunching || isUninstalling) return; // Prevent multiple operations
+      const versionId = version.version;
+      if (
+        getVersionLoadingState(versionId, "launch", versionLoadingStates) ||
+        getVersionLoadingState(versionId, "uninstall", versionLoadingStates)
+      ) {
+        return; // Prevent multiple operations on same version
+      }
 
-      setIsLaunching(true);
+      setVersionLoadingStates((prev) =>
+        updateVersionLoadingStates(versionId, "launch", true, prev),
+      );
+
       try {
         await invoke("launch_studio_pro", {
           version: version.version,
         });
-        setTimeout(() => setIsLaunching(false), 8000);
+        setTimeout(() => {
+          setVersionLoadingStates((prev) =>
+            updateVersionLoadingStates(versionId, "launch", false, prev),
+          );
+        }, 60000);
       } catch (error) {
         alert(`Failed to launch Studio Pro: ${error}`);
-        setIsLaunching(false);
+        setVersionLoadingStates((prev) =>
+          updateVersionLoadingStates(versionId, "launch", false, prev),
+        );
       }
     },
-    [isLaunching, isUninstalling],
+    [versionLoadingStates],
   );
 
   // Uninstall click handler
@@ -1031,7 +1054,10 @@ function App() {
 
   const handleUninstallStudioPro = useCallback(
     async (version, deleteApps = false, relatedAppsList = []) => {
-      setIsUninstalling(true);
+      const versionId = version.version;
+      setVersionLoadingStates((prev) =>
+        updateVersionLoadingStates(versionId, "uninstall", true, prev),
+      );
 
       try {
         // Delete related apps first if requested
@@ -1062,7 +1088,9 @@ function App() {
               if (deleteApps) {
                 await loadApps();
               }
-              setIsUninstalling(false);
+              setVersionLoadingStates((prev) =>
+                updateVersionLoadingStates(versionId, "uninstall", false, prev),
+              );
               setShowUninstallModal(false);
               setVersionToUninstall(null);
               setRelatedApps([]);
@@ -1075,7 +1103,9 @@ function App() {
         // Fallback timeout after 60 seconds
         setTimeout(() => {
           clearInterval(monitorDeletion);
-          setIsUninstalling(false);
+          setVersionLoadingStates((prev) =>
+            updateVersionLoadingStates(versionId, "uninstall", false, prev),
+          );
           setShowUninstallModal(false);
           setVersionToUninstall(null);
           setRelatedApps([]);
@@ -1085,7 +1115,9 @@ function App() {
           ? `Failed to uninstall Studio Pro ${version.version} with apps: ${error}`
           : `Failed to uninstall Studio Pro ${version.version}: ${error}`;
         alert(errorMsg);
-        setIsUninstalling(false);
+        setVersionLoadingStates((prev) =>
+          updateVersionLoadingStates(versionId, "uninstall", false, prev),
+        );
         setShowUninstallModal(false);
         setVersionToUninstall(null);
         setRelatedApps([]);
@@ -1129,8 +1161,7 @@ function App() {
     "handleVersionClick",
     "apps",
     "listData",
-    "isLaunching",
-    "isUninstalling",
+    "versionLoadingStates",
     "handleLaunchStudioPro",
     "handleUninstallClick",
     "handleItemClick",
@@ -1221,8 +1252,7 @@ function App() {
     handleVersionClick,
     apps,
     listData,
-    isLaunching,
-    isUninstalling,
+    versionLoadingStates,
     handleLaunchStudioPro,
     handleUninstallClick,
     handleItemClick,
@@ -1549,7 +1579,15 @@ function App() {
             : null
         }
         onCancel={handleModalCancel}
-        isLoading={isUninstalling}
+        isLoading={
+          versionToUninstall
+            ? getVersionLoadingState(
+                versionToUninstall.version,
+                "uninstall",
+                versionLoadingStates,
+              )
+            : false
+        }
         relatedApps={relatedApps}
       />
 
@@ -1616,6 +1654,15 @@ function App() {
         onDownload={handleModalDownload}
         onClose={handleDownloadModalClose}
         onCancel={handleDownloadModalCancel}
+        isLoading={
+          versionToDownload
+            ? getVersionLoadingState(
+                versionToDownload.version,
+                "download",
+                versionLoadingStates,
+              )
+            : false
+        }
       />
     </main>
   );
