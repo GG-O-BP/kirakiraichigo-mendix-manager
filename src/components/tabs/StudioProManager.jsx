@@ -16,6 +16,7 @@ import {
   getLoadingText,
   createVersionOperationManager,
   updateVersionOperationWithLens,
+  getVersionLoadingState,
 } from "../../utils/functional";
 
 // ============= Helper Functions =============
@@ -230,8 +231,7 @@ const renderVersionListItems = R.curry(
   (
     handleLaunchStudioPro,
     handleUninstallClick,
-    isLaunching,
-    isUninstalling,
+    versionLoadingStates,
     selectedVersion,
     handleVersionClick,
     versions,
@@ -243,8 +243,16 @@ const renderVersionListItems = R.curry(
           version: R.identity,
           onLaunch: R.always(handleLaunchStudioPro),
           onUninstall: R.always(handleUninstallClick),
-          isLaunching: R.always(isLaunching),
-          isUninstalling: R.always(isUninstalling),
+          isLaunching: R.pipe(R.prop("version"), (versionId) =>
+            getVersionLoadingState(versionId, "launch", versionLoadingStates),
+          ),
+          isUninstalling: R.pipe(R.prop("version"), (versionId) =>
+            getVersionLoadingState(
+              versionId,
+              "uninstall",
+              versionLoadingStates,
+            ),
+          ),
           isSelected: R.pipe(R.prop("version"), R.equals(selectedVersion)),
           onClick: R.pipe(
             R.identity,
@@ -314,8 +322,7 @@ const StudioProManager = memo(
     listData,
     downloadableVersions,
     isLoadingDownloadableVersions,
-    isLaunching,
-    isUninstalling,
+    versionLoadingStates,
     handleLaunchStudioPro,
     handleUninstallClick,
     handleItemClick,
@@ -332,8 +339,6 @@ const StudioProManager = memo(
   }) => {
     // Enhanced memoized computations with functional composition
     const computedData = useMemo(() => {
-      const loadingStates = createLoadingState(isLaunching, isUninstalling);
-
       const result = R.applySpec({
         sortedAndFilteredMendixApps: R.pipe(
           R.always(apps),
@@ -345,11 +350,7 @@ const StudioProManager = memo(
           filterByVersionType(showLTSOnly, showMTSOnly, showBetaOnly),
           filterBySearch(searchTerm),
         ),
-        loadingStates: R.always(loadingStates),
-        hasActiveOperation: R.pipe(
-          R.always(loadingStates),
-          hasAnyLoadingOperation,
-        ),
+        versionLoadingStates: R.always(versionLoadingStates),
       })();
 
       return result;
@@ -359,8 +360,7 @@ const StudioProManager = memo(
       selectedVersion,
       downloadableVersions,
       versions,
-      isLaunching,
-      isUninstalling,
+      versionLoadingStates,
       showOnlyDownloadableVersions,
       showLTSOnly,
       showMTSOnly,
@@ -390,8 +390,13 @@ const StudioProManager = memo(
                 versions,
                 version,
               );
+              const isVersionDownloading = getVersionLoadingState(
+                version.version,
+                "download",
+                versionLoadingStates,
+              );
               const isButtonDisabled =
-                isLoadingDownloadableVersions || isAlreadyInstalled;
+                isVersionDownloading || isAlreadyInstalled;
 
               return (
                 <div key={version.version} className="version-list-item">
@@ -434,13 +439,13 @@ const StudioProManager = memo(
                     }}
                   >
                     <span className="button-icon">
-                      {isLoadingDownloadableVersions
+                      {isVersionDownloading
                         ? "⏳"
                         : isAlreadyInstalled
                           ? "✅"
                           : "📥"}
                     </span>
-                    {isLoadingDownloadableVersions
+                    {isVersionDownloading
                       ? "Downloading..."
                       : isAlreadyInstalled
                         ? "Installed"
@@ -508,8 +513,7 @@ const StudioProManager = memo(
               renderVersionListItems(
                 handleLaunchStudioPro,
                 handleUninstallClick,
-                isLaunching,
-                isUninstalling,
+                computedData.versionLoadingStates,
                 selectedVersion,
                 handleVersionClick,
               ),
@@ -541,8 +545,7 @@ const StudioProManager = memo(
         handleLaunchStudioPro,
         handleUninstallClick,
         handleDownloadVersion,
-        isLaunching,
-        isUninstalling,
+        versionLoadingStates,
         selectedVersion,
         handleVersionClick,
         showOnlyDownloadableVersions,

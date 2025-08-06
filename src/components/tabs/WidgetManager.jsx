@@ -123,24 +123,16 @@ const renderAppItem = R.curry((selectedApps, handleAppClick, app) => (
 // Render package manager option
 const renderPackageManagerOption = R.curry(
   (packageManager, setPackageManager, pm) => (
-    <label
-      key={pm}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        cursor: "pointer",
-        color: "rgba(255, 235, 240, 0.9)",
-      }}
-    >
+    <label key={pm} className="checkbox-label">
       <input
         type="radio"
         name="packageManager"
         value={pm}
         checked={R.equals(packageManager, pm)}
         onChange={R.pipe(R.path(["target", "value"]), setPackageManager)}
-        style={{ marginRight: "5px" }}
+        className="checkbox-input"
       />
-      {pm}
+      <span className="checkbox-text">{pm}</span>
     </label>
   ),
 );
@@ -395,7 +387,7 @@ const WidgetManager = memo(
         {/* Package Manager Controls */}
         <div
           style={{
-            padding: "20px",
+            padding: "15px",
             borderTop: "1px solid rgba(255, 182, 193, 0.2)",
             borderBottom: "1px solid rgba(255, 182, 193, 0.2)",
             background: "rgba(255, 235, 240, 0.02)",
@@ -412,7 +404,7 @@ const WidgetManager = memo(
             >
               Package Manager:
             </label>
-            <div style={{ display: "flex", gap: "15px" }}>
+            <div className="package-manager-filters">
               {R.map(
                 renderPackageManagerOption(packageManager, setPackageManager),
                 packageManagers,

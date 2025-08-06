@@ -538,6 +538,17 @@ body {
     margin-bottom: 0;
 }
 
+.package-manager-filters {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.package-manager-filters .checkbox-label {
+    margin-bottom: 0;
+}
+
 /* Special strawberry animations */
 .checkbox-input:hover::before {
     animation: strawberry-bounce 0.5s ease;
