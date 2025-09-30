@@ -28,6 +28,7 @@ Just like a magical girl transforms to save the day, this manager transforms you
 
 # Licence 📜
 this programme follows [Magical Pretty License 2.0 ✨🍓](/LICENSE)
+
 (A modified version of Mozilla Public License 2.0, created under MPL 2.0 Section 10.3)
 
 Copyright © 2025 GG-O-BP. All rights reserved. ✨🍓
