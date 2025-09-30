@@ -1,0 +1,146 @@
+/* ============= CSS Reset - Kirakira Ichigo Mendix Manager ============= */
+
+/* ============= Universal Box Sizing ============= */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* ============= Remove Default Margins and Padding ============= */
+* {
+    margin: 0;
+    padding: 0;
+}
+
+/* ============= Body and HTML Base ============= */
+html,
+body {
+    height: 100%;
+    width: 100%;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family:
+        "Maple Mono",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        "Roboto",
+        "Hiragino Sans",
+        "Noto Sans CJK JP",
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--theme-background);
+    color: var(--theme-text);
+    line-height: 1.5;
+}
+
+/* ============= Remove List Styles ============= */
+ul,
+ol {
+    list-style: none;
+}
+
+/* ============= Remove Default Link Styles ============= */
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* ============= Button Reset ============= */
+button {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+}
+
+/* ============= Input and Form Reset ============= */
+input,
+textarea,
+select {
+    font-family: inherit;
+    font-size: inherit;
+    border: none;
+    outline: none;
+}
+
+/* ============= Image Reset ============= */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* ============= Table Reset ============= */
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+/* ============= Remove Default Fieldset and Legend Styles ============= */
+fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+legend {
+    padding: 0;
+}
+
+/* ============= Remove Default Summary Styles ============= */
+summary {
+    cursor: pointer;
+}
+
+/* ============= Accessibility Improvements ============= */
+:focus-visible {
+    outline: 2px solid var(--theme-primary);
+    outline-offset: 2px;
+}
+
+/* ============= Selection Styling ============= */
+::selection {
+    background: var(--theme-selected-bg);
+    color: var(--theme-text);
+}
+
+/* ============= Scrollbar Base Styling ============= */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--theme-surface);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--theme-primary);
+    border-radius: 5px;
+    border: 1px solid var(--theme-border);
+    opacity: 0.6;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--theme-primary);
+    opacity: 0.8;
+}
+
+/* ============= Reduced Motion Support ============= */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

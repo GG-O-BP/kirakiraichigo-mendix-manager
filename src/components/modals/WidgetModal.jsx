@@ -1,5 +1,6 @@
 import * as R from "ramda";
 import { memo } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 
 // ============= Helper Functions =============
 
@@ -61,6 +62,33 @@ const handleAddWidget = R.curry((props) => {
   }
 });
 
+// Handle folder selection
+const handleBrowseFolder = R.curry(async (props) => {
+  const { newWidgetCaption, setNewWidgetPath, setNewWidgetCaption } = props;
+
+  try {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: "Select Widget Folder",
+    });
+
+    if (selected) {
+      const folderPath = selected;
+      setNewWidgetPath(folderPath);
+
+      // Auto-fill caption only if it's empty
+      if (R.isEmpty(newWidgetCaption.trim())) {
+        const folderName =
+          folderPath.split(/[\\/]/).filter(Boolean).pop() || "";
+        setNewWidgetCaption(folderName);
+      }
+    }
+  } catch (error) {
+    console.error("Error selecting folder:", error);
+  }
+});
+
 // ============= Render Functions =============
 
 // Render input field
@@ -80,6 +108,37 @@ const renderLabeledInput = R.curry(
     <label className="property-label">
       <span className="label-text">{label}</span>
       {renderInput(type, value, onChange, placeholder)}
+    </label>
+  ),
+);
+
+// Render label with input and browse button
+const renderLabeledInputWithBrowse = R.curry(
+  (label, type, value, onChange, placeholder, onBrowse) => (
+    <label className="property-label">
+      <span className="label-text">{label}</span>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <input
+          type={type}
+          className="property-input"
+          value={value}
+          onChange={R.pipe(R.path(["target", "value"]), onChange)}
+          placeholder={placeholder}
+          style={{ flex: 1 }}
+        />
+        <button
+          type="button"
+          className="modal-button"
+          onClick={onBrowse}
+          style={{
+            padding: "8px 16px",
+            minWidth: "auto",
+            whiteSpace: "nowrap",
+          }}
+        >
+          📁 Browse
+        </button>
+      </div>
     </label>
   ),
 );
@@ -107,12 +166,13 @@ const renderAddWidgetForm = (props) => {
             setNewWidgetCaption,
             "Enter widget caption",
           )}
-          {renderLabeledInput(
+          {renderLabeledInputWithBrowse(
             "Absolute Path",
             "text",
             newWidgetPath,
             setNewWidgetPath,
             "C:\\path\\to\\widget\\folder",
+            () => handleBrowseFolder(props),
           )}
         </div>
         <div className="modal-footer">
@@ -174,7 +234,9 @@ const renderWidgetActionModal = (props) => {
                 "linear-gradient(135deg, rgba(169, 169, 169, 0.3) 0%, rgba(169, 169, 169, 0.5) 100%)",
             }}
           >
-            Create Widget (Coming Soon)
+            Create Widget
+            <br />
+            (Coming Soon)
           </button>
           <button
             className="modal-button confirm-button"

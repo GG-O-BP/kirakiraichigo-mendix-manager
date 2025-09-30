@@ -1,0 +1,416 @@
+/* ============= Base Layout Styles - Kirakira Ichigo Mendix Manager ============= */
+
+/* ============= Root Application Container ============= */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background: var(--theme-background);
+    color: var(--theme-text);
+}
+
+/* ============= Application Header ============= */
+.app-header {
+    background: var(--theme-header-bg);
+    border-bottom: 1px solid var(--theme-border);
+    padding: 16px 24px;
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* ============= Tab Content Area ============= */
+.tab-content {
+    flex: 1;
+    padding: 20px;
+    overflow: hidden;
+}
+
+/* ============= Base Manager Layout ============= */
+.base-manager {
+    display: flex;
+    height: 100%;
+}
+
+/* ============= Studio Pro Manager Layout ============= */
+.studio-pro-manager {
+    gap: 16px;
+}
+
+.list-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* ============= Widget Manager Layout ============= */
+.widget-manager {
+    gap: 12px;
+}
+
+.widget-manager .list-container {
+    flex: 0.75;
+    min-width: 200px;
+}
+
+/* ============= Widget Preview Layout ============= */
+.widget-preview {
+    gap: 16px;
+}
+
+.preview-left {
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.preview-middle {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.preview-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.widget-preview-content {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.widget-content-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: 100%;
+}
+
+.content-sections {
+    display: flex;
+    gap: 16px;
+    flex: 1;
+    min-height: 0;
+}
+
+.file-explorer-section {
+    flex: 1;
+    min-width: 0;
+}
+
+.content-viewer-section {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ============= Search Controls Layout ============= */
+.search-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 8px;
+    padding: 4px 0;
+}
+
+.search-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+}
+
+.search-row > *:first-child {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ============= Filter Layouts ============= */
+.version-type-filters {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.version-type-filters .checkbox-label {
+    width: calc(33.3333% - 8px);
+}
+
+.package-manager-filters {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: nowrap;
+    width: 100%;
+}
+
+.package-manager-filters .checkbox-label {
+    padding: 7px 9px;
+    flex: 1;
+    text-align: center;
+    white-space: nowrap;
+    min-width: 70px;
+}
+
+/* ============= Results Layout ============= */
+.inline-results-container {
+    margin: 16px 0 0 0;
+    padding: 16px;
+    background: var(--theme-surface-secondary);
+    border: 1px solid var(--theme-border);
+    border-radius: 12px;
+    backdrop-filter: blur(5px);
+}
+
+.inline-results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--theme-border);
+}
+
+.inline-results-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* ============= Version Info Layout ============= */
+.version-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.version-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.version-number {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.version-date {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* ============= Error Actions Layout ============= */
+.error-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+/* ============= Responsive Layout Adjustments ============= */
+/* ============= Widget Manager Specific Styles ============= */
+.widget-manager .package-manager-section {
+    width: 400px;
+    padding: 15px;
+    border-top: 1px solid var(--theme-border-light);
+    border-bottom: 1px solid var(--theme-border-light);
+    background: var(--theme-surface-secondary);
+}
+
+.widget-manager .package-manager-label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: var(--theme-text-secondary);
+}
+
+.widget-manager .package-manager-group {
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+.widget-manager .install-button-full {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.widget-manager .build-deploy-button {
+    width: 100%;
+    background: var(
+        --theme-success-gradient,
+        linear-gradient(135deg, var(--theme-success), var(--theme-success-dark))
+    );
+    border-color: var(--theme-success);
+}
+
+.widget-manager .add-widget-item {
+    cursor: pointer;
+}
+
+.widget-manager .add-widget-item:hover {
+    background-color: var(--theme-hover-bg);
+}
+
+.widget-manager .button-disabled {
+    opacity: 0.5;
+}
+
+.widget-manager .button-enabled {
+    opacity: 1;
+}
+
+.widget-manager .widget-item-clickable {
+    cursor: pointer;
+}
+
+.widget-manager .version-list-item {
+    gap: 8px;
+}
+
+.widget-manager .version-list-item .version-info {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.widget-manager .version-list-item .uninstall-button {
+    flex: 0 0 auto;
+    min-width: 40px;
+    margin-left: 8px;
+}
+
+.widget-manager .app-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.widget-manager .item-sparkle {
+    font-size: 1.2rem;
+    opacity: 0.8;
+}
+
+.widget-manager .end-indicator {
+    padding: 16px;
+    text-align: center;
+    color: var(--theme-text-secondary);
+    cursor: pointer;
+    border: 2px dashed var(--theme-border);
+    border-radius: 8px;
+    margin: 8px 0;
+    transition: all 0.2s ease;
+}
+
+.widget-manager .end-indicator:hover {
+    background: var(--theme-hover-bg);
+    border-color: var(--theme-primary);
+    color: var(--theme-primary);
+}
+
+.widget-manager .loading-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--theme-text-secondary);
+}
+
+.widget-manager .loading-icon {
+    font-size: 2rem;
+    margin-bottom: 12px;
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .app-header {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+    }
+
+    .widget-preview {
+        flex-direction: column;
+        padding: 12px;
+    }
+
+    .preview-left {
+        flex: none;
+        order: 1;
+    }
+
+    .preview-middle {
+        flex: none;
+        order: 2;
+    }
+
+    .preview-right {
+        flex: none;
+        order: 3;
+    }
+
+    .content-sections {
+        flex-direction: column;
+    }
+
+    .studio-pro-manager {
+        flex-direction: column;
+    }
+
+    .widget-manager {
+        flex-direction: column;
+    }
+
+    .search-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .search-row > *:first-child {
+        width: 100%;
+    }
+
+    .version-type-filters .checkbox-label {
+        width: 100%;
+    }
+
+    .package-manager-filters {
+        flex-direction: column;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .package-manager-filters .checkbox-label {
+        flex: none;
+        width: 100%;
+        text-align: left;
+        font-size: 1rem;
+        padding: 8px 12px;
+    }
+}

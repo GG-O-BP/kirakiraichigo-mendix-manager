@@ -137,10 +137,7 @@ export const MendixVersionListItem = memo(
         <div className="version-info">
           <span className="version-icon">🚀</span>
           <div className="version-details">
-            <span className="version-number">
-              {version.version}
-              {renderVersionBadge(getVersionBadge(version), "lts")}
-            </span>
+            <span className="version-number">{version.version}</span>
             <span className="version-date">
               {getVersionDate({ ...version, isLaunching, isUninstalling })}
             </span>
@@ -165,7 +162,9 @@ MendixVersionListItem.displayName = "MendixVersionListItem";
 // ============= MendixAppListItem Component =============
 
 const renderVersionBadgeSpan = R.curry((version) =>
-  version ? <span className="version-badge mts">v{version}</span> : null,
+  version ? (
+    <span className="version-badge app-version">v{version}</span>
+  ) : null,
 );
 
 export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {

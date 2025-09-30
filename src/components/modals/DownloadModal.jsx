@@ -1,6 +1,6 @@
 import * as R from "ramda";
 import { memo, useState, useEffect } from "react";
-import "./DownloadModal.css";
+import "../../styles/components/download-modal.css";
 
 // Pure data types - immutable by design
 const DOWNLOAD_STEPS = {
@@ -285,7 +285,7 @@ const DownloadModal = memo(
                   style={{
                     fontSize: "0.9rem",
                     fontWeight: "500",
-                    color: "#ff6b9d",
+                    color: "var(--theme-primary)",
                   }}
                 >
                   {stepInfo.title}
@@ -295,17 +295,18 @@ const DownloadModal = memo(
                   style={{
                     width: "100%",
                     height: "6px",
-                    background: "#2a2a2a",
+                    background: "var(--theme-surface-secondary)",
                     borderRadius: "3px",
                     marginTop: "8px",
                     position: "relative",
-                    border: "1px solid #444",
+                    border: "1px solid var(--theme-border)",
                   }}
                 >
                   <div
                     style={{
                       height: "100%",
-                      background: "linear-gradient(90deg, #ff6b9d, #c44569)",
+                      background:
+                        "linear-gradient(90deg, var(--theme-primary), var(--theme-secondary))",
                       borderRadius: "2px",
                       width: `${stepInfo.progress}%`,
                       transition: "width 0.3s ease",
@@ -329,7 +330,7 @@ const DownloadModal = memo(
                 <span
                   style={{
                     fontSize: "0.75rem",
-                    color: "#ff6b9d",
+                    color: "var(--theme-primary)",
                     float: "right",
                     marginTop: "2px",
                   }}
@@ -347,11 +348,18 @@ const DownloadModal = memo(
                 </span>
                 <br />
                 <br />
-                <strong style={{ color: "#ff6b9d", fontSize: "1rem" }}>
+                <strong
+                  style={{ color: "var(--theme-primary)", fontSize: "1rem" }}
+                >
                   Setup file launched successfully!
                 </strong>
                 <br />
-                <span style={{ color: "#ccc", fontSize: "0.9rem" }}>
+                <span
+                  style={{
+                    color: "var(--theme-text-secondary)",
+                    fontSize: "0.9rem",
+                  }}
+                >
                   Please follow the installation wizard to complete the setup
                   process.
                 </span>
@@ -372,7 +380,7 @@ const DownloadModal = memo(
                 style={{
                   textAlign: "center",
                   fontSize: "0.875rem",
-                  color: "var(--text-muted, #666)",
+                  color: "var(--theme-text-muted)",
                   marginTop: "8px",
                 }}
               >

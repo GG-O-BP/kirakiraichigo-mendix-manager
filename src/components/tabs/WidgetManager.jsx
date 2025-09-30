@@ -2,34 +2,24 @@ import * as R from "ramda";
 import { memo } from "react";
 import Dropdown from "../common/Dropdown";
 import SearchBox from "../common/SearchBox";
+import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 
-// ============= Helper Functions =============
+// ============= Constants =============
 
-// Create version options for dropdown
+const PACKAGE_MANAGERS = ["npm", "yarn", "pnpm", "bun"];
+
+// ============= Data Processing Functions =============
+
 const createVersionOptions = R.pipe(
-  R.map((v) => ({
-    value: R.prop("version", v),
-    label: `📦 ${R.prop("version", v)}`,
-  })),
-  R.prepend({ value: "all", label: "🍓 All Versions" }),
+  R.map(
+    R.pipe(R.prop("version"), (version) => ({
+      value: version,
+      label: `📦 ${version}`,
+    })),
+  ),
+  R.prepend({ value: "all", label: "📦 All Versions" }),
 );
 
-// Get paginated slice of items
-const getPaginatedSlice = R.curry((itemsPerPage, currentPage, items) =>
-  R.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage, items),
-);
-
-// Check if app is selected
-const isAppSelected = R.curry((selectedApps, app) =>
-  selectedApps.has(R.prop("path", app)),
-);
-
-// Check if widget is selected
-const isWidgetSelected = R.curry((selectedWidgets, widget) =>
-  selectedWidgets.has(R.prop("id", widget)),
-);
-
-// Format date or return default
 const formatDate = R.pipe(
   R.prop("last_modified"),
   R.ifElse(
@@ -39,42 +29,162 @@ const formatDate = R.pipe(
   ),
 );
 
-// Create app class name
+// ============= Selection State Functions =============
+
+const isAppSelected = R.curry((selectedApps, app) =>
+  selectedApps.has(R.prop("path", app)),
+);
+
+const isWidgetSelected = R.curry((selectedWidgets, widget) =>
+  selectedWidgets.has(R.prop("id", widget)),
+);
+
 const getAppClassName = R.curry((selectedApps, app) =>
   R.join(" ", [
     "version-list-item",
+    "widget-item-clickable",
     isAppSelected(selectedApps, app) ? "selected" : "",
   ]),
 );
 
-// Create widget class name
 const getWidgetClassName = R.curry((selectedWidgets, widget) =>
   R.join(" ", [
     "version-list-item",
+    "widget-item-clickable",
     isWidgetSelected(selectedWidgets, widget) ? "selected" : "",
   ]),
 );
 
+// ============= Button State Functions =============
+
+const isInstallButtonDisabled = R.curry((isInstalling, selectedWidgets) =>
+  R.or(isInstalling, R.equals(0, selectedWidgets.size)),
+);
+
+const isBuildDeployButtonDisabled = R.curry(
+  (isBuilding, selectedWidgets, selectedApps) =>
+    R.or(
+      R.or(isBuilding, R.equals(0, selectedWidgets.size)),
+      R.equals(0, selectedApps.size),
+    ),
+);
+
+// ============= Event Handlers =============
+
+const createAppClickHandler = R.curry((handleAppClick, app, e) =>
+  R.pipe(
+    R.tap(() => e.preventDefault()),
+    R.tap(() => e.stopPropagation()),
+    R.always(app),
+    handleAppClick,
+  )(),
+);
+
+const createWidgetSelectionHandler = R.curry(
+  (setSelectedWidgets, widgetId, e) =>
+    R.pipe(
+      R.tap(() => e.preventDefault()),
+      R.tap(() => e.stopPropagation()),
+      R.always(widgetId),
+      (id) => {
+        setSelectedWidgets((prev) => {
+          const newSet = new Set(prev);
+          if (newSet.has(id)) {
+            newSet.delete(id);
+          } else {
+            newSet.add(id);
+          }
+
+          try {
+            localStorage.setItem(
+              "kirakiraSelectedWidgets",
+              JSON.stringify(Array.from(newSet)),
+            );
+          } catch (error) {
+            // Handle error silently
+          }
+
+          return newSet;
+        });
+      },
+    )(),
+);
+
+const createWidgetDeleteHandler = R.curry(
+  (setWidgets, setSelectedWidgets, widgetId, e) =>
+    R.pipe(
+      R.tap(() => e.preventDefault()),
+      R.tap(() => e.stopPropagation()),
+      R.always(widgetId),
+      R.tap((id) => {
+        setWidgets((prevWidgets) => {
+          const newWidgets = R.filter(
+            R.pipe(R.prop("id"), R.complement(R.equals(id))),
+            prevWidgets,
+          );
+          localStorage.setItem("kirakiraWidgets", JSON.stringify(newWidgets));
+          return newWidgets;
+        });
+      }),
+      R.tap((id) => {
+        setSelectedWidgets((prevSelected) => {
+          const newSet = new Set(prevSelected);
+          newSet.delete(id);
+          localStorage.setItem(
+            "kirakiraSelectedWidgets",
+            JSON.stringify(Array.from(newSet)),
+          );
+          return newSet;
+        });
+      }),
+    )(),
+);
+
+const createAddWidgetHandler = R.curry(
+  (
+    setShowWidgetModal,
+    setShowAddWidgetForm,
+    setNewWidgetCaption,
+    setNewWidgetPath,
+  ) =>
+    R.pipe(
+      R.tap(() => setShowWidgetModal(true)),
+      R.tap(() => setShowAddWidgetForm(false)),
+      R.tap(() => setNewWidgetCaption("")),
+      R.tap(() => setNewWidgetPath("")),
+    )(),
+);
+
+// ============= Search Controls =============
+
+const renderSearchControls = R.curry((config) => (
+  <div className="search-controls">
+    {config.dropdown && (
+      <Dropdown
+        value={config.dropdown.value}
+        onChange={config.dropdown.onChange}
+        options={config.dropdown.options}
+      />
+    )}
+    <div className="search-row">
+      <SearchBox
+        placeholder={config.placeholder}
+        value={config.searchTerm}
+        onChange={config.setSearchTerm}
+      />
+    </div>
+  </div>
+));
+
+const renderPanel = R.curry((config) => (
+  <div key={config.key} className={config.className}>
+    {config.searchControls}
+    <div className="list-area">{config.content}</div>
+  </div>
+));
+
 // ============= Render Functions =============
 
-// Render app icon based on selection
-const renderAppIcon = R.curry((selectedApps, app) =>
-  isAppSelected(selectedApps, app) ? "☑️" : "📁",
-);
-
-// Render widget icon based on selection
-const renderWidgetIcon = R.curry((selectedWidgets, widget) =>
-  isWidgetSelected(selectedWidgets, widget) ? "☑️" : "🧩",
-);
-
-// Render app version badge
-const renderVersionBadge = R.ifElse(
-  R.prop("version"),
-  (app) => <span className="version-badge mts">v{R.prop("version", app)}</span>,
-  R.always(null),
-);
-
-// Render empty state
 const renderEmptyState = R.curry((icon, message) => (
   <div className="loading-indicator">
     <span className="loading-icon">{icon}</span>
@@ -82,27 +192,45 @@ const renderEmptyState = R.curry((icon, message) => (
   </div>
 ));
 
-// Render load more indicator
-const renderLoadMore = R.curry((onClick) => (
-  <div className="end-indicator" onClick={onClick}>
-    <span>Load more apps...</span>
-  </div>
-));
+const renderAppIcon = R.curry((selectedApps, app) =>
+  isAppSelected(selectedApps, app) ? "☑️" : "📁",
+);
 
-// Render single app item
-const renderAppItem = R.curry((selectedApps, handleAppClick, app) => (
+const renderWidgetIcon = R.curry((selectedWidgets, widget) =>
+  isWidgetSelected(selectedWidgets, widget) ? "☑️" : "🧩",
+);
+
+const renderVersionBadge = R.ifElse(
+  R.prop("version"),
+  (app) => (
+    <span className="version-badge app-version">v{R.prop("version", app)}</span>
+  ),
+  R.always(null),
+);
+
+const renderPackageManagerOption = R.curry(
+  (packageManager, setPackageManager, pm) => (
+    <label key={pm} className="checkbox-label">
+      <input
+        type="radio"
+        name="packageManager"
+        value={pm}
+        checked={R.equals(packageManager, pm)}
+        onChange={R.pipe(R.path(["target", "value"]), setPackageManager)}
+        className="checkbox-input"
+      />
+      <span className="checkbox-text">{pm}</span>
+    </label>
+  ),
+);
+
+// ============= List Item Renderers =============
+
+const renderAppListItem = R.curry((selectedApps, handleAppClick, app) => (
   <div
     key={R.prop("path", app)}
     className={getAppClassName(selectedApps, app)}
-    onClick={R.pipe(
-      R.tap((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }),
-      R.always(app),
-      handleAppClick,
-    )}
-    style={{ cursor: "pointer" }}
+    onClick={createAppClickHandler(handleAppClick, app)}
   >
     <div className="version-info">
       <span className="version-icon">{renderAppIcon(selectedApps, app)}</span>
@@ -120,63 +248,16 @@ const renderAppItem = R.curry((selectedApps, handleAppClick, app) => (
   </div>
 ));
 
-// Render package manager option
-const renderPackageManagerOption = R.curry(
-  (packageManager, setPackageManager, pm) => (
-    <label key={pm} className="checkbox-label">
-      <input
-        type="radio"
-        name="packageManager"
-        value={pm}
-        checked={R.equals(packageManager, pm)}
-        onChange={R.pipe(R.path(["target", "value"]), setPackageManager)}
-        className="checkbox-input"
-      />
-      <span className="checkbox-text">{pm}</span>
-    </label>
-  ),
-);
-
-// Render widget item
-const renderWidgetItem = R.curry(
+const renderWidgetListItem = R.curry(
   (selectedWidgets, setSelectedWidgets, setWidgets, widget) => (
     <div
       key={R.prop("id", widget)}
+      data-label={R.prop("id", widget)}
       className={getWidgetClassName(selectedWidgets, widget)}
-      onClick={R.pipe(
-        R.tap((e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        }),
-        R.always(R.prop("id", widget)),
-        (widgetId) => {
-          setSelectedWidgets((prev) => {
-            const currentSet = new Set(prev);
-            const newSet = new Set(currentSet);
-
-            if (currentSet.has(widgetId)) {
-              newSet.delete(widgetId);
-            } else {
-              newSet.add(widgetId);
-            }
-
-            const newArray = Array.from(newSet);
-
-            // Save to localStorage
-            try {
-              localStorage.setItem(
-                "kirakiraSelectedWidgets",
-                JSON.stringify(newArray),
-              );
-            } catch (error) {
-              // Handle error silently
-            }
-
-            return newSet;
-          });
-        },
+      onClick={createWidgetSelectionHandler(
+        setSelectedWidgets,
+        R.prop("id", widget),
       )}
-      style={{ cursor: "pointer" }}
     >
       <div className="version-info">
         <span className="version-icon">
@@ -188,46 +269,12 @@ const renderWidgetItem = R.curry(
         </div>
       </div>
       <button
-        className="uninstall-button"
-        onClick={R.pipe(
-          R.tap((e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }),
-          R.always(R.prop("id", widget)),
-          R.tap((widgetId) => {
-            setWidgets((prevWidgets) => {
-              const newWidgets = R.filter(
-                R.pipe(R.prop("id"), R.complement(R.equals(widgetId))),
-                prevWidgets,
-              );
-              localStorage.setItem(
-                "kirakiraWidgets",
-                JSON.stringify(newWidgets),
-              );
-              return newWidgets;
-            });
-          }),
-          R.tap((widgetId) => {
-            setSelectedWidgets((prevSelected) => {
-              const newSet = new Set(prevSelected);
-              newSet.delete(widgetId);
-              localStorage.setItem(
-                "kirakiraSelectedWidgets",
-                JSON.stringify(Array.from(newSet)),
-              );
-              return newSet;
-            });
-          }),
-          R.always(undefined),
+        className="install-button uninstall-button"
+        onClick={createWidgetDeleteHandler(
+          setWidgets,
+          setSelectedWidgets,
+          R.prop("id", widget),
         )}
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",
-          borderColor: "rgba(220, 20, 60, 0.4)",
-          padding: "4px 12px",
-          fontSize: "12px",
-        }}
       >
         <span className="button-icon">🗑️</span>
       </button>
@@ -235,17 +282,35 @@ const renderWidgetItem = R.curry(
   ),
 );
 
-// Get button opacity based on conditions
-const getButtonOpacity = R.cond([
-  [R.equals(true), R.always(1)],
-  [R.T, R.always(0.5)],
-]);
+const renderAddWidgetItem = R.curry(
+  (
+    setShowWidgetModal,
+    setShowAddWidgetForm,
+    setNewWidgetCaption,
+    setNewWidgetPath,
+  ) => (
+    <div
+      className="version-list-item add-widget-item"
+      onClick={createAddWidgetHandler(
+        setShowWidgetModal,
+        setShowAddWidgetForm,
+        setNewWidgetCaption,
+        setNewWidgetPath,
+      )}
+    >
+      <div className="version-info">
+        <span className="version-icon">➕</span>
+        <div className="version-details">
+          <span className="version-number">Add New Widget</span>
+          <span className="version-date">Click to add a widget</span>
+        </div>
+      </div>
+    </div>
+  ),
+);
 
-// ============= Main Component =============
+// ============= Results Renderers =============
 
-// ============= Inline Results Helpers =============
-
-// Render successful widget result
 const renderSuccessfulWidget = R.curry((result, index) => (
   <div key={index} className="inline-result-item success">
     <span className="result-icon">✅</span>
@@ -256,7 +321,6 @@ const renderSuccessfulWidget = R.curry((result, index) => (
   </div>
 ));
 
-// Render failed widget result
 const renderFailedWidget = R.curry((result, index) => (
   <div key={index} className="inline-result-item failed">
     <span className="result-icon">❌</span>
@@ -264,7 +328,6 @@ const renderFailedWidget = R.curry((result, index) => (
   </div>
 ));
 
-// Render inline results section with strict functional programming
 const renderInlineResults = R.ifElse(
   R.propSatisfies(R.complement(R.isNil), "inlineResults"),
   ({ inlineResults, setInlineResults }) => {
@@ -311,6 +374,96 @@ const renderInlineResults = R.ifElse(
   R.always(null),
 );
 
+// ============= List Renderers =============
+
+const renderAppsList = R.curry((selectedApps, handleAppClick, apps) =>
+  R.ifElse(
+    R.isEmpty,
+    () => renderEmptyState("🍓", "No Mendix apps found"),
+    (apps) => R.map(renderAppListItem(selectedApps, handleAppClick), apps),
+  )(apps),
+);
+
+const renderWidgetsList = R.curry(
+  (
+    selectedWidgets,
+    setSelectedWidgets,
+    setWidgets,
+    filteredWidgets,
+    reorderedWidgets,
+    widgetSearchTerm,
+    modalHandlers,
+    widgetListRef,
+  ) => {
+    // Use filtered widgets when searching, reordered widgets when not searching
+    const widgetsToShow = R.isEmpty(widgetSearchTerm)
+      ? reorderedWidgets
+      : filteredWidgets;
+    const shouldEnableDragDrop = R.isEmpty(widgetSearchTerm);
+
+    return R.cond([
+      [
+        () => R.isEmpty(widgetsToShow) && R.isEmpty(widgetSearchTerm),
+        () => (
+          <div>
+            {renderAddWidgetItem(...modalHandlers)}
+            {renderEmptyState("🧩", "No widgets registered")}
+          </div>
+        ),
+      ],
+      [
+        () => R.isEmpty(widgetsToShow) && !R.isEmpty(widgetSearchTerm),
+        () => (
+          <div>
+            {renderAddWidgetItem(...modalHandlers)}
+            {renderEmptyState(
+              "🔍",
+              `No widgets found matching "${widgetSearchTerm}"`,
+            )}
+          </div>
+        ),
+      ],
+      [
+        R.T,
+        () => (
+          <div>
+            {renderAddWidgetItem(...modalHandlers)}
+            {shouldEnableDragDrop ? (
+              <div ref={widgetListRef} className="draggable-widget-list">
+                {R.map(
+                  (widget) =>
+                    renderWidgetListItem(
+                      selectedWidgets,
+                      setSelectedWidgets,
+                      setWidgets,
+                      widget,
+                    ),
+                  widgetsToShow,
+                )}
+              </div>
+            ) : (
+              <div className="widget-list">
+                {R.map(
+                  (widget) =>
+                    renderWidgetListItem(
+                      selectedWidgets,
+                      setSelectedWidgets,
+                      setWidgets,
+                      widget,
+                    ),
+                  widgetsToShow,
+                )}
+              </div>
+            )}
+          </div>
+        ),
+      ],
+    ])();
+  },
+);
+
+// ============= Main Component =============
+
 const WidgetManager = memo(
   ({
     versionFilter,
@@ -319,10 +472,6 @@ const WidgetManager = memo(
     appSearchTerm,
     setAppSearchTerm,
     filteredApps,
-    currentPage,
-    setCurrentPage,
-    hasMore,
-    ITEMS_PER_PAGE,
     selectedApps,
     handleAppClick,
     packageManager,
@@ -333,7 +482,6 @@ const WidgetManager = memo(
     isBuilding,
     selectedWidgets,
     setSelectedWidgets,
-    widgets,
     filteredWidgets,
     widgetSearchTerm,
     setWidgetSearchTerm,
@@ -346,81 +494,101 @@ const WidgetManager = memo(
     setInlineResults,
   }) => {
     const versionOptions = createVersionOptions(versions);
-    const displayedApps = getPaginatedSlice(
-      ITEMS_PER_PAGE,
-      currentPage,
-      filteredApps,
-    );
-    const packageManagers = ["npm", "yarn", "pnpm", "bun"];
+    const modalHandlers = [
+      setShowWidgetModal,
+      setShowAddWidgetForm,
+      setNewWidgetCaption,
+      setNewWidgetPath,
+    ];
+
+    // Drag and drop functionality for widgets
+    const [widgetListRef, reorderedWidgets] = useDragAndDrop(filteredWidgets, {
+      onDragEnd: (newOrder) => {
+        // Update the main widgets array with new order
+        setWidgets((prevWidgets) => {
+          // Create a map for quick lookup of non-filtered widgets
+          const filteredIds = new Set(filteredWidgets.map((w) => w.id));
+          const nonFilteredWidgets = prevWidgets.filter(
+            (w) => !filteredIds.has(w.id),
+          );
+
+          // Combine non-filtered widgets with reordered filtered widgets
+          const updatedWidgets = [...nonFilteredWidgets, ...newOrder];
+
+          // Save to localStorage
+          try {
+            localStorage.setItem(
+              "kirakiraWidgets",
+              JSON.stringify(updatedWidgets),
+            );
+          } catch (error) {
+            // Handle error silently
+          }
+
+          return updatedWidgets;
+        });
+      },
+    });
+
+    const panelConfigs = [
+      {
+        key: "apps",
+        className: "list-container",
+        searchControls: renderSearchControls({
+          placeholder: "Search Mendix apps...",
+          searchTerm: appSearchTerm,
+          setSearchTerm: setAppSearchTerm,
+          dropdown: {
+            value: versionFilter,
+            onChange: setVersionFilter,
+            options: versionOptions,
+          },
+        }),
+        content: renderAppsList(selectedApps, handleAppClick, filteredApps),
+      },
+      {
+        key: "widgets",
+        className: "list-container",
+        searchControls: renderSearchControls({
+          placeholder: "Search widgets by caption...",
+          searchTerm: widgetSearchTerm,
+          setSearchTerm: setWidgetSearchTerm,
+        }),
+        content: renderWidgetsList(
+          selectedWidgets,
+          setSelectedWidgets,
+          setWidgets,
+          filteredWidgets,
+          reorderedWidgets,
+          widgetSearchTerm,
+          modalHandlers,
+          widgetListRef,
+        ),
+      },
+    ];
 
     return (
-      <div className="widget-manager">
-        {/* Apps List Section */}
-        <div className="list-container">
-          <Dropdown
-            value={versionFilter}
-            onChange={setVersionFilter}
-            options={versionOptions}
-          />
-          <SearchBox
-            placeholder="Search Mendix apps..."
-            value={appSearchTerm}
-            onChange={setAppSearchTerm}
-          />
-          <div className="list-area">
-            {R.ifElse(
-              R.isEmpty,
-              () => renderEmptyState("🍓", "No Mendix apps found"),
-              R.pipe(
-                R.map(renderAppItem(selectedApps, handleAppClick)),
-                R.tap(() =>
-                  R.when(
-                    () => hasMore && !R.isEmpty(displayedApps),
-                    () => renderLoadMore(() => setCurrentPage(R.inc)),
-                  )(),
-                ),
-              ),
-            )(displayedApps)}
-          </div>
-        </div>
+      <div className="base-manager widget-manager">
+        {R.map(renderPanel, panelConfigs)}
 
         {/* Package Manager Controls */}
-        <div
-          style={{
-            padding: "15px",
-            borderTop: "1px solid rgba(255, 182, 193, 0.2)",
-            borderBottom: "1px solid rgba(255, 182, 193, 0.2)",
-            background: "rgba(255, 235, 240, 0.02)",
-          }}
-        >
-          <div style={{ marginBottom: "15px" }}>
-            <label
-              style={{
-                display: "block",
-                marginBottom: "10px",
-                fontSize: "14px",
-                color: "rgba(255, 182, 193, 0.9)",
-              }}
-            >
-              Package Manager:
-            </label>
+        <div className="package-manager-section">
+          <div className="package-manager-group">
+            <label className="package-manager-label">Package Manager:</label>
             <div className="package-manager-filters">
               {R.map(
                 renderPackageManagerOption(packageManager, setPackageManager),
-                packageManagers,
+                PACKAGE_MANAGERS,
               )}
             </div>
           </div>
 
           <button
-            className="install-button"
             onClick={handleInstall}
-            disabled={isInstalling || R.equals(0, selectedWidgets.size)}
-            style={{
-              width: "100%",
-              marginBottom: "10px",
-              opacity: getButtonOpacity(selectedWidgets.size > 0),
-            }}
+            disabled={isInstallButtonDisabled(isInstalling, selectedWidgets)}
+            className={`install-button install-button-full ${
+              selectedWidgets.size > 0 ? "button-enabled" : "button-disabled"
+            }`}
           >
             <span className="button-icon">{isInstalling ? "⏳" : "📦"}</span>
             {isInstalling
@@ -429,22 +597,17 @@ const WidgetManager = memo(
           </button>
 
           <button
-            className="install-button"
             onClick={handleBuildDeploy}
-            disabled={
-              isBuilding ||
-              R.equals(0, selectedWidgets.size) ||
-              R.equals(0, selectedApps.size)
-            }
-            style={{
-              width: "100%",
-              background:
-                "linear-gradient(135deg, rgba(46, 204, 113, 0.3) 0%, rgba(46, 204, 113, 0.5) 100%)",
-              borderColor: "rgba(46, 204, 113, 0.6)",
-              opacity: getButtonOpacity(
-                selectedWidgets.size > 0 && selectedApps.size > 0,
-              ),
-            }}
+            disabled={isBuildDeployButtonDisabled(
+              isBuilding,
+              selectedWidgets,
+              selectedApps,
+            )}
+            className={`install-button build-deploy-button ${
+              selectedWidgets.size > 0 && selectedApps.size > 0
+                ? "button-enabled"
+                : "button-disabled"
+            }`}
           >
             <span className="button-icon">{isBuilding ? "⏳" : "🚀"}</span>
             {isBuilding
@@ -454,69 +617,6 @@ const WidgetManager = memo(
 
           {/* Inline Results Section */}
           {renderInlineResults({ inlineResults, setInlineResults })}
-        </div>
-
-        {/* Widgets List Section */}
-        <div className="list-container">
-          <SearchBox
-            placeholder="Search widgets by caption..."
-            value={widgetSearchTerm}
-            onChange={setWidgetSearchTerm}
-          />
-          <div className="list-area">
-            {/* Add Widget Button */}
-            <div
-              className="version-list-item"
-              onClick={R.pipe(
-                R.tap(() => setShowWidgetModal(true)),
-                R.tap(() => setShowAddWidgetForm(false)),
-                R.tap(() => setNewWidgetCaption("")),
-                R.tap(() => setNewWidgetPath("")),
-                R.always(undefined),
-              )}
-              style={{
-                cursor: "pointer",
-                backgroundColor: "rgba(255, 182, 193, 0.1)",
-              }}
-            >
-              <div className="version-info">
-                <span className="version-icon">➕</span>
-                <div className="version-details">
-                  <span className="version-number">Add New Widget</span>
-                  <span className="version-date">Click to add a widget</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Widget List */}
-            {R.cond([
-              [
-                () => R.isEmpty(filteredWidgets) && R.isEmpty(widgetSearchTerm),
-                () => renderEmptyState("🧩", "No widgets registered"),
-              ],
-              [
-                () =>
-                  R.isEmpty(filteredWidgets) && !R.isEmpty(widgetSearchTerm),
-                () =>
-                  renderEmptyState(
-                    "🔍",
-                    `No widgets found matching "${widgetSearchTerm}"`,
-                  ),
-              ],
-              [
-                R.T,
-                () =>
-                  R.map(
-                    renderWidgetItem(
-                      selectedWidgets,
-                      setSelectedWidgets,
-                      setWidgets,
-                    ),
-                    filteredWidgets,
-                  ),
-              ],
-            ])()}
-          </div>
         </div>
       </div>
     );

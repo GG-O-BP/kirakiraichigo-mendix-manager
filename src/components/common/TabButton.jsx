@@ -11,7 +11,7 @@ const buildClassName = R.ifElse(
 // Render sparkle if active
 const renderSparkle = R.ifElse(
   R.identity,
-  R.always(<span className="tab-sparkle">✨</span>),
+  R.always(<span className="tab-sparkle"></span>),
   R.always(null),
 );
 

@@ -7,7 +7,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: var(--theme-overlay-bg, rgba(0, 0, 0, 0.7));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -16,10 +16,10 @@
 }
 
 .download-modal {
-    background: #1a1a1a;
-    border: 1px solid #444;
+    background: var(--theme-surface);
+    border: 1px solid var(--theme-border);
     border-radius: 12px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--theme-modal-shadow, 0 20px 40px rgba(0, 0, 0, 0.5));
     max-width: 420px;
     width: 90%;
     max-height: 70vh;
@@ -44,22 +44,29 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
-    border-bottom: 1px solid #444;
-    background: linear-gradient(135deg, #2a2a2a, #333);
+    border-bottom: 1px solid var(--theme-border);
+    background: var(
+        --theme-header-bg,
+        linear-gradient(
+            135deg,
+            var(--theme-surface-secondary),
+            var(--theme-surface-tertiary)
+        )
+    );
 }
 
 .modal-title {
     margin: 0;
     font-size: 1.25rem;
     font-weight: 600;
-    color: #ff6b9d;
+    color: var(--theme-primary);
 }
 
 .modal-close {
     background: none;
     border: none;
     font-size: 1.5rem;
-    color: #ff6b9d;
+    color: var(--theme-primary);
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 4px;
@@ -67,14 +74,16 @@
 }
 
 .modal-close:hover {
-    background: #444;
-    color: #ff6b9d;
+    background: var(--theme-hover-bg);
+    color: var(--theme-primary);
 }
 
 /* Modal content */
 .modal-content-progress {
     padding: 12px 16px;
     min-height: 100px;
+    background: var(--theme-surface);
+    color: var(--theme-text);
 }
 
 /* Confirm section */
@@ -90,7 +99,7 @@
 .confirm-message p {
     margin: 0 0 16px 0;
     font-size: 1rem;
-    color: #ccc;
+    color: var(--theme-text-secondary);
     line-height: 1.5;
 }
 
@@ -105,12 +114,12 @@
     margin: 6px 0;
     padding-left: 16px;
     position: relative;
-    color: #ccc;
+    color: var(--theme-text-secondary);
 }
 
 .install-steps li::before {
     content: "🍓";
-    color: #ff6b9d;
+    color: var(--theme-primary);
     font-weight: bold;
     position: absolute;
     left: 0;
@@ -118,7 +127,7 @@
 
 .confirm-note {
     font-size: 0.875rem;
-    color: #ff6b9d;
+    color: var(--theme-primary);
     font-style: italic;
 }
 
@@ -133,8 +142,8 @@
     display: flex;
     align-items: flex-start;
     padding: 16px;
-    background: #2a1a1a;
-    border: 1px solid #dc3545;
+    background: var(--theme-error-bg, rgba(220, 53, 69, 0.1));
+    border: 1px solid var(--theme-error);
     border-radius: 8px;
     margin-bottom: 20px;
 }
@@ -142,7 +151,7 @@
 .error-icon {
     font-size: 1.5rem;
     margin-right: 12px;
-    color: var(--error-color, #dc3545);
+    color: var(--theme-error);
 }
 
 .error-content {
@@ -152,13 +161,13 @@
 .error-title {
     font-size: 1rem;
     font-weight: 600;
-    color: var(--error-color, #dc3545);
+    color: var(--theme-error);
     margin-bottom: 4px;
 }
 
 .error-message {
     font-size: 0.875rem;
-    color: #ccc;
+    color: var(--theme-text-secondary);
     line-height: 1.4;
     word-break: break-word;
 }
@@ -166,8 +175,15 @@
 /* Modal footer */
 .modal-footer {
     padding: 10px 16px;
-    border-top: 1px solid #444;
-    background: linear-gradient(135deg, #2a2a2a, #333);
+    border-top: 1px solid var(--theme-border);
+    background: var(
+        --theme-header-bg,
+        linear-gradient(
+            135deg,
+            var(--theme-surface-secondary),
+            var(--theme-surface-tertiary)
+        )
+    );
 }
 
 .modal-actions {
@@ -198,27 +214,35 @@
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #ff6b9d, #c44569);
-    border-color: #ff6b9d;
-    color: white;
+    background: linear-gradient(
+        135deg,
+        var(--theme-primary),
+        var(--theme-secondary)
+    );
+    border-color: var(--theme-primary);
+    color: var(--theme-surface);
 }
 
 .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(135deg, #c44569, #ff6b9d);
-    border-color: #c44569;
+    background: linear-gradient(
+        135deg,
+        var(--theme-secondary),
+        var(--theme-primary)
+    );
+    border-color: var(--theme-secondary);
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(255, 107, 157, 0.3);
+    box-shadow: var(--shadow-primary);
 }
 
 .btn-secondary {
     background: transparent;
-    border-color: #555;
-    color: #ff6b9d;
+    border-color: var(--theme-border);
+    color: var(--theme-primary);
 }
 
 .btn-secondary:hover:not(:disabled) {
-    background: #444;
-    border-color: #ff6b9d;
+    background: var(--theme-hover-bg);
+    border-color: var(--theme-primary);
 }
 
 .btn-icon {
@@ -324,7 +348,7 @@
 .theme-frappe .error-container,
 .theme-macchiato .error-container,
 .theme-mocha .error-container {
-    background: var(--theme-surface);
+    background: var(--theme-error-bg);
     border-color: var(--theme-error);
 }
 
@@ -372,7 +396,7 @@
 .theme-mocha .btn-primary:hover:not(:disabled) {
     background: var(--theme-primary);
     border-color: var(--theme-primary);
-    box-shadow: 0 2px 8px var(--theme-shadow);
+    box-shadow: var(--theme-primary-shadow);
 }
 
 .theme-latte .btn-secondary,
@@ -394,20 +418,20 @@
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
     .download-modal {
-        --background-color: #2d3748;
-        --text-color: #e2e8f0;
-        --text-muted: #a0aec0;
-        --border-color: #4a5568;
-        --header-background: #1a202c;
-        --footer-background: #1a202c;
-        --background-light: #4a5568;
-        --hover-background: #4a5568;
-        --progress-background: #4a5568;
-        --primary-light-bg: #2c5aa0;
-        --success-light-bg: #2f7d32;
-        --error-light-bg: #7f1d1d;
-        --icon-background: #4a5568;
-        --info-light-bg: #1e3a8a;
-        --info-color: #3b82f6;
+        --background-color: var(--theme-surface);
+        --text-color: var(--theme-text);
+        --text-muted: var(--theme-text-muted);
+        --border-color: var(--theme-border);
+        --header-background: var(--theme-header-bg);
+        --footer-background: var(--theme-header-bg);
+        --background-light: var(--theme-surface-secondary);
+        --hover-background: var(--theme-hover-bg);
+        --progress-background: var(--theme-surface-secondary);
+        --primary-light-bg: var(--theme-primary-bg);
+        --success-light-bg: var(--theme-success-bg);
+        --error-light-bg: var(--theme-error-bg);
+        --icon-background: var(--theme-surface-secondary);
+        --info-light-bg: var(--theme-info-bg);
+        --info-color: var(--theme-info);
     }
 }
