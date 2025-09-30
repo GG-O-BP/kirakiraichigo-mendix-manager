@@ -7,14 +7,14 @@ import React, {
   useEffect,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
-import "./components/functional/styles.css";
+import catppuccinLogo from "./assets/catppuccin_circle.png";
+import catppuccinLatteLogo from "./assets/catppuccin_latte_circle.png";
+import "./styles/index.css";
 import { flavors } from "@catppuccin/palette";
 
 // Import functional utilities
 import {
   STORAGE_KEYS,
-  PACKAGE_MANAGERS,
   ITEMS_PER_PAGE,
   generateListData,
   loadFromStorage,
@@ -26,156 +26,15 @@ import {
   createWidget,
   filterAppsByVersionAndSearch,
   filterWidgetsBySearchTerm,
-  hasMorePages,
-  createTab,
-  findActiveTab,
   validateRequired,
   updateProp,
-  createCSSClass,
-  createCSSVariables,
-  mergeStyles,
-  createPaginatedData,
-  createMultiCriteriaSorter,
-  createDebouncedFunction,
-  createThrottledFunction,
-  createAPICall,
-  createResourceState,
-  setResourceLoading,
-  setResourceSuccess,
-  setResourceError,
   updateVersionLoadingStates,
   getVersionLoadingState,
 } from "./utils/functional";
 
-// Import functional components
-import {
-  FunctionalComponents,
-  createPureComponent,
-  createClassName,
-} from "./components/functional";
-
 // ============= Pure Functional State Management =============
 
-// State lenses for immutable updates
-const stateLenses = {
-  versions: R.lensProp("versions"),
-  apps: R.lensProp("apps"),
-  widgets: R.lensProp("widgets"),
-  activeTab: R.lensProp("activeTab"),
-  searchTerm: R.lensProp("searchTerm"),
-  appSearchTerm: R.lensProp("appSearchTerm"),
-  widgetSearchTerm: R.lensProp("widgetSearchTerm"),
-  selectedApps: R.lensProp("selectedApps"),
-  selectedWidgets: R.lensProp("selectedWidgets"),
-  versionFilter: R.lensProp("versionFilter"),
-  packageManager: R.lensProp("packageManager"),
-  isLaunching: R.lensProp("isLaunching"),
-  isUninstalling: R.lensProp("isUninstalling"),
-  isInstalling: R.lensProp("isInstalling"),
-  isBuilding: R.lensProp("isBuilding"),
-  currentPage: R.lensProp("currentPage"),
-  buildResults: R.lensProp("buildResults"),
-  showDownloadModal: R.lensProp("showDownloadModal"),
-  versionToDownload: R.lensProp("versionToDownload"),
-};
-
-// Pure state updaters using lenses
-const createStateUpdater = R.curry((lens, transform) =>
-  R.over(lens, transform),
-);
-
 const setStateProp = R.curry((lens, value) => R.set(lens, value));
-
-// Functional state transformations
-const toggleSetValue = R.curry((value, set) => {
-  const newSet = new Set(set);
-  return newSet.has(value) ? (newSet.delete(value), newSet) : newSet.add(value);
-});
-
-const resetPage = setStateProp(stateLenses.currentPage, 1);
-
-const incrementPage = createStateUpdater(stateLenses.currentPage, R.inc);
-
-// Pure predicates and filters
-const isVersionDownloadable = R.has("download_url");
-const isVersionLTS = R.propEq("is_lts", true);
-const isVersionMTS = R.propEq("is_mts", true);
-const isVersionBeta = R.propEq("is_beta", true);
-
-// Search filters with Ramda composition
-const createVersionFilter = R.curry((searchTerm, version) =>
-  R.pipe(
-    R.props(["version", "release_date"]),
-    R.join(" "),
-    R.toLower,
-    R.includes(R.toLower(searchTerm)),
-  )(version),
-);
-
-const createAppFilter = R.curry((searchTerm, app) =>
-  R.pipe(
-    R.props(["name", "version"]),
-    R.filter(R.identity),
-    R.join(" "),
-    R.toLower,
-    R.includes(R.toLower(searchTerm)),
-  )(app),
-);
-
-// Version type filters using functional composition
-const applyVersionTypeFilters = R.curry((filters, versions) => {
-  const {
-    showLTSOnly,
-    showMTSOnly,
-    showBetaOnly,
-    showOnlyDownloadableVersions,
-  } = filters;
-
-  return R.pipe(
-    R.when(() => showOnlyDownloadableVersions, R.filter(isVersionDownloadable)),
-    R.when(() => showLTSOnly, R.filter(isVersionLTS)),
-    R.when(() => showMTSOnly, R.filter(isVersionMTS)),
-    R.when(() => showBetaOnly, R.filter(isVersionBeta)),
-  )(versions);
-});
-
-// Event handler creators with functional composition
-const createSearchHandler = R.curry((lens, setState) =>
-  R.pipe(R.path(["target", "value"]), (value) =>
-    setState(R.pipe(setStateProp(lens, value), resetPage)),
-  ),
-);
-
-const createSelectionToggler = R.curry((lens, storageKey, setState) =>
-  R.pipe(
-    (item) => setState(R.over(lens, toggleSetValue(item))),
-    R.tap(() => {
-      // Side effect: save to localStorage in a functional way
-      setTimeout(() => {
-        setState((state) => {
-          const selectedSet = R.view(lens, state);
-          saveToStorage(storageKey, setToArray(selectedSet));
-          return state;
-        });
-      }, 0);
-    }),
-  ),
-);
-
-// Pure async operation handlers
-const createAsyncHandler = R.curry((loadingLens, operation, setState) =>
-  R.pipe(
-    R.tap(() => setState(setStateProp(loadingLens, true))),
-    operation,
-    R.andThen(R.tap(() => setState(setStateProp(loadingLens, false)))),
-    R.otherwise(
-      R.tap((error) => {
-        console.error("Operation failed:", error);
-        setState(setStateProp(loadingLens, false));
-      }),
-    ),
-  ),
-);
 
 // Import components
 import { TabButton, ConfirmModal } from "./components/common";
@@ -190,15 +49,6 @@ import {
   DownloadModal,
 } from "./components/modals";
 
-// Destructure functional components for easier use
-const {
-  BerryButton,
-  FunctionalInput,
-  FunctionalDropdown,
-  FunctionalGrid,
-  FunctionalFlex,
-} = FunctionalComponents;
-
 // Initial state factory
 const createInitialState = () => ({
   downloadableVersions: [],
@@ -210,7 +60,7 @@ const createInitialState = () => ({
   // Tab state
   activeTab: "studio-pro",
   // Theme state
-  currentTheme: "kiraichi",
+  currentTheme: loadFromStorage(STORAGE_KEYS.THEME, "kiraichi"),
 
   // Core data
   versions: [],
@@ -281,14 +131,16 @@ function App() {
   // ============= State Management with Lenses =============
   const [state, setState] = useState(createInitialState);
 
+  const currentCatppuccinLogo = ["latte", "kiraichi-light"].includes(
+    state.currentTheme,
+  )
+    ? catppuccinLatteLogo
+    : catppuccinLogo;
+
   // Pure functional state updaters using lenses
   const updateState = useCallback((updater) => setState(updater), []);
   const setStateProperty = useCallback(
     (lens, value) => updateState(setStateProp(lens, value)),
-    [updateState],
-  );
-  const updateStateProperty = useCallback(
-    (lens, transform) => updateState(createStateUpdater(lens, transform)),
     [updateState],
   );
 
@@ -299,14 +151,15 @@ function App() {
     // Remove all existing theme classes
     root.classList.remove(
       "theme-kiraichi",
+      "theme-kiraichi-light",
       "theme-latte",
       "theme-frappe",
       "theme-macchiato",
       "theme-mocha",
     );
 
-    if (themeName === "kiraichi") {
-      root.classList.add("theme-kiraichi");
+    if (themeName === "kiraichi" || themeName === "kiraichi-light") {
+      root.classList.add(`theme-${themeName}`);
     } else {
       // Apply catppuccin theme
       root.classList.add(`theme-${themeName}`);
@@ -384,9 +237,10 @@ function App() {
     (event) => {
       const newTheme = event.target.value;
       setStateProperty(R.lensProp("currentTheme"), newTheme);
+      saveToStorage(STORAGE_KEYS.THEME, newTheme);
       applyTheme(newTheme);
     },
-    [setStateProperty, applyTheme],
+    [setStateProperty, applyTheme, state.currentTheme],
   );
 
   // Apply initial theme on mount
@@ -394,130 +248,7 @@ function App() {
     applyTheme(state.currentTheme);
   }, [applyTheme, state.currentTheme]);
 
-  // ============= Pure Async Operations with Functional Composition =============
-
-  // Functional API call creator with error handling
-  const createSafeAPICall = useCallback(
-    R.curry((loadingLens, successLens, apiCall) =>
-      R.pipe(
-        R.tap(() => setStateProperty(loadingLens, true)),
-        apiCall,
-        R.andThen(
-          R.pipe(
-            R.tap((data) => setStateProperty(successLens, data)),
-            R.tap(() => setStateProperty(loadingLens, false)),
-          ),
-        ),
-        R.otherwise(
-          R.pipe(
-            R.tap((error) => console.error("API Error:", error)),
-            R.tap(() => setStateProperty(loadingLens, false)),
-          ),
-        ),
-      ),
-    ),
-    [setStateProperty],
-  );
-
-  // Pure async operation handlers
-  const fetchDownloadableVersions = useCallback(
-    createSafeAPICall(
-      stateLenses.isLoadingDownloadableVersions,
-      R.lensProp("downloadableVersions"),
-      () => invoke("get_downloadable_mendix_versions"),
-    ),
-    [createSafeAPICall],
-  );
-
-  const fetchVersionsByType = useCallback(
-    R.pipe(
-      () => invoke("get_downloadable_versions_by_type"),
-      R.andThen(([stableVersions, betaVersions]) => ({
-        stableVersions,
-        betaVersions,
-      })),
-    ),
-    [],
-  );
-
   // ============= Pure Functional Component Handlers =============
-
-  // Create memoized event handlers with functional composition
-  const createFunctionalHandler = useCallback(
-    R.curry((transformation, sideEffect) =>
-      R.pipe(transformation, R.tap(sideEffect)),
-    ),
-    [],
-  );
-
-  // Search handlers using functional composition
-  const handleVersionSearch = useCallback(
-    createFunctionalHandler(R.path(["target", "value"]), (value) =>
-      updateState(
-        R.pipe(setStateProp(stateLenses.searchTerm, value), resetPage),
-      ),
-    ),
-    [createFunctionalHandler, updateState],
-  );
-
-  const handleAppSearch = useCallback(
-    createFunctionalHandler(R.path(["target", "value"]), (value) =>
-      updateState(
-        R.pipe(setStateProp(stateLenses.appSearchTerm, value), resetPage),
-      ),
-    ),
-    [createFunctionalHandler, updateState],
-  );
-
-  const handleWidgetSearch = useCallback(
-    createFunctionalHandler(R.path(["target", "value"]), (value) =>
-      setStateProperty(stateLenses.widgetSearchTerm, value),
-    ),
-    [createFunctionalHandler, setStateProperty],
-  );
-
-  // Selection handlers with functional composition
-  const createSelectionHandler = useCallback(
-    R.curry((lens, storageKey) =>
-      R.pipe(
-        (item) => updateStateProperty(lens, toggleSetValue(item)),
-        R.tap(() => {
-          setTimeout(() => {
-            setState((currentState) => {
-              const selectedSet = R.view(lens, currentState);
-              saveToStorage(storageKey, setToArray(selectedSet));
-              return currentState;
-            });
-          }, 0);
-        }),
-      ),
-    ),
-    [updateStateProperty],
-  );
-
-  const handleAppSelection = useCallback(
-    createSelectionHandler(
-      stateLenses.selectedApps,
-      STORAGE_KEYS.SELECTED_APPS,
-    ),
-    [createSelectionHandler],
-  );
-
-  const handleWidgetSelection = useCallback(
-    createSelectionHandler(
-      stateLenses.selectedWidgets,
-      STORAGE_KEYS.SELECTED_WIDGETS,
-    ),
-    [createSelectionHandler],
-  );
-
-  // Tab management with functional composition
-  const handleTabChange = useCallback(
-    R.pipe(R.prop("id"), (tabId) =>
-      setStateProperty(stateLenses.activeTab, tabId),
-    ),
-    [setStateProperty],
-  );
 
   // Functional pagination logic with Ramda.js
   const createVersionsUpdater = R.curry(
@@ -543,7 +274,9 @@ function App() {
       });
 
       // Update versions using functional approach
-      setDownloadableVersions(createVersionsUpdater(isFirstPage, versions));
+      setDownloadableVersions((prevVersions) =>
+        createVersionsUpdater(isFirstPage, versions, prevVersions),
+      );
 
       setIsLoadingDownloadableVersions(false);
       return versions;
@@ -602,7 +335,6 @@ function App() {
   const [selectedVersion, setSelectedVersion] = useState(
     initialState.selectedVersion,
   );
-  const [selectedApp, setSelectedApp] = useState(initialState.selectedApp);
 
   // UI state
   const [versionFilter, setVersionFilter] = useState(
@@ -613,9 +345,6 @@ function App() {
     initialState.isUninstalling,
   );
   const [versionLoadingStates, setVersionLoadingStates] = useState({});
-  const [downloadProgress, setDownloadProgress] = useState(
-    initialState.downloadProgress,
-  );
   const [currentPage, setCurrentPage] = useState(initialState.currentPage);
   const [hasMore, setHasMore] = useState(initialState.hasMore);
 
@@ -668,10 +397,6 @@ function App() {
   const [isInstalling, setIsInstalling] = useState(initialState.isInstalling);
   const [isBuilding, setIsBuilding] = useState(initialState.isBuilding);
   const [buildResults, setBuildResults] = useState(initialState.buildResults);
-
-  // Refs
-  const listRef = useRef(null);
-  const unlisten = useRef(null);
 
   // Error handler for data loading
   const handleLoadError = R.curry((type, error) => {
@@ -1457,7 +1182,7 @@ function App() {
         <div className="theme-selector">
           <div className="catppuccin-banner">
             <img
-              src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/logos/exports/1544x1544_circle.png"
+              src={currentCatppuccinLogo}
               alt="Catppuccin"
               className="catppuccin-logo"
             />
@@ -1484,9 +1209,20 @@ function App() {
                 checked={state.currentTheme === "kiraichi"}
                 onChange={handleThemeChange}
               />
-              <span>Kiraichi</span>
+              <span>KiraIchi Dark</span>
             </label>
-            <label className="theme-option catppuccin-theme">
+            <label className="theme-option strawberry-theme">
+              <input
+                type="radio"
+                name="theme"
+                value="kiraichi-light"
+                checked={state.currentTheme === "kiraichi-light"}
+                onChange={handleThemeChange}
+              />
+              <span>KiraIchi Light</span>
+            </label>
+
+            <label className="theme-option catppuccin-theme catppuccin-latte-theme">
               <input
                 type="radio"
                 name="theme"
@@ -1496,7 +1232,7 @@ function App() {
               />
               <span>Latte</span>
             </label>
-            <label className="theme-option catppuccin-theme">
+            <label className="theme-option catppuccin-theme catppuccin-frappe-theme">
               <input
                 type="radio"
                 name="theme"
@@ -1506,7 +1242,7 @@ function App() {
               />
               <span>Frappé</span>
             </label>
-            <label className="theme-option catppuccin-theme">
+            <label className="theme-option catppuccin-theme catppuccin-macchiato-theme">
               <input
                 type="radio"
                 name="theme"
@@ -1516,7 +1252,7 @@ function App() {
               />
               <span>Macchiato</span>
             </label>
-            <label className="theme-option catppuccin-theme">
+            <label className="theme-option catppuccin-theme catppuccin-mocha-theme">
               <input
                 type="radio"
                 name="theme"

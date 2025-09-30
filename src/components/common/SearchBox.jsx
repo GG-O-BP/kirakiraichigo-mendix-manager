@@ -20,7 +20,6 @@ const SearchBox = memo(({ placeholder, value, onChange }) => (
       value={value}
       onChange={createChangeHandler(onChange)}
     />
-    <span className="sparkle">✨</span>
   </div>
 ));
 

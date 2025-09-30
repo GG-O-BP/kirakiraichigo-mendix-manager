@@ -1,0 +1,365 @@
+/* ============= Kirakira Ichigo Mendix Manager - Main Styles ============= */
+
+/* ============= Theme Variables (Must be first) ============= */
+@import "./themes/variables.css";
+
+/* ============= Base Styles ============= */
+@import "./base/reset.css";
+@import "./base/layout.css";
+
+/* ============= Component Styles ============= */
+@import "./components/buttons.css";
+@import "./components/forms.css";
+@import "./components/modals.css";
+@import "./components/tabs.css";
+@import "./components/lists.css";
+@import "./components/app.css";
+@import "./components/functional.css";
+@import "./components/download-modal.css";
+
+/* ============= Utility Classes ============= */
+@import "./utilities/animations.css";
+@import "./utilities/spacing.css";
+@import "./utilities/typography.css";
+
+/* ============= Global Application Styles ============= */
+
+/* ============= Application Root Styles ============= */
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    overflow-x: hidden;
+}
+
+/* ============= Global Icon Styles ============= */
+
+.berry-icon,
+.file-icon,
+.info-icon,
+.error-icon,
+.success-icon,
+.warning-icon {
+    display: inline-block;
+    line-height: 1;
+}
+
+/* ============= Global Loading Indicators ============= */
+
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-lg);
+    color: var(--theme-text-muted);
+}
+
+.loading-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--theme-border);
+    border-top-color: var(--theme-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: var(--space-sm);
+}
+
+/* ============= Global States ============= */
+
+.hidden {
+    display: none !important;
+}
+
+.invisible {
+    visibility: hidden;
+}
+
+.visible {
+    visibility: visible;
+}
+
+.opacity-0 {
+    opacity: 0;
+}
+
+.opacity-50 {
+    opacity: 0.5;
+}
+
+.opacity-100 {
+    opacity: 1;
+}
+
+/* ============= Global Transitions ============= */
+
+.transition-all {
+    transition: all var(--animation-duration-normal)
+        var(--animation-timing-ease);
+}
+
+.transition-colors {
+    transition:
+        color var(--animation-duration-normal) var(--animation-timing-ease),
+        background-color var(--animation-duration-normal)
+            var(--animation-timing-ease),
+        border-color var(--animation-duration-normal)
+            var(--animation-timing-ease);
+}
+
+.transition-transform {
+    transition: transform var(--animation-duration-normal)
+        var(--animation-timing-ease);
+}
+
+.transition-opacity {
+    transition: opacity var(--animation-duration-normal)
+        var(--animation-timing-ease);
+}
+
+/* ============= Global Focus Management ============= */
+
+.focus\:outline-none:focus {
+    outline: none;
+}
+
+.focus\:ring-2:focus {
+    box-shadow: 0 0 0 2px var(--theme-focus-ring);
+}
+
+.focus\:ring-primary:focus {
+    box-shadow: 0 0 0 2px var(--theme-primary);
+}
+
+/* ============= Global Hover Effects ============= */
+
+.hover\:scale-105:hover {
+    transform: scale(1.05);
+}
+
+.hover\:scale-110:hover {
+    transform: scale(1.1);
+}
+
+.hover\:translate-y-1:hover {
+    transform: translateY(-0.25rem);
+}
+
+/* ============= Global Disabled States ============= */
+
+.disabled,
+[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ============= Global Selection Styling ============= */
+
+*::selection {
+    background: var(--theme-selected-bg);
+    color: var(--theme-text);
+}
+
+*::-moz-selection {
+    background: var(--theme-selected-bg);
+    color: var(--theme-text);
+}
+
+/* ============= Global Scrollbar Enhancements ============= */
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--theme-primary) var(--theme-surface);
+}
+
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: var(--theme-surface);
+    border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--theme-primary);
+    border-radius: 4px;
+    opacity: 0.7;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: var(--theme-secondary);
+    opacity: 1;
+}
+
+*::-webkit-scrollbar-corner {
+    background: var(--theme-surface);
+}
+
+/* ============= Global Backdrop Support ============= */
+
+.backdrop-blur {
+    backdrop-filter: blur(8px);
+}
+
+.backdrop-blur-sm {
+    backdrop-filter: blur(4px);
+}
+
+.backdrop-blur-lg {
+    backdrop-filter: blur(16px);
+}
+
+/* ============= Global Container Queries Support ============= */
+
+@supports (container-type: inline-size) {
+    .container-query {
+        container-type: inline-size;
+    }
+}
+
+/* ============= Global Print Styles ============= */
+
+@media print {
+    * {
+        color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .print-only {
+        display: block !important;
+    }
+
+    body {
+        font-size: 12pt;
+        line-height: 1.4;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        page-break-after: avoid;
+        page-break-inside: avoid;
+    }
+
+    img {
+        max-width: 100% !important;
+        page-break-inside: avoid;
+    }
+
+    table {
+        page-break-inside: avoid;
+    }
+
+    .page-break-before {
+        page-break-before: always;
+    }
+
+    .page-break-after {
+        page-break-after: always;
+    }
+
+    .page-break-inside-avoid {
+        page-break-inside: avoid;
+    }
+}
+
+/* ============= Global Reduced Motion Support ============= */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .reduce-motion-hidden {
+        display: none;
+    }
+}
+
+/* ============= Global High Contrast Support ============= */
+
+@media (prefers-contrast: high) {
+    .high-contrast-border {
+        border-width: 2px !important;
+    }
+
+    .high-contrast-text {
+        font-weight: bold !important;
+    }
+}
+
+/* ============= Global Color Scheme Support ============= */
+
+@media (prefers-color-scheme: dark) {
+    .auto-dark-hidden {
+        display: none;
+    }
+
+    .auto-dark-visible {
+        display: block;
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    .auto-light-hidden {
+        display: none;
+    }
+
+    .auto-light-visible {
+        display: block;
+    }
+}
+
+/* ============= Browser-Specific Fixes ============= */
+
+/* Firefox */
+@-moz-document url-prefix() {
+    .firefox-only {
+        display: block;
+    }
+}
+
+/* Safari */
+@supports (-webkit-appearance: none) {
+    .safari-only {
+        display: block;
+    }
+}
+
+/* Chrome/Edge */
+@supports (-webkit-background-clip: text) {
+    .chromium-only {
+        display: block;
+    }
+}
+
+/* ============= Development Helper Classes ============= */
+
+.debug {
+    outline: 2px solid red !important;
+}
+
+.debug-info {
+    outline: 2px solid blue !important;
+}
+
+.debug-warning {
+    outline: 2px solid orange !important;
+}
+
+/* ============= End of Global Styles ============= */

@@ -1,0 +1,300 @@
+/* ============= Tab Component Styles - Kirakira Ichigo Mendix Manager ============= */
+
+/* ============= Tab Navigation Container ============= */
+.tabs {
+    display: flex;
+    background: var(--theme-header-bg);
+    border-bottom: 1px solid var(--theme-border);
+    padding: 0;
+    margin: 0;
+    backdrop-filter: blur(5px);
+}
+
+/* ============= Individual Tab ============= */
+.tab {
+    padding: 14px 28px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--theme-text-secondary);
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    outline: none;
+}
+
+.tab-icon {
+    font-size: 16px;
+    transition: transform 0.3s ease;
+}
+
+/* ============= Tab Hover States ============= */
+.tab:hover {
+    color: var(--theme-primary);
+    background: var(--theme-hover-bg);
+}
+
+.tab:hover .tab-icon {
+    transform: rotate(15deg) scale(1.1);
+}
+
+/* ============= Active Tab ============= */
+.tab.active {
+    color: var(--theme-primary);
+    border-bottom-color: var(--theme-primary);
+    background: var(--theme-hover-bg);
+}
+
+.tab.active .tab-icon {
+    color: var(--theme-primary);
+}
+
+/* ============= Tab Focus States ============= */
+.tab:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--theme-focus-ring);
+}
+
+.tab:focus-visible {
+    outline: 2px solid var(--theme-primary);
+    outline-offset: 2px;
+}
+
+/* ============= Tab Loading State ============= */
+.tab.loading {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.tab.loading .tab-icon {
+    animation: tab-loading-spin 1s linear infinite;
+}
+
+@keyframes tab-loading-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ============= Tab Disabled State ============= */
+.tab:disabled,
+.tab.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ============= Tab Badge/Counter ============= */
+.tab-badge {
+    background: var(--theme-primary);
+    color: var(--theme-surface);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 4px;
+    min-width: 16px;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.tab.active .tab-badge {
+    background: var(--theme-secondary);
+}
+
+/* ============= Tab Close Button ============= */
+.tab-close {
+    margin-left: 4px;
+    padding: 2px;
+    border: none;
+    background: none;
+    color: var(--theme-text-muted);
+    cursor: pointer;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.tab-close:hover {
+    background: var(--theme-error-bg);
+    color: var(--theme-error);
+}
+
+/* ============= Tab Overflow Handling ============= */
+.tabs-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.tabs-scrollable {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.tabs-scrollable::-webkit-scrollbar {
+    display: none;
+}
+
+.tabs-overflow-button {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 32px;
+    background: linear-gradient(
+        90deg,
+        var(--theme-header-bg),
+        transparent
+    );
+    border: none;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--theme-text-secondary);
+    transition: all 0.2s ease;
+}
+
+.tabs-overflow-button:hover {
+    color: var(--theme-primary);
+}
+
+.tabs-overflow-button.left {
+    left: 0;
+    background: linear-gradient(
+        90deg,
+        var(--theme-header-bg),
+        transparent
+    );
+}
+
+.tabs-overflow-button.right {
+    right: 0;
+    background: linear-gradient(
+        -90deg,
+        var(--theme-header-bg),
+        transparent
+    );
+}
+
+/* ============= Tab Separator ============= */
+.tab-separator {
+    width: 1px;
+    background: var(--theme-border);
+    margin: 8px 0;
+    opacity: 0.5;
+}
+
+/* ============= Responsive Tab Adjustments ============= */
+@media (max-width: 768px) {
+    .tabs {
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+    }
+
+    .tab {
+        padding: 12px 20px;
+        width: 100%;
+        max-width: 200px;
+        justify-content: center;
+        border-bottom: none;
+        border-left: 3px solid transparent;
+        border-radius: 8px;
+    }
+
+    .tab.active {
+        border-bottom: none;
+        border-left-color: var(--theme-primary);
+        background: var(--theme-selected-bg);
+    }
+
+    .tab-badge {
+        margin-left: auto;
+    }
+
+    .tabs-overflow-button {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .tab {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+
+    .tab-icon {
+        font-size: 14px;
+    }
+}
+
+/* ============= Print Styles ============= */
+@media print {
+    .tabs {
+        border-bottom: 1px solid #000;
+    }
+
+    .tab {
+        color: #000 !important;
+        background: none !important;
+    }
+
+    .tab.active {
+        font-weight: bold;
+        border-bottom-color: #000;
+    }
+
+    .tab-close,
+    .tabs-overflow-button {
+        display: none;
+    }
+}
+
+/* ============= High Contrast Mode ============= */
+@media (prefers-contrast: high) {
+    .tab {
+        border-bottom-width: 4px;
+    }
+
+    .tab.active {
+        border-bottom-width: 4px;
+        font-weight: bold;
+    }
+}
+
+/* ============= Reduced Motion ============= */
+@media (prefers-reduced-motion: reduce) {
+    .tab,
+    .tab-icon,
+    .tab-close {
+        transition: none;
+    }
+
+    .tab:hover .tab-icon {
+        transform: none;
+    }
+
+    @keyframes tab-loading-spin {
+        from, to {
+            transform: none;
+        }
+    }
+}

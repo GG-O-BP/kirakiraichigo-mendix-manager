@@ -1,0 +1,469 @@
+/* ============= Theme Variables - Kirakira Ichigo Mendix Manager ============= */
+
+/* ============= Catppuccin Color Palette ============= */
+
+/* Catppuccin Latte (Light Theme) */
+.theme-latte {
+    /* Catppuccin Latte Colors */
+    --catppuccin-rosewater: #dc8a78;
+    --catppuccin-flamingo: #dd7878;
+    --catppuccin-pink: #ea76cb;
+    --catppuccin-mauve: #8839ef;
+    --catppuccin-red: #d20f39;
+    --catppuccin-maroon: #e64553;
+    --catppuccin-peach: #fe640b;
+    --catppuccin-yellow: #df8e1d;
+    --catppuccin-green: #40a02b;
+    --catppuccin-teal: #179299;
+    --catppuccin-sky: #04a5e5;
+    --catppuccin-sapphire: #209fb5;
+    --catppuccin-blue: #1e66f5;
+    --catppuccin-lavender: #7287fd;
+    --catppuccin-text: #4c4f69;
+    --catppuccin-subtext1: #5c5f77;
+    --catppuccin-subtext0: #6c6f85;
+    --catppuccin-overlay2: #7c7f93;
+    --catppuccin-overlay1: #8c8fa1;
+    --catppuccin-overlay0: #9ca0b0;
+    --catppuccin-surface2: #acb0be;
+    --catppuccin-surface1: #bcc0cc;
+    --catppuccin-surface0: #ccd0da;
+    --catppuccin-base: #eff1f5;
+    --catppuccin-mantle: #e6e9ef;
+    --catppuccin-crust: #dce0e8;
+}
+
+/* Catppuccin Frappé (Dark Theme) */
+.theme-frappe {
+    /* Catppuccin Frappé Colors */
+    --catppuccin-rosewater: #f2d5cf;
+    --catppuccin-flamingo: #eebebe;
+    --catppuccin-pink: #f4b8e4;
+    --catppuccin-mauve: #ca9ee6;
+    --catppuccin-red: #e78284;
+    --catppuccin-maroon: #ea999c;
+    --catppuccin-peach: #ef9f76;
+    --catppuccin-yellow: #e5c890;
+    --catppuccin-green: #a6d189;
+    --catppuccin-teal: #81c8be;
+    --catppuccin-sky: #99d1db;
+    --catppuccin-sapphire: #85c1dc;
+    --catppuccin-blue: #8caaee;
+    --catppuccin-lavender: #babbf1;
+    --catppuccin-text: #c6d0f5;
+    --catppuccin-subtext1: #b5bfe2;
+    --catppuccin-subtext0: #a5adce;
+    --catppuccin-overlay2: #949cbb;
+    --catppuccin-overlay1: #838ba7;
+    --catppuccin-overlay0: #737994;
+    --catppuccin-surface2: #626880;
+    --catppuccin-surface1: #51576d;
+    --catppuccin-surface0: #414559;
+    --catppuccin-base: #303446;
+    --catppuccin-mantle: #292c3c;
+    --catppuccin-crust: #232634;
+}
+
+/* Catppuccin Macchiato (Dark Theme) */
+.theme-macchiato {
+    /* Catppuccin Macchiato Colors */
+    --catppuccin-rosewater: #f4dbd6;
+    --catppuccin-flamingo: #f0c6c6;
+    --catppuccin-pink: #f5bde6;
+    --catppuccin-mauve: #c6a0f6;
+    --catppuccin-red: #ed8796;
+    --catppuccin-maroon: #ee99a0;
+    --catppuccin-peach: #f5a97f;
+    --catppuccin-yellow: #eed49f;
+    --catppuccin-green: #a6da95;
+    --catppuccin-teal: #8bd5ca;
+    --catppuccin-sky: #91d7e3;
+    --catppuccin-sapphire: #7dc4e4;
+    --catppuccin-blue: #8aadf4;
+    --catppuccin-lavender: #b7bdf8;
+    --catppuccin-text: #cad3f5;
+    --catppuccin-subtext1: #b8c0e0;
+    --catppuccin-subtext0: #a5adcb;
+    --catppuccin-overlay2: #939ab7;
+    --catppuccin-overlay1: #8087a2;
+    --catppuccin-overlay0: #6e738d;
+    --catppuccin-surface2: #5b6078;
+    --catppuccin-surface1: #494d64;
+    --catppuccin-surface0: #363a4f;
+    --catppuccin-base: #24273a;
+    --catppuccin-mantle: #1e2030;
+    --catppuccin-crust: #181926;
+}
+
+/* Catppuccin Mocha (Dark Theme) */
+.theme-mocha {
+    /* Catppuccin Mocha Colors */
+    --catppuccin-rosewater: #f5e0dc;
+    --catppuccin-flamingo: #f2cdcd;
+    --catppuccin-pink: #f5c2e7;
+    --catppuccin-mauve: #cba6f7;
+    --catppuccin-red: #f38ba8;
+    --catppuccin-maroon: #eba0ac;
+    --catppuccin-peach: #fab387;
+    --catppuccin-yellow: #f9e2af;
+    --catppuccin-green: #a6e3a1;
+    --catppuccin-teal: #94e2d5;
+    --catppuccin-sky: #89dceb;
+    --catppuccin-sapphire: #74c7ec;
+    --catppuccin-blue: #89b4fa;
+    --catppuccin-lavender: #b4befe;
+    --catppuccin-text: #cdd6f4;
+    --catppuccin-subtext1: #bac2de;
+    --catppuccin-subtext0: #a6adc8;
+    --catppuccin-overlay2: #9399b2;
+    --catppuccin-overlay1: #7f849c;
+    --catppuccin-overlay0: #6c7086;
+    --catppuccin-surface2: #585b70;
+    --catppuccin-surface1: #45475a;
+    --catppuccin-surface0: #313244;
+    --catppuccin-base: #1e1e2e;
+    --catppuccin-mantle: #181825;
+    --catppuccin-crust: #11111b;
+}
+
+/* ============= Theme Mappings ============= */
+
+/* Default/Root Theme Variables - KiraIchi Theme (Dark) */
+:root {
+    /* Spacing Scale */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+
+    /* Font Sizes */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-md: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+
+    /* Border Radius */
+    --border-radius-sm: 0.25rem;
+    --border-radius-md: 0.5rem;
+    --border-radius-lg: 0.75rem;
+    --border-radius-xl: 1rem;
+
+    /* Transitions */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Animation Variables */
+    --animation-duration-fast: 0.15s;
+    --animation-duration-normal: 0.3s;
+    --animation-duration-slow: 0.5s;
+    --animation-timing-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Theme Colors */
+    --theme-background: linear-gradient(135deg, #1a0f0f 0%, #2d1515 100%);
+    --theme-text: #ffd1dc;
+    --theme-primary: #ffb6c1;
+    --theme-secondary: #ff6b9d;
+    --theme-accent: #ffeaa7;
+    --theme-surface: rgba(139, 0, 44, 0.2);
+    --theme-border: rgba(255, 182, 193, 0.2);
+    --theme-border-light: rgba(255, 182, 193, 0.1);
+    --theme-header-bg: rgba(139, 0, 44, 0.2);
+    --theme-nav-bg: rgba(139, 0, 44, 0.15);
+    --theme-surface-secondary: rgba(139, 0, 44, 0.1);
+    --theme-surface-tertiary: rgba(139, 0, 44, 0.05);
+    --theme-hover-bg: rgba(255, 107, 157, 0.15);
+    --theme-selected-bg: rgba(255, 107, 157, 0.2);
+    --theme-focus-ring: rgba(255, 107, 157, 0.25);
+    --theme-primary-shadow: rgba(255, 107, 157, 0.25);
+    --theme-primary-bg: rgba(255, 107, 157, 0.1);
+    --theme-primary-light: #ffb3d1;
+    --theme-primary-dark: #a0255c;
+    --theme-text-secondary: #ffb6c1;
+    --theme-text-muted: rgba(255, 182, 193, 0.5);
+    --theme-text-accent: #ff6b9d;
+    --theme-success: #2ecc71;
+    --theme-success-bg: rgba(46, 204, 113, 0.1);
+    --theme-warning: #f39c12;
+    --theme-warning-bg: rgba(243, 156, 18, 0.1);
+    --theme-error: #e74c3c;
+    --theme-error-bg: rgba(231, 76, 60, 0.1);
+    --theme-info: #3498db;
+    --theme-info-bg: rgba(52, 152, 219, 0.1);
+    --theme-shadow-color: rgba(0, 0, 0, 0.3);
+    --theme-gradient-success: linear-gradient(135deg, #2ecc71, #27ae60);
+    --theme-overlay-bg: rgba(0, 0, 0, 0.7);
+    --theme-modal-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Catppuccin Latte Theme (Light) */
+.theme-latte {
+    --theme-background: var(--catppuccin-base);
+    --theme-text: var(--catppuccin-text);
+    --theme-primary: var(--catppuccin-mauve);
+    --theme-secondary: var(--catppuccin-pink);
+    --theme-accent: var(--catppuccin-yellow);
+    --theme-surface: var(--catppuccin-mantle);
+    --theme-border: var(--catppuccin-overlay0);
+    --theme-header-bg: var(--catppuccin-mantle);
+    --theme-surface-secondary: var(--catppuccin-surface0);
+    --theme-surface-tertiary: var(--catppuccin-surface1);
+    --theme-hover-bg: var(--catppuccin-surface1);
+    --theme-selected-bg: var(--catppuccin-surface2);
+    --theme-focus-ring: var(--catppuccin-mauve);
+    --theme-primary-shadow: var(--catppuccin-mauve);
+    --theme-primary-bg: var(--catppuccin-surface1);
+    --theme-primary-light: var(--catppuccin-lavender);
+    --theme-primary-dark: var(--catppuccin-maroon);
+    --theme-text-secondary: var(--catppuccin-subtext1);
+    --theme-text-muted: var(--catppuccin-subtext0);
+    --theme-success: var(--catppuccin-green);
+    --theme-success-bg: var(--catppuccin-surface0);
+    --theme-warning: var(--catppuccin-peach);
+    --theme-warning-bg: var(--catppuccin-surface0);
+    --theme-error: var(--catppuccin-red);
+    --theme-error-bg: var(--catppuccin-surface0);
+    --theme-info: var(--catppuccin-blue);
+    --theme-info-bg: var(--catppuccin-surface0);
+    --theme-shadow-color: rgba(76, 79, 105, 0.1);
+    --theme-border-light: var(--catppuccin-surface0);
+    --theme-nav-bg: var(--catppuccin-surface0);
+    --theme-text-accent: var(--catppuccin-mauve);
+    --theme-gradient-success: linear-gradient(
+        135deg,
+        var(--catppuccin-green),
+        var(--catppuccin-teal)
+    );
+    --theme-overlay-bg: rgba(76, 79, 105, 0.8);
+    --theme-modal-shadow: 0 20px 40px rgba(76, 79, 105, 0.3);
+}
+
+/* Catppuccin Frappé Theme (Dark) */
+.theme-frappe {
+    --theme-background: var(--catppuccin-base);
+    --theme-text: var(--catppuccin-text);
+    --theme-primary: var(--catppuccin-pink);
+    --theme-secondary: var(--catppuccin-mauve);
+    --theme-accent: var(--catppuccin-yellow);
+    --theme-surface: var(--catppuccin-mantle);
+    --theme-border: var(--catppuccin-surface2);
+    --theme-header-bg: var(--catppuccin-mantle);
+    --theme-surface-secondary: var(--catppuccin-surface0);
+    --theme-surface-tertiary: var(--catppuccin-surface1);
+    --theme-hover-bg: var(--catppuccin-surface1);
+    --theme-selected-bg: var(--catppuccin-surface2);
+    --theme-focus-ring: var(--catppuccin-pink);
+    --theme-primary-shadow: var(--catppuccin-pink);
+    --theme-primary-bg: var(--catppuccin-surface1);
+    --theme-primary-light: var(--catppuccin-lavender);
+    --theme-primary-dark: var(--catppuccin-maroon);
+    --theme-text-secondary: var(--catppuccin-subtext1);
+    --theme-text-muted: var(--catppuccin-subtext0);
+    --theme-success: var(--catppuccin-green);
+    --theme-success-bg: var(--catppuccin-surface0);
+    --theme-warning: var(--catppuccin-yellow);
+    --theme-warning-bg: var(--catppuccin-surface0);
+    --theme-error: var(--catppuccin-red);
+    --theme-error-bg: var(--catppuccin-surface0);
+    --theme-info: var(--catppuccin-blue);
+    --theme-info-bg: var(--catppuccin-surface0);
+    --theme-shadow-color: rgba(35, 38, 52, 0.1);
+    --theme-border-light: var(--catppuccin-surface0);
+    --theme-nav-bg: var(--catppuccin-surface0);
+    --theme-text-accent: var(--catppuccin-pink);
+    --theme-gradient-success: linear-gradient(
+        135deg,
+        var(--catppuccin-green),
+        var(--catppuccin-teal)
+    );
+    --theme-overlay-bg: rgba(35, 38, 52, 0.8);
+    --theme-modal-shadow: 0 20px 40px rgba(35, 38, 52, 0.3);
+}
+
+/* Catppuccin Macchiato Theme (Dark) */
+.theme-macchiato {
+    --theme-background: var(--catppuccin-base);
+    --theme-text: var(--catppuccin-text);
+    --theme-primary: var(--catppuccin-pink);
+    --theme-secondary: var(--catppuccin-mauve);
+    --theme-accent: var(--catppuccin-yellow);
+    --theme-surface: var(--catppuccin-mantle);
+    --theme-border: var(--catppuccin-surface2);
+    --theme-header-bg: var(--catppuccin-mantle);
+    --theme-surface-secondary: var(--catppuccin-surface0);
+    --theme-surface-tertiary: var(--catppuccin-surface1);
+    --theme-hover-bg: var(--catppuccin-surface1);
+    --theme-selected-bg: var(--catppuccin-surface2);
+    --theme-focus-ring: var(--catppuccin-pink);
+    --theme-primary-shadow: var(--catppuccin-pink);
+    --theme-primary-bg: var(--catppuccin-surface1);
+    --theme-primary-light: var(--catppuccin-lavender);
+    --theme-primary-dark: var(--catppuccin-maroon);
+    --theme-text-secondary: var(--catppuccin-subtext1);
+    --theme-text-muted: var(--catppuccin-subtext0);
+    --theme-success: var(--catppuccin-green);
+    --theme-success-bg: var(--catppuccin-surface0);
+    --theme-warning: var(--catppuccin-yellow);
+    --theme-warning-bg: var(--catppuccin-surface0);
+    --theme-error: var(--catppuccin-red);
+    --theme-error-bg: var(--catppuccin-surface0);
+    --theme-info: var(--catppuccin-blue);
+    --theme-info-bg: var(--catppuccin-surface0);
+    --theme-shadow-color: rgba(36, 39, 58, 0.1);
+    --theme-border-light: var(--catppuccin-surface0);
+    --theme-nav-bg: var(--catppuccin-surface0);
+    --theme-text-accent: var(--catppuccin-pink);
+    --theme-gradient-success: linear-gradient(
+        135deg,
+        var(--catppuccin-green),
+        var(--catppuccin-teal)
+    );
+    --theme-overlay-bg: rgba(36, 39, 58, 0.8);
+    --theme-modal-shadow: 0 20px 40px rgba(36, 39, 58, 0.3);
+}
+
+/* Catppuccin Mocha Theme (Dark) */
+.theme-mocha {
+    --theme-background: var(--catppuccin-base);
+    --theme-text: var(--catppuccin-text);
+    --theme-primary: var(--catppuccin-pink);
+    --theme-secondary: var(--catppuccin-mauve);
+    --theme-accent: var(--catppuccin-yellow);
+    --theme-surface: var(--catppuccin-mantle);
+    --theme-border: var(--catppuccin-surface2);
+    --theme-header-bg: var(--catppuccin-mantle);
+    --theme-surface-secondary: var(--catppuccin-surface0);
+    --theme-surface-tertiary: var(--catppuccin-surface1);
+    --theme-hover-bg: var(--catppuccin-surface1);
+    --theme-selected-bg: var(--catppuccin-surface2);
+    --theme-focus-ring: var(--catppuccin-pink);
+    --theme-primary-shadow: var(--catppuccin-pink);
+    --theme-primary-bg: var(--catppuccin-surface1);
+    --theme-primary-light: var(--catppuccin-lavender);
+    --theme-primary-dark: var(--catppuccin-maroon);
+    --theme-text-secondary: var(--catppuccin-subtext1);
+    --theme-text-muted: var(--catppuccin-subtext0);
+    --theme-success: var(--catppuccin-green);
+    --theme-success-bg: var(--catppuccin-surface0);
+    --theme-warning: var(--catppuccin-yellow);
+    --theme-warning-bg: var(--catppuccin-surface0);
+    --theme-error: var(--catppuccin-red);
+    --theme-error-bg: var(--catppuccin-surface0);
+    --theme-info: var(--catppuccin-blue);
+    --theme-info-bg: var(--catppuccin-surface0);
+    --theme-shadow-color: rgba(17, 17, 27, 0.1);
+    --theme-border-light: var(--catppuccin-surface0);
+    --theme-nav-bg: var(--catppuccin-surface0);
+    --theme-text-accent: var(--catppuccin-pink);
+    --theme-gradient-success: linear-gradient(
+        135deg,
+        var(--catppuccin-green),
+        var(--catppuccin-teal)
+    );
+    --theme-overlay-bg: rgba(17, 17, 27, 0.8);
+    --theme-modal-shadow: 0 20px 40px rgba(17, 17, 27, 0.3);
+}
+
+/* KiraIchi Theme (Default - Dark) */
+.theme-kiraichi {
+    --theme-background: linear-gradient(135deg, #1a0f0f 0%, #2d1515 100%);
+    --theme-text: #ffd1dc;
+    --theme-primary: #ffb6c1;
+    --theme-secondary: #ff6b9d;
+    --theme-accent: #ffeaa7;
+    --theme-surface: rgba(139, 0, 44, 0.2);
+    --theme-border: rgba(255, 182, 193, 0.2);
+    --theme-header-bg: rgba(139, 0, 44, 0.2);
+    --theme-surface-secondary: rgba(139, 0, 44, 0.1);
+    --theme-surface-tertiary: rgba(139, 0, 44, 0.05);
+    --theme-hover-bg: rgba(255, 107, 157, 0.15);
+    --theme-selected-bg: rgba(255, 107, 157, 0.2);
+    --theme-focus-ring: rgba(255, 107, 157, 0.25);
+    --theme-primary-shadow: rgba(255, 107, 157, 0.25);
+    --theme-primary-bg: rgba(255, 107, 157, 0.1);
+    --theme-primary-light: #ffb3d1;
+    --theme-primary-dark: #a0255c;
+    --theme-text-secondary: #ffb6c1;
+    --theme-text-muted: rgba(255, 182, 193, 0.5);
+    --theme-success: #2ecc71;
+    --theme-success-bg: rgba(46, 204, 113, 0.1);
+    --theme-warning: #f39c12;
+    --theme-warning-bg: rgba(243, 156, 18, 0.1);
+    --theme-error: #e74c3c;
+    --theme-error-bg: rgba(231, 76, 60, 0.1);
+    --theme-info: #3498db;
+    --theme-info-bg: rgba(52, 152, 219, 0.1);
+    --theme-shadow-color: rgba(0, 0, 0, 0.3);
+    --theme-border-light: rgba(255, 182, 193, 0.1);
+    --theme-nav-bg: rgba(139, 0, 44, 0.15);
+    --theme-text-accent: #ff6b9d;
+    --theme-gradient-success: linear-gradient(135deg, #2ecc71, #27ae60);
+    --theme-overlay-bg: rgba(0, 0, 0, 0.7);
+    --theme-modal-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* KiraIchi Light Theme (Strawberry) */
+.theme-kiraichi-light {
+    --theme-background: linear-gradient(
+        135deg,
+        #fff5f8 0%,
+        #ffe4ec 50%,
+        #ffd1dc 100%
+    );
+    --theme-text: #2d1515;
+    --theme-primary: #d63384;
+    --theme-secondary: #e91e63;
+    --theme-accent: #ff6b35;
+    --theme-surface: rgba(255, 182, 193, 0.3);
+    --theme-border: rgba(214, 51, 132, 0.2);
+    --theme-header-bg: rgba(255, 192, 203, 0.4);
+    --theme-surface-secondary: rgba(255, 182, 193, 0.2);
+    --theme-surface-tertiary: rgba(255, 182, 193, 0.1);
+    --theme-hover-bg: rgba(214, 51, 132, 0.1);
+    --theme-selected-bg: rgba(214, 51, 132, 0.15);
+    --theme-focus-ring: rgba(214, 51, 132, 0.3);
+    --theme-primary-shadow: rgba(214, 51, 132, 0.2);
+    --theme-primary-bg: rgba(255, 182, 193, 0.2);
+    --theme-primary-light: #ffb3d1;
+    --theme-primary-dark: #8b0030;
+    --theme-text-secondary: #6a1b3a;
+    --theme-text-muted: rgba(45, 21, 21, 0.6);
+    --theme-success: #20c997;
+    --theme-success-bg: rgba(32, 201, 151, 0.1);
+    --theme-warning: #fd7e14;
+    --theme-warning-bg: rgba(253, 126, 20, 0.1);
+    --theme-error: #dc3545;
+    --theme-error-bg: rgba(220, 53, 69, 0.1);
+    --theme-info: #0dcaf0;
+    --theme-info-bg: rgba(13, 202, 240, 0.1);
+    --theme-shadow-color: rgba(214, 51, 132, 0.15);
+    --theme-border-light: rgba(214, 51, 132, 0.1);
+    --theme-nav-bg: rgba(255, 192, 203, 0.3);
+    --theme-text-accent: #d63384;
+    --theme-gradient-success: linear-gradient(135deg, #20c997, #17a2b8);
+    --theme-overlay-bg: rgba(214, 51, 132, 0.3);
+    --theme-modal-shadow: 0 20px 40px rgba(214, 51, 132, 0.2);
+}
+
+/* ============= Media Query Support ============= */
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --primary-gradient: linear-gradient(
+            135deg,
+            #f8f9fa 0%,
+            #e9ecef 50%,
+            #dee2e6 100%
+        );
+        --text-primary: #212529;
+        --text-secondary: #495057;
+        --text-muted: #6c757d;
+        --background-light: rgba(0, 0, 0, 0.05);
+        --background-dark: rgba(0, 0, 0, 0.1);
+        --border-color: rgba(0, 0, 0, 0.1);
+    }
+}

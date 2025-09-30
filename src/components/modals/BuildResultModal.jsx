@@ -44,12 +44,12 @@ const successStyles = {
     marginBottom: "20px",
   },
   header: {
-    color: "#2ecc71",
+    color: "var(--theme-success)",
     marginBottom: "10px",
   },
   item: {
     padding: "10px",
-    background: "rgba(46, 204, 113, 0.1)",
+    background: "var(--theme-success-bg)",
     borderRadius: "5px",
     marginBottom: "10px",
   },
@@ -61,12 +61,12 @@ const successStyles = {
 
 const failedStyles = {
   header: {
-    color: "#e74c3c",
+    color: "var(--theme-error)",
     marginBottom: "10px",
   },
   item: {
     padding: "10px",
-    background: "rgba(231, 76, 60, 0.1)",
+    background: "var(--theme-error-bg)",
     borderRadius: "5px",
     marginBottom: "10px",
   },
@@ -77,7 +77,7 @@ const failedStyles = {
   error: {
     marginTop: "10px",
     padding: "10px",
-    background: "rgba(0, 0, 0, 0.2)",
+    background: "var(--theme-surface-secondary)",
     borderRadius: "3px",
     fontSize: "12px",
     overflow: "auto",

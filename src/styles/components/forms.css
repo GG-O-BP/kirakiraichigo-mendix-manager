@@ -1,0 +1,393 @@
+/* ============= Form Component Styles - Kirakira Ichigo Mendix Manager ============= */
+
+/* ============= Search Components ============= */
+
+.search-container {
+    position: relative;
+}
+
+.search-box {
+    width: 100%;
+    padding: 10px 30px 10px 47px;
+    border: 1px solid var(--theme-border);
+    border-radius: 20px;
+    font-size: 14px;
+    background: var(--theme-surface);
+    color: var(--theme-text);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.search-box::placeholder {
+    color: var(--theme-text-muted);
+}
+
+.search-box:focus {
+    border-color: var(--theme-primary);
+    box-shadow:
+        0 0 0 3px var(--theme-focus-ring),
+        0 4px 12px var(--theme-primary-shadow);
+    background: var(--theme-hover-bg);
+    transform: translateY(-1px);
+}
+
+.search-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    color: var(--theme-primary);
+    transition: color var(--transition-fast);
+    z-index: 1;
+}
+
+.sparkle {
+    position: absolute;
+    right: 15px;
+    top: 48%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: var(--theme-primary);
+}
+
+/* ============= Dropdown Components ============= */
+
+.dropdown-container {
+    position: relative;
+}
+
+.dropdown {
+    width: 100%;
+    padding: 10px 36px 10px 16px;
+    border: 1px solid var(--theme-border);
+    border-radius: 20px;
+    font-size: 14px;
+    background: var(--theme-surface);
+    color: var(--theme-text);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    appearance: none;
+    backdrop-filter: blur(5px);
+}
+
+.dropdown:focus {
+    outline: none;
+    border-color: var(--theme-primary);
+}
+
+.dropdown-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-size: 16px;
+}
+
+/* ============= Property Form Components ============= */
+
+.property-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.property-label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.label-text {
+    font-size: 14px;
+    color: var(--theme-primary);
+    font-weight: 500;
+}
+
+.property-input,
+.property-textarea,
+.property-select {
+    padding: 10px 14px;
+    border: 1px solid var(--theme-border);
+    border-radius: 12px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--theme-surface);
+    color: var(--theme-text);
+    transition: all 0.3s ease;
+}
+
+.property-input:focus,
+.property-textarea:focus,
+.property-select:focus {
+    outline: none;
+    border-color: var(--theme-primary);
+    box-shadow: 0 0 0 3px var(--theme-focus-ring);
+    background: var(--theme-hover-bg);
+}
+
+.property-textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* ============= Checkbox Components (Strawberry Style) ============= */
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--theme-text);
+    margin: 0;
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 22px;
+    background: linear-gradient(
+        135deg,
+        var(--theme-surface-secondary),
+        var(--theme-surface-tertiary)
+    );
+    border: 2px solid var(--theme-border);
+    transition: all 0.3s ease;
+    position: relative;
+    font-weight: 500;
+    text-shadow: 0 1px 2px var(--theme-shadow-color);
+}
+
+.checkbox-input {
+    appearance: none;
+    margin: 0;
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(
+        135deg,
+        var(--theme-primary-light),
+        var(--theme-primary)
+    );
+    border: 2px solid var(--theme-primary);
+    position: relative;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px var(--theme-primary-shadow);
+}
+
+.checkbox-input::before {
+    content: "🍓";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    opacity: 0;
+    transition: all 0.3s ease;
+    filter: brightness(0.8) drop-shadow(0 0 2px var(--theme-primary-shadow));
+}
+
+.checkbox-input:checked {
+    background: linear-gradient(
+        135deg,
+        var(--theme-primary),
+        var(--theme-primary-dark)
+    );
+    box-shadow:
+        0 3px 8px var(--theme-primary-shadow),
+        0 0 0 3px var(--theme-focus-ring);
+    transform: scale(1.1);
+}
+
+.checkbox-input:checked::before {
+    opacity: 1;
+    filter: brightness(1.2);
+    transform: translate(-50%, -50%) scale(1.2);
+}
+
+.checkbox-text {
+    user-select: none;
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.2;
+    text-shadow: 0 1px 2px var(--theme-shadow-color);
+}
+
+.checkbox-label:hover {
+    color: var(--theme-text);
+    background: linear-gradient(
+        135deg,
+        var(--theme-hover-bg),
+        var(--theme-selected-bg)
+    );
+    border-color: var(--theme-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--theme-primary-shadow);
+}
+
+.checkbox-label:hover .checkbox-input {
+    box-shadow: 0 4px 8px var(--theme-primary-shadow);
+    transform: scale(1.05);
+}
+
+/* ============= Checkbox Animations ============= */
+
+.checkbox-input:hover::before {
+    animation: strawberry-bounce 0.5s ease;
+}
+
+@keyframes strawberry-bounce {
+    0%,
+    100% {
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    }
+    25% {
+        transform: translate(-50%, -50%) scale(1.2) rotate(-5deg);
+    }
+    75% {
+        transform: translate(-50%, -50%) scale(1.2) rotate(5deg);
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.3) rotate(0deg);
+    }
+}
+
+/* Special strawberry varieties for different filter types */
+.search-row .checkbox-input::before {
+    content: "🍓";
+    filter: brightness(1) drop-shadow(0 0 3px var(--theme-primary-shadow));
+}
+
+.version-type-filters .checkbox-label:nth-child(1) .checkbox-input::before {
+    content: "🍓";
+}
+
+.version-type-filters .checkbox-label:nth-child(2) .checkbox-input::before {
+    content: "🍓";
+}
+
+.version-type-filters .checkbox-label:nth-child(3) .checkbox-input::before {
+    content: "🍓";
+}
+
+/* Sparkle effect for checked strawberries */
+.checkbox-input:checked::after {
+    content: "✨";
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 8px;
+    pointer-events: none;
+}
+
+@keyframes sparkle {
+    0%,
+    100% {
+        opacity: 0;
+        transform: scale(0.5) rotate(0deg);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1) rotate(180deg);
+    }
+}
+
+/* Sweet gradient backgrounds for different states */
+.checkbox-label:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 4px var(--theme-primary-shadow);
+}
+
+.checkbox-input:active {
+    transform: scale(0.95);
+}
+
+/* Cute berry animation on hover */
+.checkbox-label:hover .checkbox-input:not(:checked)::before {
+    opacity: 0.3;
+    animation: berry-wiggle 0.8s ease infinite;
+}
+
+@keyframes berry-wiggle {
+    0%,
+    100% {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+    25% {
+        transform: translate(-50%, -50%) rotate(-3deg);
+    }
+    75% {
+        transform: translate(-50%, -50%) rotate(3deg);
+    }
+}
+
+/* ============= Package Manager Section ============= */
+
+.package-manager-section {
+    padding: var(--space-lg);
+    border-top: 1px solid var(--theme-border-light);
+    border-bottom: 1px solid var(--theme-border-light);
+    background: var(--theme-nav-bg);
+}
+
+.package-manager-controls {
+    margin-bottom: var(--space-lg);
+}
+
+.package-manager-label {
+    display: block;
+    margin-bottom: var(--space-sm);
+    font-size: var(--font-size-sm);
+    color: var(--theme-text-accent);
+}
+
+/* ============= Responsive Form Adjustments ============= */
+
+@media (max-width: 768px) {
+    .search-box {
+        font-size: 16px; /* Prevent zoom on iOS */
+        padding: 12px 40px 12px 40px;
+    }
+
+    .checkbox-label {
+        width: 100%;
+    }
+
+    .property-input,
+    .property-textarea,
+    .property-select {
+        min-height: 44px; /* iOS touch target */
+    }
+
+    .dropdown {
+        min-height: 44px;
+    }
+}
+
+/* ============= High Contrast Mode Support ============= */
+
+@media (prefers-contrast: high) {
+    .property-input,
+    .property-textarea,
+    .property-select,
+    .search-box,
+    .dropdown {
+        border-width: 2px;
+    }
+
+    .checkbox-input {
+        border-width: 3px;
+    }
+}
+
+/* ============= Focus Visible Support ============= */
+
+.property-input:focus-visible,
+.property-textarea:focus-visible,
+.property-select:focus-visible,
+.search-box:focus-visible,
+.dropdown:focus-visible {
+    outline: 2px solid var(--theme-primary);
+    outline-offset: 2px;
+}

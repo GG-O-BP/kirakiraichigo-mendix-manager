@@ -69,7 +69,7 @@ const renderWidgetItem = R.curry(
         </div>
       </div>
       <button
-        className="uninstall-button"
+        className="install-button uninstall-button"
         onClick={R.pipe(
           R.tap((e) => {
             e.preventDefault();
@@ -97,13 +97,6 @@ const renderWidgetItem = R.curry(
           }),
           R.always(undefined),
         )}
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",
-          borderColor: "rgba(220, 20, 60, 0.4)",
-          padding: "4px 12px",
-          fontSize: "12px",
-        }}
       >
         <span className="button-icon">🗑️</span>
       </button>
@@ -203,7 +196,7 @@ const renderWidgetListArea = R.curryN(
         )}
         style={{
           cursor: "pointer",
-          backgroundColor: "rgba(255, 182, 193, 0.1)",
+          backgroundColor: "var(--theme-hover-bg)",
         }}
       >
         <div className="version-info">
@@ -312,7 +305,7 @@ const WidgetPreview = memo(
     const combinedProperties = R.mergeRight(properties, dynamicProperties);
 
     return (
-      <div className="widget-preview">
+      <div className="base-manager widget-preview">
         {/* Left Panel - Widget List */}
         <div className="preview-left">
           <SearchBox

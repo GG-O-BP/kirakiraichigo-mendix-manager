@@ -471,6 +471,7 @@ export const STORAGE_KEYS = {
   WIDGETS: "kirakiraWidgets",
   PACKAGE_MANAGER: "kirakiraPackageManager",
   WIDGET_PROPERTIES: "kirakiraWidgetProperties",
+  THEME: "kirakiraTheme",
 };
 
 export const PACKAGE_MANAGERS = ["npm", "yarn", "pnpm", "bun"];

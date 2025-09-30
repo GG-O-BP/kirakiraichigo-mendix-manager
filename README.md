@@ -27,6 +27,7 @@
 Just like a magical girl transforms to save the day, this manager transforms your Mendix development experience from ordinary to extraordinary! With the sparkle of "kirakira" (✨) and the sweetness of "ichigo" (🍓), managing your Mendix projects has never been more delightful.
 
 # Licence 📜
-this programme follows [Mozilla Public License 2.0](/LICENSE)
+this programme follows [Magical Pretty License 2.0 ✨🍓](/LICENSE)
+(A modified version of Mozilla Public License 2.0, created under MPL 2.0 Section 10.3)
 
 Copyright © 2025 GG-O-BP. All rights reserved. ✨🍓

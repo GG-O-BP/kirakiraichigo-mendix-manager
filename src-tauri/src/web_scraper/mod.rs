@@ -264,7 +264,19 @@ fn apply_version_processing_pipeline(
 // IO wrapper functions - only these perform side effects
 async fn create_browser_instance() -> Result<(Browser, chromiumoxide::handler::Handler), String> {
     let config = BrowserConfig::builder()
-        .args(vec!["--no-sandbox", "--disable-dev-shm-usage"])
+        .args(vec![
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--disable-extensions",
+            "--disable-background-timer-throttling",
+            "--disable-default-apps",
+            "--disable-sync",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--disable-features=VizDisplayCompositor",
+        ])
+        .incognito()
         .build()?;
 
     Browser::launch(config)
