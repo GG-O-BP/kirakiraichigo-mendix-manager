@@ -24,13 +24,21 @@ import {
   setToArray,
   toggleInSet,
   createWidget,
-  filterAppsByVersionAndSearch,
-  filterWidgetsBySearchTerm,
   validateRequired,
   updateProp,
   updateVersionLoadingStates,
   getVersionLoadingState,
+  validateBuildDeploySelections,
+  createBuildDeployParams,
+  createCatastrophicErrorResult,
+  hasBuildFailures,
+  createWidgetFilter,
+  createAppFilter,
+  isSetNotEmpty,
 } from "./utils/functional";
+
+// Import Rust backend utilities
+import { filterMendixApps, filterWidgets } from "./utils/dataProcessing";
 
 // ============= Pure Functional State Management =============
 
@@ -49,7 +57,7 @@ import {
   DownloadModal,
 } from "./components/modals";
 
-// Initial state factory
+// Initial state factory (async data loaded via useEffect)
 const createInitialState = () => ({
   downloadableVersions: [],
   isLoadingDownloadableVersions: false,
@@ -59,13 +67,13 @@ const createInitialState = () => ({
   showBetaOnly: false,
   // Tab state
   activeTab: "studio-pro",
-  // Theme state
-  currentTheme: loadFromStorage(STORAGE_KEYS.THEME, "kiraichi"),
+  // Theme state (loaded async in useEffect)
+  currentTheme: "kiraichi",
 
   // Core data
   versions: [],
   apps: [],
-  widgets: loadFromStorage(STORAGE_KEYS.WIDGETS, []),
+  widgets: [],
 
   // Filtered data
   filteredVersions: [],
@@ -78,11 +86,9 @@ const createInitialState = () => ({
   widgetSearchTerm: "",
   widgetPreviewSearch: "",
 
-  // Selections
-  selectedApps: arrayToSet(loadFromStorage(STORAGE_KEYS.SELECTED_APPS, [])),
-  selectedWidgets: arrayToSet(
-    loadFromStorage(STORAGE_KEYS.SELECTED_WIDGETS, []),
-  ),
+  // Selections (loaded async in useEffect)
+  selectedApps: new Set(),
+  selectedWidgets: new Set(),
   selectedVersion: null,
   selectedApp: null,
 
@@ -105,6 +111,8 @@ const createInitialState = () => ({
   showResultModal: false,
   showDownloadModal: false,
   versionToDownload: null,
+  showWidgetDeleteModal: false,
+  widgetToDelete: null,
 
   // Form states
   newWidgetCaption: "",
@@ -116,8 +124,8 @@ const createInitialState = () => ({
     prop4: "Select...",
   },
 
-  // Package manager
-  packageManager: loadFromStorage(STORAGE_KEYS.PACKAGE_MANAGER, "npm"),
+  // Package manager (loaded async in useEffect)
+  packageManager: "npm",
   isInstalling: false,
   isBuilding: false,
   buildResults: {
@@ -237,7 +245,7 @@ function App() {
     (event) => {
       const newTheme = event.target.value;
       setStateProperty(R.lensProp("currentTheme"), newTheme);
-      saveToStorage(STORAGE_KEYS.THEME, newTheme);
+      saveToStorage(STORAGE_KEYS.THEME, newTheme).catch(console.error);
       applyTheme(newTheme);
     },
     [setStateProperty, applyTheme, state.currentTheme],
@@ -375,6 +383,12 @@ function App() {
   const [versionToDownload, setVersionToDownload] = useState(
     initialState.versionToDownload,
   );
+  const [showWidgetDeleteModal, setShowWidgetDeleteModal] = useState(
+    initialState.showWidgetDeleteModal,
+  );
+  const [widgetToDelete, setWidgetToDelete] = useState(
+    initialState.widgetToDelete,
+  );
   const [inlineResults, setInlineResults] = useState(null);
 
   // Form state
@@ -389,6 +403,17 @@ function App() {
   // Widget Preview specific state
   const [selectedWidgetForPreview, setSelectedWidgetForPreview] =
     useState(null);
+
+  // Save widget order to Rust backend whenever widgets change
+  useEffect(() => {
+    if (widgets.length > 0) {
+      const widgetOrder = widgets.map((w) => w.id);
+      saveToStorage(STORAGE_KEYS.WIDGET_ORDER, widgetOrder).catch(
+        console.error,
+      );
+      saveToStorage(STORAGE_KEYS.WIDGETS, widgets).catch(console.error);
+    }
+  }, [widgets]);
 
   // Package manager state
   const [packageManager, setPackageManager] = useState(
@@ -477,9 +502,62 @@ function App() {
     [],
   );
 
-  // Load widgets from storage
-  const loadWidgets = useCallback(() => {
-    R.pipe(() => loadFromStorage(STORAGE_KEYS.WIDGETS, []), setWidgets)();
+  // Load widgets from Rust backend storage
+  const loadWidgets = useCallback(async () => {
+    try {
+      const savedWidgets = await loadFromStorage(STORAGE_KEYS.WIDGETS, []);
+      const savedOrder = await loadFromStorage(STORAGE_KEYS.WIDGET_ORDER, []);
+
+      if (savedOrder.length > 0) {
+        // Sort widgets according to saved order using Ramda
+        const orderedWidgets = R.pipe(
+          R.map((id) => R.find(R.propEq("id", id), savedWidgets)),
+          R.filter(R.identity),
+          R.concat(
+            R.__,
+            R.filter((w) => !savedOrder.includes(w.id), savedWidgets),
+          ),
+        )(savedOrder);
+
+        setWidgets(orderedWidgets);
+      } else {
+        setWidgets(savedWidgets);
+      }
+    } catch (error) {
+      console.error("Failed to load widgets:", error);
+      setWidgets([]);
+    }
+  }, []);
+
+  // Load initial state from Rust backend
+  useEffect(() => {
+    const loadInitialState = async () => {
+      try {
+        // Load all persisted state in parallel using Ramda
+        const stateLoaders = R.juxt([
+          () => loadFromStorage(STORAGE_KEYS.THEME, "kiraichi"),
+          () => loadFromStorage(STORAGE_KEYS.PACKAGE_MANAGER, "npm"),
+          () => loadFromStorage(STORAGE_KEYS.SELECTED_APPS, []),
+          () => loadFromStorage(STORAGE_KEYS.SELECTED_WIDGETS, []),
+        ]);
+
+        const [theme, pkgManager, selectedAppsArray, selectedWidgetsArray] =
+          await Promise.all(stateLoaders());
+
+        // Apply loaded state using functional composition
+        R.pipe(
+          R.tap(() => setStateProperty(R.lensProp("currentTheme"), theme)),
+          R.tap(() => applyTheme(theme)),
+          R.tap(() => setPackageManager(pkgManager)),
+          R.tap(() => setSelectedApps(arrayToSet(selectedAppsArray))),
+          R.tap(() => setSelectedWidgets(arrayToSet(selectedWidgetsArray))),
+        )();
+      } catch (error) {
+        console.error("Failed to load initial state:", error);
+      }
+    };
+
+    loadInitialState();
   }, []);
 
   // Initial data loading effect
@@ -506,27 +584,57 @@ function App() {
     )(versions);
   }, [versions, searchTerm]);
 
-  // Filter apps based on version filter and search term
+  // Filter apps based on version filter and search term using Rust backend
   useEffect(() => {
-    R.pipe(
-      filterAppsByVersionAndSearch(versionFilter, appSearchTerm),
-      R.tap(R.pipe(R.length, (len) => setHasMore(len > ITEMS_PER_PAGE))),
-      R.tap(() => setCurrentPage(1)),
-      setFilteredApps,
-    )(apps);
+    const processApps = async () => {
+      try {
+        const targetVersion = versionFilter === "all" ? null : versionFilter;
+        const filtered = await filterMendixApps(
+          apps,
+          appSearchTerm || null,
+          targetVersion,
+          true,
+        );
+        setFilteredApps(filtered);
+        setHasMore(filtered.length > ITEMS_PER_PAGE);
+        setCurrentPage(1);
+      } catch (error) {
+        console.error("Failed to filter apps:", error);
+        setFilteredApps(apps);
+      }
+    };
+
+    if (apps && apps.length > 0) {
+      processApps();
+    } else {
+      setFilteredApps([]);
+    }
   }, [apps, versionFilter, appSearchTerm]);
 
-  // Filter widgets based on search term
+  // Filter widgets based on search term using Rust backend
   useEffect(() => {
-    R.pipe(
-      filterWidgetsBySearchTerm(widgetSearchTerm),
-      setFilteredWidgets,
-    )(widgets);
+    const processWidgets = async () => {
+      try {
+        const filtered = await filterWidgets(widgets, widgetSearchTerm || null);
+        setFilteredWidgets(filtered);
+      } catch (error) {
+        console.error("Failed to filter widgets:", error);
+        setFilteredWidgets(widgets);
+      }
+    };
+
+    if (widgets && widgets.length > 0) {
+      processWidgets();
+    } else {
+      setFilteredWidgets([]);
+    }
   }, [widgets, widgetSearchTerm]);
 
-  // Save package manager preference to localStorage
+  // Save package manager preference to Rust backend
   useEffect(() => {
-    saveToStorage(STORAGE_KEYS.PACKAGE_MANAGER)(packageManager);
+    saveToStorage(STORAGE_KEYS.PACKAGE_MANAGER, packageManager).catch(
+      console.error,
+    );
   }, [packageManager]);
 
   // Ref to prevent duplicate initial loading in React Strict Mode
@@ -553,7 +661,7 @@ function App() {
     loadInitialDownloadableVersions();
   }, [fetchVersionsFromDatagrid]);
 
-  // Toggle app selection
+  // Toggle app selection with Rust backend storage
   const handleAppClick = useCallback(
     R.pipe(R.prop("path"), (appPath) => {
       setSelectedApps((prev) => {
@@ -568,15 +676,10 @@ function App() {
 
         const newArray = Array.from(newSet);
 
-        // Save to localStorage
-        try {
-          localStorage.setItem(
-            STORAGE_KEYS.SELECTED_APPS,
-            JSON.stringify(newArray),
-          );
-        } catch (error) {
-          // Handle error silently
-        }
+        // Save to Rust backend
+        saveToStorage(STORAGE_KEYS.SELECTED_APPS, newArray).catch(
+          console.error,
+        );
 
         return newSet;
       });
@@ -584,63 +687,61 @@ function App() {
     [],
   );
 
-  // Install handler with functional approach
-  const handleInstall = useCallback(
-    R.pipe(
-      () => selectedWidgets.size,
-      R.ifElse(
-        R.equals(0),
-        () => alert("Please select at least one widget to install"),
+  // Install handler with enhanced functional approach
+  const handleInstall = useCallback(async () => {
+    // Validation using functional composition
+    if (!isSetNotEmpty(selectedWidgets)) {
+      alert("Please select at least one widget to install");
+      return;
+    }
+
+    // Set loading state
+    setIsInstalling(true);
+
+    // Filter selected widgets using pure functional approach
+    const widgetFilter = createWidgetFilter(selectedWidgets);
+    const widgetsList = widgetFilter(widgets);
+
+    // Create install operation for a single widget
+    const createInstallOperation = R.curry((widget) =>
+      R.tryCatch(
         async () => {
-          setIsInstalling(true);
-
-          const widgetsList = R.filter(
-            (w) => selectedWidgets.has(w.id),
-            widgets,
-          );
-
-          const installWidget = async (widget) => {
-            try {
-              await invoke("run_package_manager_command", {
-                packageManager,
-                command: "install",
-                workingDirectory: widget.path,
-              });
-              return R.assoc("success", true, widget);
-            } catch (error) {
-              alert(
-                `Failed to install dependencies for ${widget.caption}: ${error}`,
-              );
-              return R.assoc("success", false, widget);
-            }
-          };
-
-          await R.pipe(R.map(installWidget), (promises) =>
-            Promise.all(promises),
-          )(widgetsList);
-
-          setIsInstalling(false);
+          await invoke("run_package_manager_command", {
+            packageManager,
+            command: "install",
+            workingDirectory: R.prop("path", widget),
+          });
+          return R.assoc("success", true, widget);
         },
-      ),
-    ),
-    [selectedWidgets, widgets, packageManager],
-  );
+        (error) => {
+          alert(
+            `Failed to install dependencies for ${R.prop("caption", widget)}: ${error}`,
+          );
+          return R.assoc("success", false, widget);
+        },
+      )(),
+    );
 
-  // Build and deploy handler with functional approach
+    // Execute all install operations in parallel
+    const executeInstallations = R.pipe(
+      R.map(createInstallOperation),
+      (promises) => Promise.all(promises),
+    );
+
+    await executeInstallations(widgetsList);
+
+    // Finalize with functional composition
+    setIsInstalling(false);
+  }, [selectedWidgets, widgets, packageManager]);
+
+  // Build and deploy handler - fully functional with Ramda.js
   const handleBuildDeploy = useCallback(async () => {
-    const validateSelections = R.cond([
-      [
-        () => selectedWidgets.size === 0,
-        () => "Please select at least one widget to build",
-      ],
-      [
-        () => selectedApps.size === 0,
-        () => "Please select at least one app to deploy to",
-      ],
-      [R.T, R.always(null)],
-    ]);
+    // Validation with pure functional approach
+    const validationError = validateBuildDeploySelections(
+      selectedWidgets,
+      selectedApps,
+    );
 
-    const validationError = validateSelections();
     if (validationError) {
       alert(validationError);
       return;
@@ -656,65 +757,39 @@ function App() {
 
     initializeBuildState();
 
-    const widgetsList = R.filter((w) => selectedWidgets.has(w.id), widgets);
-    const appsList = R.filter((a) => selectedApps.has(a.path), apps);
-    const appPaths = R.map(R.prop("path"), appsList);
-    const appNames = R.map(R.prop("name"), appsList);
+    // Filter selected items using functional composition
+    const widgetFilter = createWidgetFilter(selectedWidgets);
+    const appFilter = createAppFilter(selectedApps);
 
-    const buildAndDeployWidget = async (widget) => {
-      try {
-        await invoke("run_package_manager_command", {
-          packageManager,
-          command: "run build",
-          workingDirectory: widget.path,
-        });
+    const widgetsList = widgetFilter(widgets);
+    const appsList = appFilter(apps);
 
-        const deployedApps = await invoke("copy_widget_to_apps", {
-          widgetPath: widget.path,
-          appPaths: appPaths,
-        });
-
-        return {
-          success: true,
-          widget: widget.caption,
-          apps: appNames,
-        };
-      } catch (error) {
-        return {
-          success: false,
-          widget: widget.caption,
-          error: error.toString(),
-        };
-      }
-    };
-
-    const processResults = R.pipe(
-      R.map(buildAndDeployWidget),
-      (promises) => Promise.all(promises),
-      R.andThen(R.partition(R.prop("success"))),
-      R.andThen(([successful, failed]) => ({
-        successful: R.map(R.omit(["success"]), successful),
-        failed: R.map(R.omit(["success"]), failed),
-      })),
+    // Create build parameters using pure functional utilities
+    const buildParams = createBuildDeployParams(
+      widgetsList,
+      appsList,
+      packageManager,
     );
 
-    const results = await processResults(widgetsList);
+    // Execute build and deploy with functional error handling
+    const executeBuildDeploy = R.tryCatch(
+      async () => await invoke("build_and_deploy_widgets", buildParams),
+      createCatastrophicErrorResult,
+    );
 
-    // Modal should only show when there are failures - pure functional approach
-    const shouldShowModal = R.pipe(R.prop("failed"), R.complement(R.isEmpty));
-
-    // Finalize with strict functional composition
+    // Finalize results with pure functional composition
     const finalizeResults = R.pipe(
-      R.tap(() => setBuildResults(results)),
-      R.tap(() => setInlineResults(results)),
+      R.tap((results) => setBuildResults(results)),
+      R.tap((results) => setInlineResults(results)),
       R.tap(() => setIsBuilding(false)),
       R.when(
-        () => shouldShowModal(results),
+        hasBuildFailures,
         R.tap(() => setShowResultModal(true)),
       ),
-      R.always(results),
     );
 
+    // Execute the pipeline
+    const results = await executeBuildDeploy();
     finalizeResults(results);
   }, [selectedWidgets, selectedApps, widgets, apps, packageManager]);
 
@@ -731,10 +806,12 @@ function App() {
   const handleLaunchStudioPro = useCallback(
     async (version) => {
       const versionId = version.version;
-      if (
-        getVersionLoadingState(versionId, "launch", versionLoadingStates) ||
-        getVersionLoadingState(versionId, "uninstall", versionLoadingStates)
-      ) {
+      const loadingState = getVersionLoadingState(
+        versionLoadingStates,
+        versionId,
+      );
+
+      if (loadingState.isLaunching || loadingState.isUninstalling) {
         return; // Prevent multiple operations on same version
       }
 
@@ -776,6 +853,45 @@ function App() {
     ),
     [],
   );
+
+  // Widget delete click handler
+  const handleWidgetDeleteClick = useCallback((widget) => {
+    setShowWidgetDeleteModal(true);
+    setWidgetToDelete(widget);
+  }, []);
+
+  // Confirm widget deletion handler with Rust backend storage
+  const handleConfirmWidgetDelete = useCallback(() => {
+    if (widgetToDelete) {
+      setWidgets((prevWidgets) => {
+        const newWidgets = R.filter(
+          R.pipe(R.prop("id"), R.complement(R.equals(widgetToDelete.id))),
+          prevWidgets,
+        );
+        saveToStorage(STORAGE_KEYS.WIDGETS, newWidgets).catch(console.error);
+        return newWidgets;
+      });
+
+      setSelectedWidgets((prevSelected) => {
+        const newSet = new Set(prevSelected);
+        newSet.delete(widgetToDelete.id);
+        const newArray = Array.from(newSet);
+        saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS, newArray).catch(
+          console.error,
+        );
+        return newSet;
+      });
+
+      setShowWidgetDeleteModal(false);
+      setWidgetToDelete(null);
+    }
+  }, [widgetToDelete]);
+
+  // Cancel widget deletion handler
+  const handleCancelWidgetDelete = useCallback(() => {
+    setShowWidgetDeleteModal(false);
+    setWidgetToDelete(null);
+  }, []);
 
   const handleUninstallStudioPro = useCallback(
     async (version, deleteApps = false, relatedAppsList = []) => {
@@ -861,20 +977,21 @@ function App() {
     [],
   );
 
-  // Item click handler
+  // Version click handler - handles clicking on installed versions
+  const handleVersionClick = useCallback((version) => {
+    setSelectedVersion((prevSelected) => {
+      // Toggle selection: if same version clicked, deselect; otherwise select new version
+      if (prevSelected && prevSelected.version === version.version) {
+        return null;
+      }
+      return version;
+    });
+  }, []);
+
+  // Item click handler - for apps (kept for compatibility)
   const handleItemClick = useCallback((item) => {
     // Handle item click without logging
   }, []);
-
-  // Version click handler
-  const handleVersionClick = useCallback(
-    R.pipe(R.prop("version"), (version) =>
-      setSelectedVersion(
-        R.ifElse(R.equals(version), R.always(null), R.always(version)),
-      ),
-    ),
-    [],
-  );
 
   // Define prop keys for each tab component
   const studioProManagerKeys = [
@@ -935,6 +1052,7 @@ function App() {
     "setWidgets",
     "inlineResults",
     "setInlineResults",
+    "handleWidgetDeleteClick",
   ];
 
   const widgetPreviewKeys = [
@@ -955,6 +1073,7 @@ function App() {
     "setShowAddWidgetForm",
     "setNewWidgetCaption",
     "setNewWidgetPath",
+    "handleWidgetDeleteClick",
   ];
 
   // Create tab props generator using simple functional composition
@@ -1028,6 +1147,7 @@ function App() {
     setSelectedWidgetForPreview,
     inlineResults,
     setInlineResults,
+    handleWidgetDeleteClick,
   };
 
   // Tab configuration with functional approach
@@ -1122,7 +1242,7 @@ function App() {
     />
   ));
 
-  // Add widget handler
+  // Add widget handler with Rust backend storage
   const handleAddWidget = useCallback(() => {
     if (
       validateRequired(["caption", "path"], {
@@ -1130,44 +1250,50 @@ function App() {
         path: newWidgetPath,
       })
     ) {
-      R.pipe(
-        () => createWidget(newWidgetCaption, newWidgetPath),
-        (newWidget) => [...widgets, newWidget],
-        R.tap(saveToStorage(STORAGE_KEYS.WIDGETS)),
-        setWidgets,
-        R.tap(() => {
+      const newWidget = createWidget(newWidgetCaption, newWidgetPath);
+      const updatedWidgets = [...widgets, newWidget];
+
+      // Save to Rust backend
+      saveToStorage(STORAGE_KEYS.WIDGETS, updatedWidgets)
+        .then(() => {
+          setWidgets(updatedWidgets);
           setShowAddWidgetForm(false);
           setShowWidgetModal(false);
           setNewWidgetCaption("");
           setNewWidgetPath("");
-        }),
-      )();
+        })
+        .catch(console.error);
     }
   }, [newWidgetCaption, newWidgetPath, widgets]);
 
-  // Remove widget handler
+  // Remove widget handler with Rust backend storage
   const handleRemoveWidget = useCallback(
-    R.curry((widgetId) =>
-      R.pipe(
-        () => widgets,
-        R.filter(R.complement(R.propEq("id", widgetId))),
-        R.tap(saveToStorage(STORAGE_KEYS.WIDGETS)),
-        setWidgets,
-        R.tap(() =>
-          setSelectedWidgets((prev) =>
-            R.pipe(
-              () => toggleInSet(widgetId, prev),
-              R.tap(
-                R.pipe(
-                  setToArray,
-                  saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS),
-                ),
-              ),
-            )(),
-          ),
-        ),
-      )(),
-    ),
+    R.curry((widgetId) => {
+      const updatedWidgets = R.filter(
+        R.complement(R.propEq("id", widgetId)),
+        widgets,
+      );
+
+      // Save widgets to Rust backend
+      saveToStorage(STORAGE_KEYS.WIDGETS, updatedWidgets)
+        .then(() => {
+          setWidgets(updatedWidgets);
+
+          // Update selected widgets
+          setSelectedWidgets((prev) => {
+            const newSet = toggleInSet(widgetId, prev);
+            const newArray = setToArray(newSet);
+
+            // Save selected widgets to Rust backend
+            saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS, newArray).catch(
+              console.error,
+            );
+
+            return newSet;
+          });
+        })
+        .catch(console.error);
+    }),
     [widgets],
   );
 
@@ -1286,10 +1412,10 @@ function App() {
 
       <ConfirmModal
         isOpen={showUninstallModal}
-        title="Confirm Uninstall"
+        title="🍓 Say Goodbye to Studio Pro?"
         message={
           versionToUninstall
-            ? `Are you sure you want to uninstall Studio Pro ${versionToUninstall.version}?\n\nThis action cannot be undone.`
+            ? `Are you really really sure you want to uninstall Studio Pro ${versionToUninstall.version}? ✨\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay? 💝`
             : ""
         }
         onConfirm={async () => {
@@ -1329,10 +1455,10 @@ function App() {
 
       <ConfirmModal
         isOpen={showAppDeleteModal}
-        title="Confirm Delete"
+        title="🍓 Delete This App?"
         message={
           appToDelete
-            ? `Are you sure you want to delete ${appToDelete.name}?\n\nThis action cannot be undone.`
+            ? `Do you really want to delete ${appToDelete.name}? 🥺\n\nI can't undo this once it's done! Are you absolutely sure? 💕`
             : ""
         }
         onConfirm={async () => {
@@ -1348,12 +1474,12 @@ function App() {
                 if (newSet.has(appToDelete.path)) {
                   newSet.delete(appToDelete.path);
 
-                  // Save to localStorage immediately
+                  // Save to Rust backend immediately
                   const selectedAppsArray = Array.from(newSet);
-                  localStorage.setItem(
-                    "kirakiraSelectedApps",
-                    JSON.stringify(selectedAppsArray),
-                  );
+                  saveToStorage(
+                    STORAGE_KEYS.SELECTED_APPS,
+                    selectedAppsArray,
+                  ).catch(console.error);
                 }
                 return newSet;
               });
@@ -1374,6 +1500,20 @@ function App() {
           setAppToDelete(null);
         }}
         isLoading={isUninstalling}
+        relatedApps={[]}
+      />
+
+      <ConfirmModal
+        isOpen={showWidgetDeleteModal}
+        title="🍓 Remove Widget from List?"
+        message={
+          widgetToDelete
+            ? `Should I remove "${widgetToDelete.caption}" from your widget list? 🎀\n\nDon't worry! This only removes it from my list - your files will stay safe and sound! 🌟`
+            : ""
+        }
+        onConfirm={handleConfirmWidgetDelete}
+        onCancel={handleCancelWidgetDelete}
+        isLoading={false}
         relatedApps={[]}
       />
 

@@ -140,6 +140,17 @@ export const createWidget = R.curry((caption, path) => ({
   path,
 }));
 
+// Transform widget to build request format for Rust backend
+export const transformWidgetToBuildRequest = R.applySpec({
+  widget_path: R.prop("path"),
+  caption: R.prop("caption"),
+});
+
+// Transform multiple widgets to build requests
+export const transformWidgetsToBuildRequests = R.map(
+  transformWidgetToBuildRequest,
+);
+
 // Filter widgets by caption
 export const filterWidgetsByCaption = R.curry((searchTerm, widgets) =>
   filterWidgetsBySearchTerm(searchTerm, widgets),
@@ -161,6 +172,24 @@ export const getSelectedWidgets = R.curry((selectedWidgets, widgets) =>
     R.pipe(R.prop("id"), (id) => selectedWidgets.has(id)),
     widgets,
   ),
+);
+
+// Filter items by Set membership (generic)
+export const filterBySetMembership = R.curry((set, prop, items) =>
+  R.filter(
+    R.pipe(R.prop(prop), (value) => set.has(value)),
+    items,
+  ),
+);
+
+// Create filter for selected widgets (using Set)
+export const createWidgetFilter = R.curry((selectedWidgets) =>
+  filterBySetMembership(selectedWidgets, "id"),
+);
+
+// Create filter for selected apps (using Set)
+export const createAppFilter = R.curry((selectedApps) =>
+  filterBySetMembership(selectedApps, "path"),
 );
 
 // Remove widget from list
@@ -201,16 +230,69 @@ export const hasMorePages = R.curry(
     R.length(items) > currentPage * itemsPerPage,
 );
 
-// ============= Local Storage Operations =============
+// ============= Storage Operations (Rust Backend) =============
 
-// Save to localStorage
-export const saveToStorage = R.curry((key, value) => {
+import { invoke } from "@tauri-apps/api/core";
+
+// Pure function: Create storage operation result
+const createStorageResult = R.curry((success, data, error = null) => ({
+  success,
+  data,
+  error,
+}));
+
+// Pure function: Handle storage success
+const handleStorageSuccess = R.curry((data) => createStorageResult(true, data));
+
+// Pure function: Handle storage error
+const handleStorageError = R.curry((defaultValue, error) => {
+  console.error("Storage operation failed:", error);
+  return createStorageResult(false, defaultValue, error);
+});
+
+// Pure function: Extract data from storage result
+const extractStorageData = R.prop("data");
+
+// IO function: Invoke Rust backend save
+const invokeSaveToStorage = R.curry((key, data) =>
+  invoke("save_to_storage", { key, data }),
+);
+
+// IO function: Invoke Rust backend load
+const invokeLoadFromStorage = R.curry((key, defaultValue) =>
+  invoke("load_from_storage", { key, defaultValue }),
+);
+
+// Save to storage (Rust backend)
+// Returns Promise<value>
+export const saveToStorage = R.curry((key, value) =>
+  R.pipe(
+    () => invokeSaveToStorage(key, value),
+    R.andThen(handleStorageSuccess),
+    R.andThen(extractStorageData),
+    R.otherwise(R.pipe(handleStorageError(value), extractStorageData)),
+  )(),
+);
+
+// Load from storage (Rust backend)
+// Returns Promise<value>
+export const loadFromStorage = R.curry((key, defaultValue) =>
+  R.pipe(
+    () => invokeLoadFromStorage(key, defaultValue),
+    R.andThen(handleStorageSuccess),
+    R.andThen(extractStorageData),
+    R.otherwise(R.pipe(handleStorageError(defaultValue), extractStorageData)),
+  )(),
+);
+
+// Synchronous fallback for migration period (uses localStorage)
+// These will be deprecated once full migration is complete
+export const saveToStorageSync = R.curry((key, value) => {
   localStorage.setItem(key, JSON.stringify(value));
   return value;
 });
 
-// Load from localStorage
-export const loadFromStorage = R.curry((key, defaultValue) => {
+export const loadFromStorageSync = R.curry((key, defaultValue) => {
   try {
     const saved = localStorage.getItem(key);
     return saved ? JSON.parse(saved) : defaultValue;
@@ -218,6 +300,38 @@ export const loadFromStorage = R.curry((key, defaultValue) => {
     return defaultValue;
   }
 });
+
+// Batch storage operations
+export const saveManyToStorage = R.curry((keyValuePairs) =>
+  Promise.all(
+    R.map(
+      ([key, value]) => saveToStorage(key, value),
+      R.toPairs(keyValuePairs),
+    ),
+  ),
+);
+
+export const loadManyFromStorage = R.curry((keyDefaultPairs) =>
+  R.pipe(
+    R.toPairs,
+    R.map(([key, defaultValue]) =>
+      loadFromStorage(key, defaultValue).then((data) => [key, data]),
+    ),
+    (promises) => Promise.all(promises),
+    R.andThen(R.fromPairs),
+  )(keyDefaultPairs),
+);
+
+// Clear app state (Rust backend)
+export const clearAppState = () =>
+  invoke("clear_app_state")
+    .then(() => createStorageResult(true, null))
+    .catch(
+      R.pipe(
+        handleStorageError(null),
+        R.always(createStorageResult(false, null)),
+      ),
+    );
 
 // ============= Async Operations =============
 
@@ -242,6 +356,45 @@ export const createBuildResult = R.curry((isSuccess, widget, data) =>
 
 // Partition build results
 export const partitionBuildResults = R.partition(R.has("apps"));
+
+// Check if build results have any failures
+export const hasBuildFailures = R.pipe(
+  R.propOr([], "failed"),
+  R.complement(R.isEmpty),
+);
+
+// Check if build results have any successes
+export const hasBuildSuccesses = R.pipe(
+  R.propOr([], "successful"),
+  R.complement(R.isEmpty),
+);
+
+// Create error result for catastrophic failure
+export const createCatastrophicErrorResult = R.curry((error) => ({
+  successful: [],
+  failed: [
+    {
+      widget: "All widgets",
+      error: error.toString(),
+    },
+  ],
+}));
+
+// Extract app paths from app list
+export const extractAppPaths = R.map(R.prop("path"));
+
+// Extract app names from app list
+export const extractAppNames = R.map(R.prop("name"));
+
+// Create build and deploy parameters for Rust backend
+export const createBuildDeployParams = R.curry(
+  (widgets, apps, packageManager) => ({
+    widgets: transformWidgetsToBuildRequests(widgets),
+    appPaths: extractAppPaths(apps),
+    appNames: extractAppNames(apps),
+    packageManager,
+  }),
+);
 
 // ============= Property Updates =============
 
@@ -303,6 +456,33 @@ export const preventDefaultHandler = R.curry((handler, event) => {
 // Check if all required fields are filled
 export const validateRequired = R.curry((fields, obj) =>
   R.all((field) => !R.isEmpty(R.prop(field, obj)), fields),
+);
+
+// Validate widget and app selections for build/deploy
+export const validateBuildDeploySelections = R.curry(
+  (selectedWidgets, selectedApps) =>
+    R.cond([
+      [
+        () => R.equals(0, selectedWidgets.size),
+        R.always("Please select at least one widget to build"),
+      ],
+      [
+        () => R.equals(0, selectedApps.size),
+        R.always("Please select at least one app to deploy to"),
+      ],
+      [R.T, R.always(null)],
+    ])(),
+);
+
+// Check if Set is not empty
+export const isSetNotEmpty = R.pipe(R.prop("size"), R.gt(R.__, 0));
+
+// Check if Set is empty
+export const isSetEmpty = R.pipe(R.prop("size"), R.equals(0));
+
+// Validate that Set is not empty with message
+export const validateSetNotEmpty = R.curry((message, set) =>
+  isSetEmpty(set) ? message : null,
 );
 
 // ============= Widget Property Operations =============
@@ -465,13 +645,17 @@ export const createPropertyChangeHandler = R.curry(
 
 // ============= Constants =============
 
+// Storage keys mapped to Rust backend
 export const STORAGE_KEYS = {
-  SELECTED_APPS: "kirakiraSelectedApps",
-  SELECTED_WIDGETS: "kirakiraSelectedWidgets",
+  SELECTED_APPS: "selectedApps",
+  SELECTED_WIDGETS: "selectedWidgets",
   WIDGETS: "kirakiraWidgets",
-  PACKAGE_MANAGER: "kirakiraPackageManager",
-  WIDGET_PROPERTIES: "kirakiraWidgetProperties",
-  THEME: "kirakiraTheme",
+  WIDGET_ORDER: "widgetOrder",
+  PACKAGE_MANAGER: "packageManagerConfig",
+  WIDGET_PROPERTIES: "widgetProperties",
+  THEME: "theme",
+  LAST_TAB: "lastTab",
+  SELECTED_VERSION: "selectedVersion",
 };
 
 export const PACKAGE_MANAGERS = ["npm", "yarn", "pnpm", "bun"];
@@ -551,22 +735,17 @@ export const updateVersionLoadingStates = R.curry(
     )(statesMap),
 );
 
-// Get loading state for specific version
-export const getVersionLoadingState = R.curry(
-  (versionId, operation, statesMap) =>
-    R.pipe(
-      R.prop(versionId),
-      R.ifElse(
-        R.identity,
-        R.pipe(
-          R.prop("operation"),
-          R.equals(operation),
-          R.and(R.pipe(R.prop("value"), R.identity)),
-        ),
-        R.always(false),
-      ),
-    )(statesMap),
-);
+// Get loading state for specific version - returns object with isLaunching and isUninstalling
+export const getVersionLoadingState = R.curry((statesMap, versionId) => {
+  const state = statesMap[versionId];
+  if (!state) {
+    return { isLaunching: false, isUninstalling: false };
+  }
+  return {
+    isLaunching: state.operation === "launch" && state.value,
+    isUninstalling: state.operation === "uninstall" && state.value,
+  };
+});
 
 // Check if version has any loading operation
 export const hasVersionLoadingOperation = R.curry((versionId, statesMap) =>

@@ -239,6 +239,35 @@
     box-shadow: none;
 }
 
+/* ============= Browse Button ============= */
+.browse-button {
+    background: var(--theme-surface);
+    border: 1.5px solid var(--theme-border);
+    color: var(--theme-text-secondary);
+    box-shadow: 0 1px 3px var(--theme-shadow-color);
+    font-weight: 500;
+    padding: var(--space-md) var(--space-lg);
+    min-width: auto;
+    white-space: nowrap;
+}
+
+.browse-button .button-icon {
+    font-size: var(--font-size-base);
+}
+
+.browse-button:hover:not(:disabled) {
+    background: var(--theme-hover-bg);
+    border-color: var(--theme-primary-light);
+    color: var(--theme-text);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px var(--theme-shadow-color);
+}
+
+.browse-button:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px var(--theme-shadow-color);
+}
+
 /* ============= Ripple Effect ============= */
 .modal-button::after {
     content: "";

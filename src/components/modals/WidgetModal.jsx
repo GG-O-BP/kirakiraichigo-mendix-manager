@@ -1,6 +1,7 @@
 import * as R from "ramda";
 import { memo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
 
 // ============= Helper Functions =============
 
@@ -44,21 +45,41 @@ const resetFormFields = R.curry((props) =>
 const handleCancel = R.curry((props) => resetFormFields(props));
 
 // Handle add widget
-const handleAddWidget = R.curry((props) => {
+const handleAddWidget = R.curry(async (props) => {
   if (isValidWidgetForm(props)) {
     const { newWidgetCaption, newWidgetPath, setWidgets } = props;
 
-    R.pipe(
-      () => createWidgetFromForm(newWidgetCaption, newWidgetPath),
-      (newWidget) =>
-        setWidgets((prev) => {
-          const newWidgets = [...prev, newWidget];
-          localStorage.setItem("kirakiraWidgets", JSON.stringify(newWidgets));
-          return newWidgets;
-        }),
-      () => resetFormFields(props),
-      R.always(undefined),
-    )();
+    try {
+      // Validate if path contains a valid Mendix widget
+      const isValid = await invoke("validate_mendix_widget", {
+        widgetPath: newWidgetPath,
+      });
+
+      if (!isValid) {
+        alert(
+          "Invalid Mendix Widget: The selected path does not contain a valid Mendix widget.\n\n" +
+            "A valid Mendix widget must have a 'src/package.xml' file that contains 'mendix' namespace.",
+        );
+        return;
+      }
+
+      R.pipe(
+        () => createWidgetFromForm(newWidgetCaption, newWidgetPath),
+        (newWidget) =>
+          setWidgets((prev) => {
+            const newWidgets = [...prev, newWidget];
+            localStorage.setItem("kirakiraWidgets", JSON.stringify(newWidgets));
+            return newWidgets;
+          }),
+        () => resetFormFields(props),
+        R.always(undefined),
+      )();
+    } catch (error) {
+      alert(
+        `Validation Error: ${error}\n\n` +
+          "Please ensure the selected path contains a valid Mendix widget with 'src/package.xml' file.",
+      );
+    }
   }
 });
 
@@ -128,15 +149,11 @@ const renderLabeledInputWithBrowse = R.curry(
         />
         <button
           type="button"
-          className="modal-button"
+          className="modal-button browse-button"
           onClick={onBrowse}
-          style={{
-            padding: "8px 16px",
-            minWidth: "auto",
-            whiteSpace: "nowrap",
-          }}
         >
-          📁 Browse
+          <span className="button-icon">📁</span>
+          Browse
         </button>
       </div>
     </label>

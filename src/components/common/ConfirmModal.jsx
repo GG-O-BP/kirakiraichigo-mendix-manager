@@ -68,7 +68,7 @@ const renderModalContent = ({
         <h3>{title}</h3>
       </div>
       <div className="modal-body">
-        <p>{message}</p>
+        <p style={{ whiteSpace: "pre-line" }}>{message}</p>
         {renderRelatedAppsList(relatedApps)}
       </div>
       <div className="modal-footer">

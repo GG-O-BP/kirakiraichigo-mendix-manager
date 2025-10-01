@@ -203,9 +203,7 @@
     margin: 0 0 var(--space-lg) 0;
     font-size: var(--font-size-lg);
     color: var(--theme-text);
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
+    line-height: 1.2;
 }
 
 /* ============= Widget Content Area ============= */
