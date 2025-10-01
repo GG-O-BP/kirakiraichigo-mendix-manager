@@ -18,7 +18,7 @@
 - [ ] Generate Mendix Widget
 - [x] Build Mendix Widget
 - [x] Properties Set
-- [ ] Preview Mendix Widget
+- [x] Preview Mendix Widget
 - [x] Deploy Mendix Widget
 - [x] Delete Mendix Widget
 

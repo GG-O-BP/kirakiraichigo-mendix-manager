@@ -478,6 +478,26 @@ fn read_file_content(file_path: &str) -> Result<String, ParseError> {
         .map_err(|e| ParseError::FileNotFound(format!("Failed to read {}: {}", file_path, e)))
 }
 
+// Pure validation function
+fn contains_mendix_string(content: &str) -> bool {
+    content.to_lowercase().contains("mendix")
+}
+
+// Validation function for Mendix widget
+fn validate_mendix_package_xml(widget_path: &str) -> Result<bool, ParseError> {
+    let package_xml_path = Path::new(widget_path).join("src").join("package.xml");
+
+    if !package_xml_path.exists() {
+        return Err(ParseError::FileNotFound(format!(
+            "src/package.xml not found in {}",
+            widget_path
+        )));
+    }
+
+    read_file_content(&package_xml_path.to_string_lossy())
+        .map(|content| contains_mendix_string(&content))
+}
+
 // Main API function - composes pure functions with minimal IO
 pub fn parse_widget_xml(widget_path: &str) -> Result<WidgetDefinition, ParseError> {
     find_widget_xml_file(widget_path)
@@ -488,6 +508,11 @@ pub fn parse_widget_xml(widget_path: &str) -> Result<WidgetDefinition, ParseErro
 #[tauri::command]
 pub fn parse_widget_properties(widget_path: String) -> Result<WidgetDefinition, String> {
     parse_widget_xml(&widget_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn validate_mendix_widget(widget_path: String) -> Result<bool, String> {
+    validate_mendix_package_xml(&widget_path).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

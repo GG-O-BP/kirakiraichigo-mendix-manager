@@ -1,5 +1,5 @@
 import * as R from "ramda";
-import { memo } from "react";
+import { memo, useEffect } from "react";
 import Dropdown from "../common/Dropdown";
 import SearchBox from "../common/SearchBox";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
@@ -111,32 +111,12 @@ const createWidgetSelectionHandler = R.curry(
 );
 
 const createWidgetDeleteHandler = R.curry(
-  (setWidgets, setSelectedWidgets, widgetId, e) =>
+  (handleWidgetDeleteClick, widget, e) =>
     R.pipe(
       R.tap(() => e.preventDefault()),
       R.tap(() => e.stopPropagation()),
-      R.always(widgetId),
-      R.tap((id) => {
-        setWidgets((prevWidgets) => {
-          const newWidgets = R.filter(
-            R.pipe(R.prop("id"), R.complement(R.equals(id))),
-            prevWidgets,
-          );
-          localStorage.setItem("kirakiraWidgets", JSON.stringify(newWidgets));
-          return newWidgets;
-        });
-      }),
-      R.tap((id) => {
-        setSelectedWidgets((prevSelected) => {
-          const newSet = new Set(prevSelected);
-          newSet.delete(id);
-          localStorage.setItem(
-            "kirakiraSelectedWidgets",
-            JSON.stringify(Array.from(newSet)),
-          );
-          return newSet;
-        });
-      }),
+      R.always(widget),
+      handleWidgetDeleteClick,
     )(),
 );
 
@@ -249,7 +229,7 @@ const renderAppListItem = R.curry((selectedApps, handleAppClick, app) => (
 ));
 
 const renderWidgetListItem = R.curry(
-  (selectedWidgets, setSelectedWidgets, setWidgets, widget) => (
+  (selectedWidgets, setSelectedWidgets, handleWidgetDeleteClick, widget) => (
     <div
       key={R.prop("id", widget)}
       data-label={R.prop("id", widget)}
@@ -270,11 +250,8 @@ const renderWidgetListItem = R.curry(
       </div>
       <button
         className="install-button uninstall-button"
-        onClick={createWidgetDeleteHandler(
-          setWidgets,
-          setSelectedWidgets,
-          R.prop("id", widget),
-        )}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={createWidgetDeleteHandler(handleWidgetDeleteClick, widget)}
       >
         <span className="button-icon">🗑️</span>
       </button>
@@ -388,7 +365,7 @@ const renderWidgetsList = R.curry(
   (
     selectedWidgets,
     setSelectedWidgets,
-    setWidgets,
+    handleWidgetDeleteClick,
     filteredWidgets,
     reorderedWidgets,
     widgetSearchTerm,
@@ -435,7 +412,7 @@ const renderWidgetsList = R.curry(
                     renderWidgetListItem(
                       selectedWidgets,
                       setSelectedWidgets,
-                      setWidgets,
+                      handleWidgetDeleteClick,
                       widget,
                     ),
                   widgetsToShow,
@@ -448,7 +425,7 @@ const renderWidgetsList = R.curry(
                     renderWidgetListItem(
                       selectedWidgets,
                       setSelectedWidgets,
-                      setWidgets,
+                      handleWidgetDeleteClick,
                       widget,
                     ),
                   widgetsToShow,
@@ -492,6 +469,7 @@ const WidgetManager = memo(
     setWidgets,
     inlineResults,
     setInlineResults,
+    handleWidgetDeleteClick,
   }) => {
     const versionOptions = createVersionOptions(versions);
     const modalHandlers = [
@@ -501,34 +479,25 @@ const WidgetManager = memo(
       setNewWidgetPath,
     ];
 
-    // Drag and drop functionality for widgets
-    const [widgetListRef, reorderedWidgets] = useDragAndDrop(filteredWidgets, {
-      onDragEnd: (newOrder) => {
-        // Update the main widgets array with new order
-        setWidgets((prevWidgets) => {
-          // Create a map for quick lookup of non-filtered widgets
-          const filteredIds = new Set(filteredWidgets.map((w) => w.id));
-          const nonFilteredWidgets = prevWidgets.filter(
-            (w) => !filteredIds.has(w.id),
-          );
+    // Drag and drop functionality for widgets - only enabled when not searching
+    const widgetsForDragDrop = R.isEmpty(widgetSearchTerm)
+      ? filteredWidgets
+      : [];
 
-          // Combine non-filtered widgets with reordered filtered widgets
-          const updatedWidgets = [...nonFilteredWidgets, ...newOrder];
-
-          // Save to localStorage
-          try {
-            localStorage.setItem(
-              "kirakiraWidgets",
-              JSON.stringify(updatedWidgets),
-            );
-          } catch (error) {
-            // Handle error silently
+    const [widgetListRef, reorderedWidgets, setReorderedWidgets] =
+      useDragAndDrop(widgetsForDragDrop, {
+        onSort: ({ values }) => {
+          // Update the main widgets array with new order
+          if (R.isEmpty(widgetSearchTerm)) {
+            setWidgets(values);
           }
+        },
+      });
 
-          return updatedWidgets;
-        });
-      },
-    });
+    // Update reordered widgets when filteredWidgets changes
+    useEffect(() => {
+      setReorderedWidgets(filteredWidgets);
+    }, [filteredWidgets, setReorderedWidgets]);
 
     const panelConfigs = [
       {
@@ -557,7 +526,7 @@ const WidgetManager = memo(
         content: renderWidgetsList(
           selectedWidgets,
           setSelectedWidgets,
-          setWidgets,
+          handleWidgetDeleteClick,
           filteredWidgets,
           reorderedWidgets,
           widgetSearchTerm,
