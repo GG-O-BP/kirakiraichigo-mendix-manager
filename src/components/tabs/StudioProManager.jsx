@@ -266,12 +266,10 @@ const renderDownloadableVersionItem = R.curry(
           <span className="version-icon">📦</span>
           <div className="version-details">
             <span className="version-number">{version.version}</span>
-            <div className="version-badges-row">
-              {renderVersionBadges(version)}
-            </div>
             <span className="version-date">{version.release_date}</span>
           </div>
         </div>
+        <div className="version-badges-row">{renderVersionBadges(version)}</div>
         {loadingState.isDownloading ? (
           <div className="download-progress">
             <div className="progress-bar">
@@ -290,7 +288,7 @@ const renderDownloadableVersionItem = R.curry(
             onClick={createDownloadHandler(handleDownload, version)}
             disabled={isInstalled}
           >
-            <span className="button-icon">💫</span>
+            {!isInstalled && <span className="button-icon">💫</span>}
             {isInstalled ? "Installed" : "Install"}
           </button>
         )}
@@ -587,7 +585,7 @@ const StudioProManager = memo(
       () => [
         {
           key: "downloadable-versions",
-          className: "list-container",
+          className: "list-container downloadable-list",
           searchControls: renderSearchControls({
             placeholder: "Search downloadable versions...",
             searchTerm,
