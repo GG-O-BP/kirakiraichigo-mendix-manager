@@ -1443,11 +1443,7 @@ function App() {
         onCancel={handleModalCancel}
         isLoading={
           versionToUninstall
-            ? getVersionLoadingState(
-                versionToUninstall.version,
-                "uninstall",
-                versionLoadingStates,
-              )
+            ? getVersionLoadingState(versionLoadingStates, versionToUninstall.version).isUninstalling
             : false
         }
         relatedApps={relatedApps}

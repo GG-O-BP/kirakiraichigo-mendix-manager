@@ -239,6 +239,36 @@
     box-shadow: none;
 }
 
+/* ============= Confirm With Apps Button (Destructive Action) ============= */
+.confirm-with-apps-button {
+    background: var(--theme-error);
+    border: 1.5px solid var(--theme-error);
+    color: #ffffff;
+    box-shadow: 0 4px 6px var(--theme-error-bg);
+}
+
+.confirm-with-apps-button:hover:not(:disabled) {
+    background: var(--theme-error);
+    border-color: var(--theme-error);
+    filter: brightness(0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 8px var(--theme-error-bg);
+}
+
+.confirm-with-apps-button:active:not(:disabled) {
+    transform: translateY(0);
+    filter: brightness(0.85);
+    box-shadow: 0 2px 4px var(--theme-error-bg);
+}
+
+.confirm-with-apps-button:disabled {
+    background: var(--theme-surface-tertiary);
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+    box-shadow: none;
+    filter: none;
+}
+
 /* ============= Browse Button ============= */
 .browse-button {
     background: var(--theme-surface);

@@ -132,6 +132,24 @@ fn construct_download_url(version: &str, build_number: &str) -> String {
     )
 }
 
+// For v11+, build number is not needed in URL
+fn construct_download_url_v11(version: &str) -> String {
+    format!(
+        "https://artifacts.rnd.mendix.com/modelers/Mendix-{}-Setup.exe",
+        version
+    )
+}
+
+// Check if version is 11 or above
+fn is_version_11_or_above(version: &str) -> bool {
+    version
+        .split('.')
+        .next()
+        .and_then(|major| major.parse::<u32>().ok())
+        .map(|major| major >= 11)
+        .unwrap_or(false)
+}
+
 fn construct_marketplace_url(version: &str) -> String {
     format!("https://marketplace.mendix.com/link/studiopro/{}", version)
 }
@@ -263,7 +281,13 @@ fn apply_version_processing_pipeline(
 
 // IO wrapper functions - only these perform side effects
 async fn create_browser_instance() -> Result<(Browser, chromiumoxide::handler::Handler), String> {
+    // Create a temporary directory for Chrome user data to avoid conflicts
+    let temp_dir = std::env::temp_dir().join(format!("kiraichi-chrome-{}", std::process::id()));
+    let user_data_dir = temp_dir.to_string_lossy().to_string();
+
     let config = BrowserConfig::builder()
+        .chrome_executable("C:/Program Files/Google/Chrome/Application/chrome.exe")
+        .user_data_dir(&user_data_dir)
         .args(vec![
             "--no-sandbox",
             "--disable-dev-shm-usage",
@@ -275,8 +299,8 @@ async fn create_browser_instance() -> Result<(Browser, chromiumoxide::handler::H
             "--no-first-run",
             "--no-default-browser-check",
             "--disable-features=VizDisplayCompositor",
+            "--headless=new",
         ])
-        .incognito()
         .build()?;
 
     Browser::launch(config)
@@ -531,32 +555,41 @@ async fn extract_datagrid_content(page: &Page, config: &ScrapingConfig) -> Resul
 }
 
 async fn click_next_page_button(page: &Page) -> Result<(), String> {
-    let selector = "button[aria-label='Go to next page']";
+    // Try multiple selectors for the next page button
+    let selectors = [
+        "button[aria-label='Go to next page']",
+        ".pagination-button[aria-label='Go to next page']",
+        "button.pagination-button:nth-child(3)", // Next button is typically 3rd in pagination
+    ];
 
-    if let Ok(elements) = page.find_elements(selector).await {
-        if let Some(button) = elements.into_iter().next() {
-            // Check if button is enabled
-            if let Ok(disabled) = button.attribute("disabled").await {
-                if disabled.is_some() {
-                    return Err("Next page button is disabled".to_string());
+    for selector in &selectors {
+        // Wait for the pagination element to be present (up to 10 seconds)
+        match wait_for_element_with_timeout(page, selector, 10).await {
+            Ok(elements) => {
+                if let Some(button) = elements.into_iter().next() {
+                    // Check if button is enabled
+                    if let Ok(disabled) = button.attribute("disabled").await {
+                        if disabled.is_some() {
+                            return Err("Next page button is disabled".to_string());
+                        }
+                    }
+
+                    button
+                        .click()
+                        .await
+                        .map_err(|e| format!("Failed to click next page button: {}", e))?;
+
+                    // Wait for page to load
+                    tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+
+                    return Ok(());
                 }
             }
-
-            button
-                .click()
-                .await
-                .map_err(|e| format!("Failed to click next page button: {}", e))?;
-
-            // Wait for page to load
-            tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
-
-            Ok(())
-        } else {
-            Err("Next page button not found".to_string())
+            Err(_) => continue, // Try next selector
         }
-    } else {
-        Err("Failed to find next page button".to_string())
     }
+
+    Err("Next page button not found with any selector".to_string())
 }
 
 async fn navigate_to_page(page: &Page, target_page: u32) -> Result<(), String> {
@@ -878,16 +911,25 @@ pub async fn extract_build_number(version: String) -> Result<BuildInfo, String> 
 
 #[tauri::command]
 pub async fn download_and_install_mendix_version(version: String) -> Result<String, String> {
-    // Step 1: Extract build number
-    println!("📋 Step 1: Extracting build number...");
-    let build_info = extract_build_number(version.clone()).await?;
-
-    // Step 2: Construct download path
-    println!("📁 Step 2: Setting up download path...");
     let downloads_dir =
         dirs::download_dir().ok_or_else(|| "Failed to get downloads directory".to_string())?;
 
-    let installer_filename = format!("Mendix-{}.{}-Setup.exe", version, build_info.build_number);
+    let (download_url, installer_filename) = if is_version_11_or_above(&version) {
+        // v11+: No build number needed
+        println!("📋 Version 11+ detected, skipping build number extraction...");
+        let url = construct_download_url_v11(&version);
+        let filename = format!("Mendix-{}-Setup.exe", version);
+        (url, filename)
+    } else {
+        // v10 and below: Extract build number
+        println!("📋 Step 1: Extracting build number...");
+        let build_info = extract_build_number(version.clone()).await?;
+        let filename = format!("Mendix-{}.{}-Setup.exe", version, build_info.build_number);
+        (build_info.download_url, filename)
+    };
+
+    // Step 2: Construct download path
+    println!("📁 Step 2: Setting up download path...");
     let installer_path = downloads_dir.join(&installer_filename);
     let installer_path_str = installer_path
         .to_str()
@@ -895,7 +937,7 @@ pub async fn download_and_install_mendix_version(version: String) -> Result<Stri
 
     // Step 3: Download the installer
     println!("⬇️ Step 3: Downloading installer...");
-    download_file_to_path(&build_info.download_url, installer_path_str).await?;
+    download_file_to_path(&download_url, installer_path_str).await?;
 
     // Step 4: Execute the installer
     println!("🚀 Step 4: Launching installer...");
@@ -910,6 +952,10 @@ pub async fn download_and_install_mendix_version(version: String) -> Result<Stri
 
 #[tauri::command]
 pub async fn get_download_url_for_version(version: String) -> Result<String, String> {
-    let build_info = extract_build_number(version).await?;
-    Ok(build_info.download_url)
+    if is_version_11_or_above(&version) {
+        Ok(construct_download_url_v11(&version))
+    } else {
+        let build_info = extract_build_number(version).await?;
+        Ok(build_info.download_url)
+    }
 }

@@ -97,10 +97,72 @@
     font-size: 20px;
 }
 
+/* ============= Load More / End Indicator ============= */
+.end-indicator,
+.loading-indicator {
+    padding: 14px 18px;
+    margin-bottom: 8px;
+    border-radius: 14px;
+    background: var(--theme-surface);
+    border: 1px dashed var(--theme-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+    color: var(--theme-text-secondary);
+}
+
+.end-indicator {
+    cursor: pointer;
+}
+
+.end-indicator:hover {
+    background: var(--theme-hover-bg);
+    border-color: var(--theme-primary);
+    border-style: solid;
+    color: var(--theme-primary);
+    transform: translateX(4px);
+    box-shadow: 0 6px 16px var(--theme-primary-shadow);
+}
+
+.end-indicator p,
+.loading-indicator p {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.end-indicator .sparkle,
+.loading-indicator .loading-icon {
+    font-size: 18px;
+}
+
+.loading-indicator {
+    cursor: default;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
 .version-number {
     font-size: 15px;
     font-weight: 600;
     color: var(--theme-primary);
+}
+
+.version-badges-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.version-badges-row .version-badge {
+    margin-left: 0;
 }
 
 .version-date {

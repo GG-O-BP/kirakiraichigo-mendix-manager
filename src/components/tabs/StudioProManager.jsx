@@ -208,7 +208,11 @@ const renderEmptyState = R.curry((message) => (
 ));
 
 const renderVersionBadge = R.curry((badge, badgeClass) =>
-  badge ? <span className={`version-badge ${badgeClass}`}>{badge}</span> : null,
+  badge ? (
+    <span key={badgeClass} className={`version-badge ${badgeClass}`}>
+      {badge}
+    </span>
+  ) : null,
 );
 
 const renderVersionBadges = (version) =>
@@ -222,8 +226,12 @@ const renderVersionBadges = (version) =>
         R.propOr(false, "is_mts"),
         R.ifElse(R.identity, R.always("MTS"), R.always(null)),
       ),
+      R.pipe(
+        R.propOr(false, "is_latest"),
+        R.ifElse(R.identity, R.always("LATEST"), R.always(null)),
+      ),
     ]),
-    R.zipWith(renderVersionBadge, R.__, ["lts", "mts"]),
+    R.zipWith(renderVersionBadge, R.__, ["lts", "mts", "latest"]),
     R.filter(R.identity),
   )(version);
 
@@ -257,11 +265,10 @@ const renderDownloadableVersionItem = R.curry(
         <div className="version-info">
           <span className="version-icon">📦</span>
           <div className="version-details">
-            <span className="version-number">
-              {version.version}
+            <span className="version-number">{version.version}</span>
+            <div className="version-badges-row">
               {renderVersionBadges(version)}
-              {isInstalled && <span className="version-badge">Installed</span>}
-            </span>
+            </div>
             <span className="version-date">{version.release_date}</span>
           </div>
         </div>
@@ -292,7 +299,7 @@ const renderDownloadableVersionItem = R.curry(
   },
 );
 
-const renderLoadMoreItem = R.curry((fetchFunction, isLoading) => {
+const renderLoadMoreItem = R.curry((fetchFunction, isLoading, totalCount) => {
   if (isLoading) {
     return (
       <div key="loading-more" className="loading-indicator">
@@ -302,6 +309,11 @@ const renderLoadMoreItem = R.curry((fetchFunction, isLoading) => {
     );
   }
 
+  // 초기 로드 전이거나 데이터가 없으면 아무것도 표시하지 않음
+  if (!fetchFunction && totalCount === 0) {
+    return null;
+  }
+
   if (!fetchFunction) {
     return (
       <div
@@ -309,7 +321,6 @@ const renderLoadMoreItem = R.curry((fetchFunction, isLoading) => {
         className="end-indicator"
         style={{ cursor: "default" }}
       >
-        <span className="sparkle">✨</span>
         <p>All versions loaded</p>
       </div>
     );
@@ -317,7 +328,6 @@ const renderLoadMoreItem = R.curry((fetchFunction, isLoading) => {
 
   return (
     <div key="load-more" className="end-indicator" onClick={fetchFunction}>
-      <span className="sparkle">✨</span>
       <p>Click to load more versions</p>
     </div>
   );
@@ -390,7 +400,7 @@ const renderDownloadableVersionsList = R.curry(
             ),
             filteredVersions,
           ),
-          renderLoadMoreItem(loadMoreHandler, isLoading),
+          renderLoadMoreItem(loadMoreHandler, isLoading, R.length(downloadableVersions)),
         ]),
       ],
       [R.T, R.always(renderEmptyState("No downloadable versions found"))],
