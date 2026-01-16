@@ -1,35 +1,20 @@
 import * as R from "ramda";
-import { memo, useEffect } from "react";
+import { memo, useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import Dropdown from "../common/Dropdown";
 import SearchBox from "../common/SearchBox";
+import { renderLoadingIndicator } from "../common/LoadingIndicator";
+import { renderPanel } from "../common/Panel";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
+import { PACKAGE_MANAGERS } from "../../utils/functional";
 
-// ============= Constants =============
+// Version options creation (Rust backend)
+export const createVersionOptions = async (versions) =>
+  invoke("create_version_options", { versions });
 
-const PACKAGE_MANAGERS = ["npm", "yarn", "pnpm", "bun"];
-
-// ============= Data Processing Functions =============
-
-const createVersionOptions = R.pipe(
-  R.map(
-    R.pipe(R.prop("version"), (version) => ({
-      value: version,
-      label: `📦 ${version}`,
-    })),
-  ),
-  R.prepend({ value: "all", label: "📦 All Versions" }),
-);
-
-const formatDate = R.pipe(
-  R.prop("last_modified"),
-  R.ifElse(
-    R.identity,
-    (date) => new Date(date).toLocaleDateString(),
-    R.always("Date unknown"),
-  ),
-);
-
-// ============= Selection State Functions =============
+// Date formatting (Rust backend)
+export const formatDate = async (dateStr) =>
+  invoke("format_date", { dateStr });
 
 const isAppSelected = R.curry((selectedApps, app) =>
   selectedApps.has(R.prop("path", app)),
@@ -55,8 +40,6 @@ const getWidgetClassName = R.curry((selectedWidgets, widget) =>
   ]),
 );
 
-// ============= Button State Functions =============
-
 const isInstallButtonDisabled = R.curry((isInstalling, selectedWidgets) =>
   R.or(isInstalling, R.equals(0, selectedWidgets.size)),
 );
@@ -68,8 +51,6 @@ const isBuildDeployButtonDisabled = R.curry(
       R.equals(0, selectedApps.size),
     ),
 );
-
-// ============= Event Handlers =============
 
 const createAppClickHandler = R.curry((handleAppClick, app, e) =>
   R.pipe(
@@ -100,9 +81,7 @@ const createWidgetSelectionHandler = R.curry(
               "kirakiraSelectedWidgets",
               JSON.stringify(Array.from(newSet)),
             );
-          } catch (error) {
-            // Handle error silently
-          }
+          } catch (error) {}
 
           return newSet;
         });
@@ -120,23 +99,12 @@ const createWidgetDeleteHandler = R.curry(
     )(),
 );
 
-const createAddWidgetHandler = R.curry(
-  (
-    setShowWidgetModal,
-    setShowAddWidgetForm,
-    setNewWidgetCaption,
-    setNewWidgetPath,
-  ) =>
-    () =>
-      R.pipe(
-        R.tap(() => setShowWidgetModal(true)),
-        R.tap(() => setShowAddWidgetForm(false)),
-        R.tap(() => setNewWidgetCaption("")),
-        R.tap(() => setNewWidgetPath("")),
-      )(),
-);
-
-// ============= Search Controls =============
+const createAddWidgetClickHandler = (modalHandlers) => () => {
+  modalHandlers.setShowWidgetModal(true);
+  modalHandlers.setShowAddWidgetForm(false);
+  modalHandlers.setNewWidgetCaption("");
+  modalHandlers.setNewWidgetPath("");
+};
 
 const renderSearchControls = R.curry((config) => (
   <div className="search-controls">
@@ -154,22 +122,6 @@ const renderSearchControls = R.curry((config) => (
         onChange={config.setSearchTerm}
       />
     </div>
-  </div>
-));
-
-const renderPanel = R.curry((config) => (
-  <div key={config.key} className={config.className}>
-    {config.searchControls}
-    <div className="list-area">{config.content}</div>
-  </div>
-));
-
-// ============= Render Functions =============
-
-const renderEmptyState = R.curry((icon, message) => (
-  <div className="loading-indicator">
-    <span className="loading-icon">{icon}</span>
-    <span>{message}</span>
   </div>
 ));
 
@@ -205,29 +157,39 @@ const renderPackageManagerOption = R.curry(
   ),
 );
 
-// ============= List Item Renderers =============
+// App list item component with async date formatting
+const AppListItem = memo(({ app, selectedApps, handleAppClick }) => {
+  const [formattedDate, setFormattedDate] = useState("Loading...");
 
-const renderAppListItem = R.curry((selectedApps, handleAppClick, app) => (
-  <div
-    key={R.prop("path", app)}
-    className={getAppClassName(selectedApps, app)}
-    onClick={createAppClickHandler(handleAppClick, app)}
-  >
-    <div className="version-info">
-      <span className="version-icon">{renderAppIcon(selectedApps, app)}</span>
-      <div className="version-details">
-        <span className="version-number">
-          {R.prop("name", app)}
-          {renderVersionBadge(app)}
-        </span>
-        <span className="version-date">{formatDate(app)}</span>
+  useEffect(() => {
+    formatDate(app.last_modified)
+      .then(setFormattedDate)
+      .catch(() => setFormattedDate("Date unknown"));
+  }, [app.last_modified]);
+
+  return (
+    <div
+      className={getAppClassName(selectedApps, app)}
+      onClick={createAppClickHandler(handleAppClick, app)}
+    >
+      <div className="version-info">
+        <span className="version-icon">{renderAppIcon(selectedApps, app)}</span>
+        <div className="version-details">
+          <span className="version-number">
+            {R.prop("name", app)}
+            {renderVersionBadge(app)}
+          </span>
+          <span className="version-date">{formattedDate}</span>
+        </div>
+      </div>
+      <div className="app-actions">
+        <span className="item-sparkle">✨</span>
       </div>
     </div>
-    <div className="app-actions">
-      <span className="item-sparkle">✨</span>
-    </div>
-  </div>
-));
+  );
+});
+
+AppListItem.displayName = "AppListItem";
 
 const renderWidgetListItem = R.curry(
   (selectedWidgets, setSelectedWidgets, handleWidgetDeleteClick, widget) => (
@@ -260,34 +222,20 @@ const renderWidgetListItem = R.curry(
   ),
 );
 
-const renderAddWidgetItem = R.curry(
-  (
-    setShowWidgetModal,
-    setShowAddWidgetForm,
-    setNewWidgetCaption,
-    setNewWidgetPath,
-  ) => (
-    <div
-      className="version-list-item add-widget-item"
-      onClick={createAddWidgetHandler(
-        setShowWidgetModal,
-        setShowAddWidgetForm,
-        setNewWidgetCaption,
-        setNewWidgetPath,
-      )}
-    >
-      <div className="version-info">
-        <span className="version-icon">➕</span>
-        <div className="version-details">
-          <span className="version-number">Add New Widget</span>
-          <span className="version-date">Click to add a widget</span>
-        </div>
+const renderAddWidgetItem = (modalHandlers) => (
+  <div
+    className="version-list-item add-widget-item"
+    onClick={createAddWidgetClickHandler(modalHandlers)}
+  >
+    <div className="version-info">
+      <span className="version-icon">➕</span>
+      <div className="version-details">
+        <span className="version-number">Add New Widget</span>
+        <span className="version-date">Click to add a widget</span>
       </div>
     </div>
-  ),
+  </div>
 );
-
-// ============= Results Renderers =============
 
 const renderSuccessfulWidget = R.curry((result, index) => (
   <div key={index} className="inline-result-item success">
@@ -352,13 +300,21 @@ const renderInlineResults = R.ifElse(
   R.always(null),
 );
 
-// ============= List Renderers =============
-
 const renderAppsList = R.curry((selectedApps, handleAppClick, apps) =>
   R.ifElse(
     R.isEmpty,
-    () => renderEmptyState("🍓", "No Mendix apps found"),
-    (apps) => R.map(renderAppListItem(selectedApps, handleAppClick), apps),
+    () => renderLoadingIndicator("🍓", "No Mendix apps found"),
+    (apps) => R.map(
+      (app) => (
+        <AppListItem
+          key={R.prop("path", app)}
+          app={app}
+          selectedApps={selectedApps}
+          handleAppClick={handleAppClick}
+        />
+      ),
+      apps
+    ),
   )(apps),
 );
 
@@ -373,7 +329,6 @@ const renderWidgetsList = R.curry(
     modalHandlers,
     widgetListRef,
   ) => {
-    // Use filtered widgets when searching, reordered widgets when not searching
     const widgetsToShow = R.isEmpty(widgetSearchTerm)
       ? reorderedWidgets
       : filteredWidgets;
@@ -384,8 +339,8 @@ const renderWidgetsList = R.curry(
         () => R.isEmpty(widgetsToShow) && R.isEmpty(widgetSearchTerm),
         () => (
           <div>
-            {renderAddWidgetItem(...modalHandlers)}
-            {renderEmptyState("🧩", "No widgets registered")}
+            {renderAddWidgetItem(modalHandlers)}
+            {renderLoadingIndicator("🧩", "No widgets registered")}
           </div>
         ),
       ],
@@ -393,8 +348,8 @@ const renderWidgetsList = R.curry(
         () => R.isEmpty(widgetsToShow) && !R.isEmpty(widgetSearchTerm),
         () => (
           <div>
-            {renderAddWidgetItem(...modalHandlers)}
-            {renderEmptyState(
+            {renderAddWidgetItem(modalHandlers)}
+            {renderLoadingIndicator(
               "🔍",
               `No widgets found matching "${widgetSearchTerm}"`,
             )}
@@ -405,7 +360,7 @@ const renderWidgetsList = R.curry(
         R.T,
         () => (
           <div>
-            {renderAddWidgetItem(...modalHandlers)}
+            {renderAddWidgetItem(modalHandlers)}
             {shouldEnableDragDrop ? (
               <div ref={widgetListRef} className="draggable-widget-list">
                 {R.map(
@@ -440,8 +395,6 @@ const renderWidgetsList = R.curry(
   },
 );
 
-// ============= Main Component =============
-
 const WidgetManager = memo(
   ({
     versionFilter,
@@ -472,15 +425,29 @@ const WidgetManager = memo(
     setInlineResults,
     handleWidgetDeleteClick,
   }) => {
-    const versionOptions = createVersionOptions(versions);
-    const modalHandlers = [
+    const [versionOptions, setVersionOptions] = useState([
+      { value: "all", label: "📦 All Versions" }
+    ]);
+
+    // Fetch version options from Rust backend
+    useEffect(() => {
+      if (versions && versions.length > 0) {
+        createVersionOptions(versions)
+          .then(setVersionOptions)
+          .catch(() => {
+            // Fallback to default options
+            setVersionOptions([{ value: "all", label: "📦 All Versions" }]);
+          });
+      }
+    }, [versions]);
+
+    const modalHandlers = {
       setShowWidgetModal,
       setShowAddWidgetForm,
       setNewWidgetCaption,
       setNewWidgetPath,
-    ];
+    };
 
-    // Drag and drop functionality for widgets - only enabled when not searching
     const widgetsForDragDrop = R.isEmpty(widgetSearchTerm)
       ? filteredWidgets
       : [];
@@ -488,14 +455,12 @@ const WidgetManager = memo(
     const [widgetListRef, reorderedWidgets, setReorderedWidgets] =
       useDragAndDrop(widgetsForDragDrop, {
         onSort: ({ values }) => {
-          // Update the main widgets array with new order
           if (R.isEmpty(widgetSearchTerm)) {
             setWidgets(values);
           }
         },
       });
 
-    // Update reordered widgets when filteredWidgets changes
     useEffect(() => {
       setReorderedWidgets(filteredWidgets);
     }, [filteredWidgets, setReorderedWidgets]);
@@ -541,7 +506,6 @@ const WidgetManager = memo(
       <div className="base-manager widget-manager">
         {R.map(renderPanel, panelConfigs)}
 
-        {/* Package Manager Controls */}
         <div className="package-manager-section">
           <div className="package-manager-group">
             <label className="package-manager-label">Package Manager:</label>
@@ -585,7 +549,6 @@ const WidgetManager = memo(
               : `Build + Deploy (${selectedWidgets.size} widgets → ${selectedApps.size} apps)`}
           </button>
 
-          {/* Inline Results Section */}
           {renderInlineResults({ inlineResults, setInlineResults })}
         </div>
       </div>

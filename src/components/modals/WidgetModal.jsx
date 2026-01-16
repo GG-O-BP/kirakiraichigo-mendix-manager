@@ -3,35 +3,37 @@ import { memo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 
-// ============= Helper Functions =============
+const DISABLED_BUTTON_STYLE = {
+  opacity: 0.5,
+  cursor: "not-allowed",
+  background: "linear-gradient(135deg, rgba(169, 169, 169, 0.3) 0%, rgba(169, 169, 169, 0.5) 100%)",
+};
 
-// Check if should show add widget form
-const shouldShowAddForm = R.both(
+const BROWSE_INPUT_CONTAINER_STYLE = { display: "flex", gap: "8px" };
+const BROWSE_INPUT_STYLE = { flex: 1 };
+
+const isAddWidgetFormVisible = R.both(
   R.prop("showWidgetModal"),
   R.prop("showAddWidgetForm"),
 );
 
-// Check if should show widget modal
-const shouldShowModal = R.both(
+const isWidgetActionModalVisible = R.both(
   R.prop("showWidgetModal"),
   R.complement(R.prop("showAddWidgetForm")),
 );
 
-// Create widget from form data
-const createWidgetFromForm = R.curry((caption, path) => ({
+const createWidgetFromFormData = R.curry((caption, path) => ({
   id: Date.now().toString(),
   caption,
   path,
 }));
 
-// Validate widget form
-const isValidWidgetForm = R.both(
+const hasValidCaptionAndPath = R.both(
   R.pipe(R.prop("newWidgetCaption"), R.complement(R.isEmpty)),
   R.pipe(R.prop("newWidgetPath"), R.complement(R.isEmpty)),
 );
 
-// Reset form fields with strict functional programming
-const resetFormFields = R.curry((props) =>
+const closeFormAndResetFields = R.curry((props) =>
   R.pipe(
     R.tap(() => props.setShowAddWidgetForm(false)),
     R.tap(() => props.setShowWidgetModal(false)),
@@ -41,16 +43,13 @@ const resetFormFields = R.curry((props) =>
   )(),
 );
 
-// Handle cancel action
-const handleCancel = R.curry((props) => resetFormFields(props));
+const handleCancelClick = R.curry((props) => closeFormAndResetFields(props));
 
-// Handle add widget
-const handleAddWidget = R.curry(async (props) => {
-  if (isValidWidgetForm(props)) {
+const handleAddWidgetSubmit = R.curry(async (props) => {
+  if (hasValidCaptionAndPath(props)) {
     const { newWidgetCaption, newWidgetPath, setWidgets } = props;
 
     try {
-      // Validate if path contains a valid Mendix widget
       const isValid = await invoke("validate_mendix_widget", {
         widgetPath: newWidgetPath,
       });
@@ -64,14 +63,14 @@ const handleAddWidget = R.curry(async (props) => {
       }
 
       R.pipe(
-        () => createWidgetFromForm(newWidgetCaption, newWidgetPath),
+        () => createWidgetFromFormData(newWidgetCaption, newWidgetPath),
         (newWidget) =>
           setWidgets((prev) => {
             const newWidgets = [...prev, newWidget];
             localStorage.setItem("kirakiraWidgets", JSON.stringify(newWidgets));
             return newWidgets;
           }),
-        () => resetFormFields(props),
+        () => closeFormAndResetFields(props),
         R.always(undefined),
       )();
     } catch (error) {
@@ -83,8 +82,7 @@ const handleAddWidget = R.curry(async (props) => {
   }
 });
 
-// Handle folder selection
-const handleBrowseFolder = R.curry(async (props) => {
+const handleFolderBrowse = R.curry(async (props) => {
   const { newWidgetCaption, setNewWidgetPath, setNewWidgetCaption } = props;
 
   try {
@@ -98,7 +96,6 @@ const handleBrowseFolder = R.curry(async (props) => {
       const folderPath = selected;
       setNewWidgetPath(folderPath);
 
-      // Auto-fill caption only if it's empty
       if (R.isEmpty(newWidgetCaption.trim())) {
         const folderName =
           folderPath.split(/[\\/]/).filter(Boolean).pop() || "";
@@ -110,10 +107,7 @@ const handleBrowseFolder = R.curry(async (props) => {
   }
 });
 
-// ============= Render Functions =============
-
-// Render input field
-const renderInput = R.curry((type, value, onChange, placeholder) => (
+const renderTextInput = R.curry((type, value, onChange, placeholder) => (
   <input
     type={type}
     className="property-input"
@@ -123,29 +117,27 @@ const renderInput = R.curry((type, value, onChange, placeholder) => (
   />
 ));
 
-// Render label with input
 const renderLabeledInput = R.curry(
   (label, type, value, onChange, placeholder) => (
     <label className="property-label">
       <span className="label-text">{label}</span>
-      {renderInput(type, value, onChange, placeholder)}
+      {renderTextInput(type, value, onChange, placeholder)}
     </label>
   ),
 );
 
-// Render label with input and browse button
-const renderLabeledInputWithBrowse = R.curry(
+const renderLabeledInputWithBrowseButton = R.curry(
   (label, type, value, onChange, placeholder, onBrowse) => (
     <label className="property-label">
       <span className="label-text">{label}</span>
-      <div style={{ display: "flex", gap: "8px" }}>
+      <div style={BROWSE_INPUT_CONTAINER_STYLE}>
         <input
           type={type}
           className="property-input"
           value={value}
           onChange={R.pipe(R.path(["target", "value"]), onChange)}
           placeholder={placeholder}
-          style={{ flex: 1 }}
+          style={BROWSE_INPUT_STYLE}
         />
         <button
           type="button"
@@ -160,8 +152,7 @@ const renderLabeledInputWithBrowse = R.curry(
   ),
 );
 
-// Render add widget form modal
-const renderAddWidgetForm = (props) => {
+const renderAddWidgetFormModal = (props) => {
   const {
     newWidgetCaption,
     setNewWidgetCaption,
@@ -183,20 +174,20 @@ const renderAddWidgetForm = (props) => {
             setNewWidgetCaption,
             "Enter widget caption",
           )}
-          {renderLabeledInputWithBrowse(
+          {renderLabeledInputWithBrowseButton(
             "Absolute Path",
             "text",
             newWidgetPath,
             setNewWidgetPath,
             "C:\\path\\to\\widget\\folder",
-            () => handleBrowseFolder(props),
+            () => handleFolderBrowse(props),
           )}
         </div>
         <div className="modal-footer">
           <button
             className="modal-button cancel-button"
             onClick={R.pipe(
-              R.tap(() => handleCancel(props)),
+              R.tap(() => handleCancelClick(props)),
               R.always(undefined),
             )}
           >
@@ -205,10 +196,10 @@ const renderAddWidgetForm = (props) => {
           <button
             className="modal-button confirm-button"
             onClick={R.pipe(
-              R.tap(() => handleAddWidget(props)),
+              R.tap(() => handleAddWidgetSubmit(props)),
               R.always(undefined),
             )}
-            disabled={!isValidWidgetForm(props)}
+            disabled={!hasValidCaptionAndPath(props)}
           >
             Add Widget
           </button>
@@ -218,8 +209,7 @@ const renderAddWidgetForm = (props) => {
   );
 };
 
-// Render widget action modal
-const renderWidgetActionModal = (props) => {
+const renderWidgetActionSelectionModal = (props) => {
   const { setShowWidgetModal, setShowAddWidgetForm } = props;
 
   return (
@@ -244,12 +234,7 @@ const renderWidgetActionModal = (props) => {
           <button
             className="modal-button"
             disabled
-            style={{
-              opacity: 0.5,
-              cursor: "not-allowed",
-              background:
-                "linear-gradient(135deg, rgba(169, 169, 169, 0.3) 0%, rgba(169, 169, 169, 0.5) 100%)",
-            }}
+            style={DISABLED_BUTTON_STYLE}
           >
             Create Widget
             <br />
@@ -270,12 +255,10 @@ const renderWidgetActionModal = (props) => {
   );
 };
 
-// ============= Main Component =============
-
 const WidgetModal = memo((props) =>
   R.cond([
-    [shouldShowAddForm, renderAddWidgetForm],
-    [shouldShowModal, renderWidgetActionModal],
+    [isAddWidgetFormVisible, renderAddWidgetFormModal],
+    [isWidgetActionModalVisible, renderWidgetActionSelectionModal],
     [R.T, R.always(null)],
   ])(props),
 );

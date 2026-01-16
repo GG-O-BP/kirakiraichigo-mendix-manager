@@ -1,62 +1,59 @@
 import * as R from "ramda";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import ListItem from "./ListItem";
 
-// ============= Pure Data Transformations =============
+const UNINSTALL_BUTTON_STYLE = {
+  background: "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",
+  borderColor: "rgba(220, 20, 60, 0.4)",
+};
 
-// Create a list item with given index
-export const createListItem = R.curry((index) => ({
-  id: `item-${index}`,
-  label: `Item ${index + 1}`,
-  icon: "🍓",
-}));
+const BUTTON_GROUP_STYLE = { display: "flex", gap: "8px" };
 
-// Generate list data with given count
-export const generateListData = R.pipe(R.range(0), R.map(createListItem));
+// Search text extraction (Rust backend)
+export const extractSearchableText = async (label, version, name) =>
+  invoke("extract_searchable_text", { label, version, name });
 
-// Convert to lowercase for comparison
-const toLower = R.toLower;
+// Search filter using Rust backend
+export const textMatchesSearch = async (searchableText, searchTerm) =>
+  invoke("text_matches_search", { searchableText, searchTerm });
 
-// Get searchable text from item
-const getSearchableText = R.pipe(
-  R.props(["label", "version", "name"]),
-  R.filter(R.identity),
-  R.join(" "),
-  toLower,
-);
+// Create search filter that works with items (async batch processing)
+export const filterItemsBySearch = async (items, searchTerm) => {
+  if (!searchTerm || searchTerm.trim() === "") {
+    return items;
+  }
 
-// Create search filter
-export const createSearchFilter = R.curry((searchTerm) =>
-  R.pipe(getSearchableText, R.includes(toLower(searchTerm))),
-);
+  const results = await Promise.all(
+    items.map(async (item) => {
+      const searchableText = await extractSearchableText(
+        item.label || item.caption,
+        item.version,
+        item.name
+      );
+      const matches = await textMatchesSearch(searchableText, searchTerm);
+      return matches ? item : null;
+    })
+  );
 
-// ============= Component Helpers =============
+  return results.filter(Boolean);
+};
 
-// Build class names
-const buildClassNames = R.pipe(R.filter(R.identity), R.join(" "));
+const composeClassNames = R.pipe(R.filter(R.identity), R.join(" "));
 
-// Get version badge type
-const getVersionBadge = R.cond([
-  [R.prop("is_valid"), R.always("✓")],
-  [R.prop("is_lts"), R.always("LTS")],
-  [R.prop("is_mts"), R.always("MTS")],
-  [R.T, R.always(null)],
-]);
+// Version validity badge (Rust backend)
+export const getVersionValidityBadge = async (isValid, isLts, isMts) =>
+  invoke("get_version_validity_badge", { isValid, isLts, isMts });
 
-// Format date with fallback
-const formatDate = R.curry((fallbackText, dateStr) =>
-  R.ifElse(
-    R.identity,
-    R.pipe(
-      (date) => new Date(date),
-      (date) => date.toLocaleDateString(),
-    ),
-    R.always(fallbackText),
-  )(dateStr),
-);
+// Date formatting (Rust backend)
+export const formatDateWithFallback = async (dateStr, fallback) =>
+  invoke("format_date_with_fallback", { dateStr, fallback });
 
-// Handle button click with event propagation prevention
-const handleButtonClick = R.curry((onClick, e) =>
+// Version status text (Rust backend)
+export const getVersionStatusText = async (isLaunching, isUninstalling, installDate) =>
+  invoke("get_version_status_text", { isLaunching, isUninstalling, installDate });
+
+const preventPropagationAndExecute = R.curry((onClick, e) =>
   R.pipe(
     R.tap((e) => e.stopPropagation()),
     R.tap(() => onClick()),
@@ -64,26 +61,15 @@ const handleButtonClick = R.curry((onClick, e) =>
   )(e),
 );
 
-// ============= MendixVersionListItem Component =============
-
-const renderVersionBadge = R.curry((badge, badgeClass) =>
+const renderSupportBadge = R.curry((badge, badgeClass) =>
   badge ? <span className={`version-badge ${badgeClass}`}>{badge}</span> : null,
 );
-
-const getVersionDate = R.cond([
-  [R.prop("isLaunching"), R.always("Launching...")],
-  [R.prop("isUninstalling"), R.always("Uninstalling...")],
-  [
-    R.T,
-    R.pipe(R.prop("install_date"), formatDate("Installation date unknown")),
-  ],
-]);
 
 const renderLaunchButton = R.curry(
   (onLaunch, version, isLaunching, isUninstalling) => (
     <button
       className="install-button"
-      onClick={handleButtonClick(() => onLaunch(version))}
+      onClick={preventPropagationAndExecute(() => onLaunch(version))}
       disabled={isLaunching || !version.is_valid || isUninstalling}
     >
       <span className="button-icon">▶️</span>
@@ -96,13 +82,9 @@ const renderUninstallButton = R.curry(
   (onUninstall, version, isUninstalling, isLaunching) => (
     <button
       className="install-button uninstall-button"
-      onClick={handleButtonClick(() => onUninstall(version))}
+      onClick={preventPropagationAndExecute(() => onUninstall(version))}
       disabled={isUninstalling || !version.is_valid || isLaunching}
-      style={{
-        background:
-          "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",
-        borderColor: "rgba(220, 20, 60, 0.4)",
-      }}
+      style={UNINSTALL_BUTTON_STYLE}
     >
       <span className="button-icon">🗑️</span>
       {isUninstalling ? "..." : ""}
@@ -120,7 +102,15 @@ export const MendixVersionListItem = memo(
     isSelected,
     onClick,
   }) => {
-    const className = buildClassNames([
+    const [statusText, setStatusText] = useState("Loading...");
+
+    useEffect(() => {
+      getVersionStatusText(isLaunching, isUninstalling, version.install_date)
+        .then(setStatusText)
+        .catch(() => setStatusText("Date unknown"));
+    }, [isLaunching, isUninstalling, version.install_date]);
+
+    const className = composeClassNames([
       "version-list-item",
       isSelected && "selected",
       isUninstalling && "disabled",
@@ -138,12 +128,10 @@ export const MendixVersionListItem = memo(
           <span className="version-icon">🚀</span>
           <div className="version-details">
             <span className="version-number">{version.version}</span>
-            <span className="version-date">
-              {getVersionDate({ ...version, isLaunching, isUninstalling })}
-            </span>
+            <span className="version-date">{statusText}</span>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={BUTTON_GROUP_STYLE}>
           {renderLaunchButton(onLaunch, version, isLaunching, isUninstalling)}
           {renderUninstallButton(
             onUninstall,
@@ -159,16 +147,22 @@ export const MendixVersionListItem = memo(
 
 MendixVersionListItem.displayName = "MendixVersionListItem";
 
-// ============= MendixAppListItem Component =============
-
-const renderVersionBadgeSpan = R.curry((version) =>
+const renderAppVersionBadge = R.curry((version) =>
   version ? (
     <span className="version-badge app-version">v{version}</span>
   ) : null,
 );
 
 export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
-  const className = buildClassNames([
+  const [formattedDate, setFormattedDate] = useState("Loading...");
+
+  useEffect(() => {
+    formatDateWithFallback(app.last_modified, "Date unknown")
+      .then(setFormattedDate)
+      .catch(() => setFormattedDate("Date unknown"));
+  }, [app.last_modified]);
+
+  const className = composeClassNames([
     "version-list-item",
     isDisabled && "disabled",
   ]);
@@ -189,8 +183,8 @@ export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
         <div className="version-details">
           <span className="version-number">{app.name}</span>
           <span className="version-date">
-            {renderVersionBadgeSpan(app.version)}
-            {formatDate("Date unknown", app.last_modified)}
+            {renderAppVersionBadge(app.version)}
+            {formattedDate}
           </span>
         </div>
       </div>
@@ -200,9 +194,7 @@ export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
 
 MendixAppListItem.displayName = "MendixAppListItem";
 
-// ============= VersionListItem Component =============
-
-const renderProgressBar = R.curry((downloadProgress) => (
+const renderDownloadProgressBar = R.curry((downloadProgress) => (
   <div className="download-progress">
     <div className="progress-bar">
       <div
@@ -217,7 +209,7 @@ const renderProgressBar = R.curry((downloadProgress) => (
 const renderInstallButton = R.curry((onInstall, version) => (
   <button
     className="install-button"
-    onClick={handleButtonClick(() => onInstall(version))}
+    onClick={preventPropagationAndExecute(() => onInstall(version))}
     disabled={false}
   >
     <span className="button-icon">💫</span>
@@ -233,15 +225,15 @@ export const VersionListItem = memo(
         <div className="version-details">
           <span className="version-number">
             {version.version}
-            {renderVersionBadge(version.is_lts && "LTS", "lts")}
-            {renderVersionBadge(version.is_mts && "MTS", "mts")}
+            {renderSupportBadge(version.is_lts && "LTS", "lts")}
+            {renderSupportBadge(version.is_mts && "MTS", "mts")}
           </span>
           <span className="version-date">{version.release_date}</span>
         </div>
       </div>
       {R.ifElse(
         R.identity,
-        () => renderProgressBar(downloadProgress),
+        () => renderDownloadProgressBar(downloadProgress),
         () => renderInstallButton(onInstall, version),
       )(isInstalling)}
     </div>
@@ -250,29 +242,22 @@ export const VersionListItem = memo(
 
 VersionListItem.displayName = "VersionListItem";
 
-// ============= ListArea Component =============
-
-const filterItems = R.curry((searchTerm, items) =>
-  R.ifElse(
-    () => R.isEmpty(searchTerm),
-    R.identity,
-    R.filter(createSearchFilter(searchTerm)),
-  )(items),
-);
-
-const renderListItem = R.curry((onItemClick, item) => (
+const renderListItemWithHandler = R.curry((onItemClick, item) => (
   <ListItem key={item.id} item={item} onClick={onItemClick} />
 ));
 
 export const ListArea = memo(({ items, searchTerm, onItemClick }) => {
-  const filteredItems = useMemo(
-    () => filterItems(searchTerm, items),
-    [items, searchTerm],
-  );
+  const [filteredItems, setFilteredItems] = useState(items);
+
+  useEffect(() => {
+    filterItemsBySearch(items, searchTerm)
+      .then(setFilteredItems)
+      .catch(() => setFilteredItems(items));
+  }, [items, searchTerm]);
 
   return (
     <div className="list-area">
-      {R.map(renderListItem(onItemClick), filteredItems)}
+      {R.map(renderListItemWithHandler(onItemClick), filteredItems)}
     </div>
   );
 });

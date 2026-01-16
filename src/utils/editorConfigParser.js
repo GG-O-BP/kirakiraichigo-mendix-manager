@@ -1,17 +1,28 @@
 import * as R from "ramda";
+import { invoke } from "@tauri-apps/api/core";
 
-// ============= EditorConfig Parser =============
-// This module parses and executes Mendix widget editorConfig.js files
-// to enable dynamic property filtering based on current widget values.
+// ============= Rust Backend Functions (Primary API) =============
 
-// ============= Constants =============
+// Transform widget definition to editor format (Rust backend)
+export const transformWidgetDefinitionToEditorFormat = async (widgetPath) =>
+  invoke("transform_widget_definition_to_editor_format", { widgetPath });
 
-const EDITOR_CONFIG_EXPORTS = ["getProperties", "check", "getPreview", "getCustomCaption"];
+// Extract all property keys from groups (Rust backend)
+export const extractAllPropertyKeysFromGroups = async (groups) =>
+  invoke("extract_all_property_keys_from_groups", { groups });
 
-// ============= Pure Transformation Functions =============
+// Filter parsed properties by keys (Rust backend)
+export const filterParsedPropertiesByKeys = async (visibleKeys, parsedProperties) =>
+  invoke("filter_parsed_properties_by_keys", { visibleKeys, parsedProperties });
 
-// Transform a single property from Rust format to editorConfig format
-const transformProperty = (prop) => ({
+// Check if property key exists in groups (Rust backend)
+export const isPropertyKeyInGroups = async (groups, propertyKey) =>
+  invoke("is_property_key_in_groups", { groups, propertyKey });
+
+// ============= Internal JS Functions (for eval-based editorConfig) =============
+// These functions are required for JavaScript eval() execution and cannot be moved to Rust
+
+const transformRustPropertyToEditorFormatInternal = (prop) => ({
   key: R.prop("key", prop),
   type: R.prop("property_type", prop),
   caption: R.prop("caption", prop),
@@ -21,49 +32,66 @@ const transformProperty = (prop) => ({
   options: R.prop("options", prop),
 });
 
-// Recursively transform a property group and its nested groups
-const transformPropertyGroup = (group) => ({
+const transformPropertyGroupRecursivelyInternal = (group) => ({
   caption: R.prop("caption", group),
-  properties: R.map(transformProperty, R.prop("properties", group) || []),
-  propertyGroups: R.map(transformPropertyGroup, R.prop("property_groups", group) || []),
+  properties: R.map(transformRustPropertyToEditorFormatInternal, R.prop("properties", group) || []),
+  propertyGroups: R.map(transformPropertyGroupRecursivelyInternal, R.prop("property_groups", group) || []),
 });
 
-// Convert widget definition properties to defaultProperties format for getProperties
-const transformToDefaultProperties = R.curry((widgetDefinition) => {
+const transformWidgetDefinitionToEditorFormatInternal = R.curry((widgetDefinition) => {
   const propertyGroups = R.prop("property_groups", widgetDefinition) || [];
-  return R.map(transformPropertyGroup, propertyGroups);
+  return R.map(transformPropertyGroupRecursivelyInternal, propertyGroups);
 });
 
-// Transform flat properties (not in groups)
-const transformFlatProperties = R.curry((widgetDefinition) => {
-  const properties = R.prop("properties", widgetDefinition) || [];
-  return R.map(transformProperty, properties);
+const isPropertyKeyInGroupsInternal = R.curry((filteredGroups, propertyKey) => {
+  const searchPropertyKeyInGroup = (group) => {
+    const properties = R.prop("properties", group) || [];
+    const propertyGroups = R.prop("propertyGroups", group) || [];
+
+    const foundInDirectProperties = R.any(
+      R.pipe(R.prop("key"), R.equals(propertyKey)),
+      properties,
+    );
+
+    if (foundInDirectProperties) return true;
+
+    return R.any(searchPropertyKeyInGroup, propertyGroups);
+  };
+
+  return R.any(searchPropertyKeyInGroup, filteredGroups);
 });
 
-// ============= EditorConfig Execution =============
+const extractAllPropertyKeysFromGroupsInternal = R.curry((filteredGroups) => {
+  const extractKeysFromGroup = (group) => {
+    const properties = R.prop("properties", group) || [];
+    const propertyGroups = R.prop("propertyGroups", group) || [];
 
-// Parse editorConfig.js content and extract functions
-const parseEditorConfig = (configContent) => {
+    const directKeys = R.map(R.prop("key"), properties);
+    const nestedKeys = R.chain(extractKeysFromGroup, propertyGroups);
+
+    return R.concat(directKeys, nestedKeys);
+  };
+
+  return R.uniq(R.chain(extractKeysFromGroup, filteredGroups));
+});
+
+// ============= EditorConfig JS Execution (Cannot be moved to Rust) =============
+
+const parseEditorConfigToExecutableModule = (configContent) => {
   try {
-    // Create a module-like environment
     const exports = {};
     const module = { exports };
 
-    // Remove ES module syntax and convert to CommonJS-like format
     let processedContent = configContent
-      // Remove export keywords
       .replace(/export\s+const\s+/g, "const ")
       .replace(/export\s+function\s+/g, "function ")
       .replace(/export\s+default\s+/g, "module.exports.default = ")
-      // Handle named exports at the end
       .replace(/export\s*\{[^}]*\}/g, "");
 
-    // Wrap in a function to capture local variables
     const wrappedContent = `
       (function(exports, module) {
         ${processedContent}
 
-        // Capture exported functions
         if (typeof getProperties === 'function') exports.getProperties = getProperties;
         if (typeof check === 'function') exports.check = check;
         if (typeof getPreview === 'function') exports.getPreview = getPreview;
@@ -73,7 +101,6 @@ const parseEditorConfig = (configContent) => {
       })
     `;
 
-    // Execute the wrapped code
     const executor = eval(wrappedContent);
     return executor(exports, module);
   } catch (error) {
@@ -82,8 +109,7 @@ const parseEditorConfig = (configContent) => {
   }
 };
 
-// Execute getProperties function with current values
-const executeGetProperties = R.curry((editorConfig, values, defaultProperties) => {
+const invokeGetPropertiesWithFallback = R.curry((editorConfig, values, defaultProperties) => {
   if (!editorConfig || typeof editorConfig.getProperties !== "function") {
     return defaultProperties;
   }
@@ -96,8 +122,7 @@ const executeGetProperties = R.curry((editorConfig, values, defaultProperties) =
   }
 });
 
-// Execute check function to validate values
-const executeCheck = R.curry((editorConfig, values) => {
+const invokeCheckWithFallback = R.curry((editorConfig, values) => {
   if (!editorConfig || typeof editorConfig.check !== "function") {
     return [];
   }
@@ -110,109 +135,39 @@ const executeCheck = R.curry((editorConfig, values) => {
   }
 });
 
-// ============= Property Filtering Logic =============
-
-// Check if a property should be visible based on filtered properties
-const isPropertyVisible = R.curry((filteredGroups, propertyKey) => {
-  // Recursively check all groups for the property key
-  const checkGroup = (group) => {
-    const properties = R.prop("properties", group) || [];
-    const propertyGroups = R.prop("propertyGroups", group) || [];
-
-    // Check direct properties
-    const foundInProperties = R.any(
-      R.pipe(R.prop("key"), R.equals(propertyKey)),
-      properties,
-    );
-
-    if (foundInProperties) return true;
-
-    // Check nested groups
-    return R.any(checkGroup, propertyGroups);
-  };
-
-  return R.any(checkGroup, filteredGroups);
-});
-
-// Filter properties based on editorConfig result
-const filterPropertiesByConfig = R.curry((filteredGroups, allProperties) => {
-  if (R.isEmpty(filteredGroups)) {
-    return allProperties;
-  }
-
-  return R.filter(
-    (prop) => isPropertyVisible(filteredGroups, R.prop("key", prop)),
-    allProperties,
-  );
-});
-
-// Extract all visible property keys from filtered groups
-const extractVisiblePropertyKeys = R.curry((filteredGroups) => {
-  const extractKeys = (group) => {
-    const properties = R.prop("properties", group) || [];
-    const propertyGroups = R.prop("propertyGroups", group) || [];
-
-    const directKeys = R.map(R.prop("key"), properties);
-    const nestedKeys = R.chain(extractKeys, propertyGroups);
-
-    return R.concat(directKeys, nestedKeys);
-  };
-
-  return R.uniq(R.chain(extractKeys, filteredGroups));
-});
-
-// ============= Main API =============
-
-// Create an editorConfig handler instance
+// Creates a handler for editorConfig that uses JavaScript eval
+// This function CANNOT be moved to Rust as it requires JavaScript runtime execution
 export const createEditorConfigHandler = (configContent) => {
-  const parsedConfig = configContent ? parseEditorConfig(configContent) : null;
+  const parsedConfig = configContent ? parseEditorConfigToExecutableModule(configContent) : null;
 
   return {
     isAvailable: parsedConfig !== null,
     parsedConfig,
 
-    // Get filtered properties based on current values
     getFilteredProperties: (values, widgetDefinition) => {
       if (!parsedConfig) {
-        return null; // Return null to indicate no filtering
+        return null;
       }
 
-      const defaultProperties = transformToDefaultProperties(widgetDefinition);
-      return executeGetProperties(parsedConfig, values, defaultProperties);
+      const defaultProperties = transformWidgetDefinitionToEditorFormatInternal(widgetDefinition);
+      return invokeGetPropertiesWithFallback(parsedConfig, values, defaultProperties);
     },
 
-    // Get visible property keys based on current values
     getVisiblePropertyKeys: (values, widgetDefinition) => {
       if (!parsedConfig) {
         return null;
       }
 
-      const defaultProperties = transformToDefaultProperties(widgetDefinition);
-      const filteredProperties = executeGetProperties(parsedConfig, values, defaultProperties);
-      return extractVisiblePropertyKeys(filteredProperties);
+      const defaultProperties = transformWidgetDefinitionToEditorFormatInternal(widgetDefinition);
+      const filteredProperties = invokeGetPropertiesWithFallback(parsedConfig, values, defaultProperties);
+      return extractAllPropertyKeysFromGroupsInternal(filteredProperties);
     },
 
-    // Validate current values
     validate: (values) => {
-      return executeCheck(parsedConfig, values);
+      return invokeCheckWithFallback(parsedConfig, values);
     },
   };
 };
 
-// Filter parsed properties based on visible keys
-export const filterParsedPropertiesByKeys = R.curry((visibleKeys, parsedProperties) => {
-  if (!visibleKeys) {
-    return parsedProperties; // No filtering if keys are null
-  }
-
-  return R.filter(
-    (prop) => R.includes(R.prop("key", prop), visibleKeys),
-    parsedProperties,
-  );
-});
-
-// Transform widgetDefinition to format expected by editorConfig
-export const widgetDefinitionToDefaultProperties = transformToDefaultProperties;
-
-// Export individual functions for testing
-export { parseEditorConfig, executeGetProperties, executeCheck, extractVisiblePropertyKeys };
+// Export internal sync version for cases where it's needed (e.g., within createEditorConfigHandler)
+export const widgetDefinitionToDefaultProperties = transformWidgetDefinitionToEditorFormatInternal;
