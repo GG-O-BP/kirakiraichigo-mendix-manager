@@ -1299,13 +1299,10 @@ function App() {
               await invoke("delete_mendix_app", { appPath: appToDelete.path });
               await loadApps();
 
-              // Remove from selected apps if it was selected
               setSelectedApps((prev) => {
                 const newSet = new Set(prev);
                 if (newSet.has(appToDelete.path)) {
                   newSet.delete(appToDelete.path);
-
-                  // Save to Rust backend immediately
                   const selectedAppsArray = Array.from(newSet);
                   saveToStorage(
                     STORAGE_KEYS.SELECTED_APPS,

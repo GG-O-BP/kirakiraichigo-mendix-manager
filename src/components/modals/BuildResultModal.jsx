@@ -1,34 +1,24 @@
 import * as R from "ramda";
 import { memo } from "react";
 
-// ============= Helper Functions =============
-
-// Check if modal should be visible
 const shouldShowModal = R.prop("showResultModal");
 
-// Check if has successful results
 const hasSuccessfulResults = R.pipe(
   R.path(["buildResults", "successful"]),
   R.complement(R.isEmpty),
 );
 
-// Check if has failed results
 const hasFailedResults = R.pipe(
   R.path(["buildResults", "failed"]),
   R.complement(R.isEmpty),
 );
 
-// Get successful results
 const getSuccessfulResults = R.path(["buildResults", "successful"]);
 
-// Get failed results
 const getFailedResults = R.path(["buildResults", "failed"]);
 
-// Get results count
 const getResultsCount = R.pipe(R.length);
 
-// Handle close action
-// Handle close action with functional approach
 const handleClose = R.curry((setShowResultModal, setBuildResults) =>
   R.pipe(
     R.tap(() => setShowResultModal(false)),
@@ -36,8 +26,6 @@ const handleClose = R.curry((setShowResultModal, setBuildResults) =>
     R.always(undefined),
   )(null),
 );
-
-// ============= Style Helpers =============
 
 const successStyles = {
   container: {
@@ -85,9 +73,6 @@ const failedStyles = {
   },
 };
 
-// ============= Render Functions =============
-
-// Render successful result item
 const renderSuccessfulItem = R.curry((result, index) => (
   <div key={index} style={successStyles.item}>
     <strong>{R.prop("widget", result)}</strong>
@@ -97,7 +82,6 @@ const renderSuccessfulItem = R.curry((result, index) => (
   </div>
 ));
 
-// Render failed result item
 const renderFailedItem = R.curry((result, index) => (
   <details key={index} style={failedStyles.item}>
     <summary style={failedStyles.summary}>{R.prop("widget", result)}</summary>
@@ -105,7 +89,6 @@ const renderFailedItem = R.curry((result, index) => (
   </details>
 ));
 
-// Render successful results section
 const renderSuccessfulSection = R.ifElse(
   hasSuccessfulResults,
   (props) => {
@@ -122,7 +105,6 @@ const renderSuccessfulSection = R.ifElse(
   R.always(null),
 );
 
-// Render failed results section
 const renderFailedSection = R.ifElse(
   hasFailedResults,
   (props) => {
@@ -139,7 +121,6 @@ const renderFailedSection = R.ifElse(
   R.always(null),
 );
 
-// Render modal content
 const renderModalContent = (props) => {
   const { setShowResultModal, setBuildResults } = props;
 
@@ -162,8 +143,6 @@ const renderModalContent = (props) => {
     </div>
   );
 };
-
-// ============= Main Component =============
 
 const BuildResultModal = memo(
   R.ifElse(shouldShowModal, renderModalContent, R.always(null)),
