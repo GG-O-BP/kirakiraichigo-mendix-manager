@@ -296,6 +296,91 @@ export function createPaginationOptions(page = 0, itemsPerPage = 20) {
   };
 }
 
+// ============= Property Processing Functions (Rust Backend) =============
+
+/**
+ * Map property type to UI type using Rust backend
+ * @param {string} propertyType - Property type from widget definition
+ * @returns {Promise<string>} UI type for rendering
+ */
+export async function mapPropertyTypeToUIType(propertyType) {
+  return await invoke("map_property_type_to_ui_type", { propertyType });
+}
+
+/**
+ * Get all UI type mappings from Rust backend
+ * @returns {Promise<Array<{property_type: string, ui_type: string}>>} All type mappings
+ */
+export async function getUITypeMappings() {
+  return await invoke("get_ui_type_mappings", {});
+}
+
+/**
+ * Get default value for property type using Rust backend
+ * @param {string} propertyType - Property type
+ * @returns {Promise<any>} Default value for the type
+ */
+export async function getDefaultValueForType(propertyType) {
+  return await invoke("get_default_value_for_type", { propertyType });
+}
+
+/**
+ * Validate property value using Rust backend
+ * @param {Object} property - Property definition with property_type, required, options
+ * @param {string} value - Value to validate
+ * @returns {Promise<{is_valid: boolean, error: string|null}>} Validation result
+ */
+export async function validatePropertyValue(property, value) {
+  return await invoke("validate_property_value", {
+    property: {
+      property_type: property.type || property.property_type,
+      required: property.required || false,
+      options: property.options || null,
+    },
+    value: String(value),
+  });
+}
+
+/**
+ * Filter properties by search term using Rust backend
+ * @param {Array} properties - Array of parsed properties
+ * @param {string} searchTerm - Search term
+ * @returns {Promise<Array>} Filtered properties
+ */
+export async function filterPropertiesBySearch(properties, searchTerm) {
+  return await invoke("filter_properties_by_search", {
+    properties,
+    searchTerm: searchTerm || "",
+  });
+}
+
+/**
+ * Initialize property values from widget path using Rust backend
+ * @param {string} widgetPath - Path to widget directory
+ * @returns {Promise<Object>} Map of property key to default value
+ */
+export async function initializePropertyValues(widgetPath) {
+  return await invoke("initialize_property_values", { widgetPath });
+}
+
+/**
+ * Parse widget properties to parsed format using Rust backend
+ * @param {string} widgetPath - Path to widget directory
+ * @returns {Promise<Array>} Array of parsed properties with category
+ */
+export async function parseWidgetPropertiesToParsed(widgetPath) {
+  return await invoke("parse_widget_properties_to_parsed", { widgetPath });
+}
+
+/**
+ * Group properties by category using Rust backend
+ * @param {Array} properties - Array of parsed properties
+ * @returns {Promise<Array<{category: string, properties: Array}>>} Grouped properties
+ */
+export async function groupPropertiesByCategory(properties) {
+  return await invoke("group_properties_by_category", { properties });
+}
+
 // ============= Export All =============
 
 export default {
@@ -312,4 +397,13 @@ export default {
   createSearchFilter,
   createVersionFilter,
   createPaginationOptions,
+  // Property processing
+  mapPropertyTypeToUIType,
+  getUITypeMappings,
+  getDefaultValueForType,
+  validatePropertyValue,
+  filterPropertiesBySearch,
+  initializePropertyValues,
+  parseWidgetPropertiesToParsed,
+  groupPropertiesByCategory,
 };

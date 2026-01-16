@@ -5,14 +5,12 @@ import SearchBox from "../common/SearchBox";
 import DynamicPropertyInput from "../common/DynamicPropertyInput";
 import WidgetPreviewFrame from "../common/WidgetPreviewFrame";
 import { renderLoadingIndicator } from "../common/LoadingIndicator";
-import {
-  initializePropertyValues,
-  createPropertyChangeHandler,
-} from "../../utils/functional";
+import { createPropertyChangeHandler } from "../../utils/functional";
 import {
   createEditorConfigHandler,
   filterParsedPropertiesByKeys,
 } from "../../utils/editorConfigParser";
+import { initializePropertyValues } from "../../utils/dataProcessing";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 
 // ============= Helper Functions =============
@@ -522,75 +520,13 @@ const WidgetPreview = memo(
       R.defaultTo(null),
     )(widgets);
 
-    // Handle successful widget definition load
-    const handleWidgetDefinitionSuccess = R.curry(
-      (setWidgetDefinition, setDynamicProperties, definition) =>
-        R.pipe(
-          R.identity,
-          R.tap((def) => setWidgetDefinition(def)),
-          R.tap((def) => setDynamicProperties(initializePropertyValues(def))),
-        )(definition),
-    );
-
-    // Handle widget definition load error
-    const handleWidgetDefinitionError = R.curry(
-      (setWidgetDefinition, setDynamicProperties, error) =>
-        R.pipe(
-          R.identity,
-          R.tap((err) =>
-            console.error("Failed to parse widget properties:", err),
-          ),
-          R.tap(() => setWidgetDefinition(null)),
-          R.tap(() => setDynamicProperties({})),
-        )(error),
-    );
-
     // Clear widget definition state
-    const clearWidgetDefinitionState = () =>
-      R.pipe(
-        R.tap(() => setWidgetDefinition(null)),
-        R.tap(() => setDynamicProperties({})),
-        R.tap(() => setEditorConfigHandler(null)),
-        R.tap(() => setVisiblePropertyKeys(null)),
-      )();
-
-    // Load editorConfig for widget
-    const loadEditorConfig = async (widgetPath) => {
-      try {
-        const result = await invoke("read_editor_config", { widgetPath });
-        if (result.found && result.content) {
-          const handler = createEditorConfigHandler(result.content);
-          setEditorConfigHandler(handler);
-          return handler;
-        }
-        setEditorConfigHandler(null);
-        return null;
-      } catch (error) {
-        console.error("Failed to load editorConfig:", error);
-        setEditorConfigHandler(null);
-        return null;
-      }
+    const clearWidgetDefinitionState = () => {
+      setWidgetDefinition(null);
+      setDynamicProperties({});
+      setEditorConfigHandler(null);
+      setVisiblePropertyKeys(null);
     };
-
-    // Load widget properties
-    const loadWidgetProperties = R.curry(
-      (selectedWidget, setWidgetDefinition, setDynamicProperties) =>
-        invoke("parse_widget_properties", {
-          widgetPath: R.prop("path", selectedWidget),
-        })
-          .then(
-            handleWidgetDefinitionSuccess(
-              setWidgetDefinition,
-              setDynamicProperties,
-            ),
-          )
-          .catch(
-            handleWidgetDefinitionError(
-              setWidgetDefinition,
-              setDynamicProperties,
-            ),
-          ),
-    );
 
     // Load widget definition and editorConfig when widget is selected
     useEffect(() => {
@@ -599,16 +535,33 @@ const WidgetPreview = memo(
         return;
       }
 
-      const loadWidgetData = async () => {
-        // Load widget properties
-        loadWidgetProperties(
-          selectedWidget,
-          setWidgetDefinition,
-          setDynamicProperties,
-        );
+      const widgetPath = R.prop("path", selectedWidget);
 
-        // Load editorConfig
-        await loadEditorConfig(R.prop("path", selectedWidget));
+      const loadWidgetData = async () => {
+        try {
+          // Load widget definition and initial property values in parallel from Rust backend
+          const [definition, initialValues, editorConfigResult] = await Promise.all([
+            invoke("parse_widget_properties", { widgetPath }),
+            initializePropertyValues(widgetPath),
+            invoke("read_editor_config", { widgetPath }),
+          ]);
+
+          setWidgetDefinition(definition);
+          setDynamicProperties(initialValues);
+
+          // Handle editorConfig
+          if (editorConfigResult.found && editorConfigResult.content) {
+            const handler = createEditorConfigHandler(editorConfigResult.content);
+            setEditorConfigHandler(handler);
+          } else {
+            setEditorConfigHandler(null);
+          }
+        } catch (error) {
+          console.error("Failed to load widget data:", error);
+          setWidgetDefinition(null);
+          setDynamicProperties({});
+          setEditorConfigHandler(null);
+        }
       };
 
       loadWidgetData();

@@ -28,7 +28,12 @@ pub use build_deploy::build_and_deploy_widgets;
 pub use storage::{
     clear_app_state, load_app_state, load_from_storage, save_app_state, save_to_storage,
 };
-pub use widget_parser::{parse_widget_properties, read_editor_config, validate_mendix_widget};
+pub use widget_parser::{
+    filter_properties_by_search, get_default_value_for_type, get_ui_type_mappings,
+    group_properties_by_category, initialize_property_values, map_property_type_to_ui_type,
+    parse_widget_properties, parse_widget_properties_to_parsed, read_editor_config,
+    validate_mendix_widget, validate_property_value,
+};
 pub use widget_preview::build_widget_for_preview;
 
 pub use data_processing::{
@@ -57,8 +62,16 @@ pub fn run() {
             run_package_manager_command,
             copy_widget_to_apps,
             parse_widget_properties,
+            parse_widget_properties_to_parsed,
             validate_mendix_widget,
+            validate_property_value,
             read_editor_config,
+            map_property_type_to_ui_type,
+            get_ui_type_mappings,
+            get_default_value_for_type,
+            filter_properties_by_search,
+            initialize_property_values,
+            group_properties_by_category,
             get_downloadable_mendix_versions,
             get_downloadable_versions_by_type,
             get_downloadable_versions_from_datagrid,

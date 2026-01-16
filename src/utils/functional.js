@@ -29,49 +29,11 @@ export const createListItem = R.curry((index) => ({
 export const generateListData = R.pipe(R.range(0), R.map(createListItem));
 
 // ============= Search and Filter =============
+// NOTE: Search and filter functions have been moved to Rust backend.
+// Use dataProcessing.js functions: filterMendixVersions, filterMendixApps, filterWidgets
 
 // Convert to lowercase for comparison
 export const toLower = R.toLower;
-
-// Get searchable text from item
-export const getSearchableText = R.pipe(
-  R.props(["label", "version", "name", "caption"]),
-  R.filter(R.identity),
-  R.join(" "),
-  toLower,
-);
-
-// Get searchable text from widget
-export const getWidgetSearchableText = R.pipe(
-  R.props(["caption", "path"]),
-  R.filter(R.identity),
-  R.join(" "),
-  toLower,
-);
-
-// Create search predicate
-export const createSearchPredicate = R.curry((searchTerm, item) =>
-  R.pipe(getSearchableText, R.includes(toLower(searchTerm)))(item),
-);
-
-// Create widget search predicate
-export const createWidgetSearchPredicate = R.curry((searchTerm, widget) =>
-  R.pipe(getWidgetSearchableText, R.includes(toLower(searchTerm)))(widget),
-);
-
-// Filter by search term
-export const filterBySearchTerm = R.curry((searchTerm, items) =>
-  R.isEmpty(searchTerm)
-    ? items
-    : R.filter(createSearchPredicate(searchTerm), items),
-);
-
-// Filter widgets by search term
-export const filterWidgetsBySearchTerm = R.curry((searchTerm, widgets) =>
-  R.isEmpty(searchTerm)
-    ? widgets
-    : R.filter(createWidgetSearchPredicate(searchTerm), widgets),
-);
 
 // ============= Set Operations =============
 
@@ -149,11 +111,6 @@ export const transformWidgetToBuildRequest = R.applySpec({
 // Transform multiple widgets to build requests
 export const transformWidgetsToBuildRequests = R.map(
   transformWidgetToBuildRequest,
-);
-
-// Filter widgets by caption
-export const filterWidgetsByCaption = R.curry((searchTerm, widgets) =>
-  filterWidgetsBySearchTerm(searchTerm, widgets),
 );
 
 // Check if widget is selected
@@ -409,24 +366,8 @@ export const updateNestedProp = R.curry((path, value, obj) =>
 );
 
 // ============= Compose Utility Functions =============
-
-// Filter and paginate
-export const filterAndPaginate = R.curry(
-  (searchTerm, itemsPerPage, currentPage, items) =>
-    R.pipe(
-      filterBySearchTerm(searchTerm),
-      getPaginatedItems(itemsPerPage, currentPage),
-    )(items),
-);
-
-// Filter apps by version and search
-export const filterAppsByVersionAndSearch = R.curry(
-  (versionFilter, searchTerm, apps) =>
-    R.pipe(
-      filterAppsByVersion(versionFilter),
-      filterBySearchTerm(searchTerm),
-    )(apps),
-);
+// NOTE: filterAndPaginate and filterAppsByVersionAndSearch have been moved to Rust backend.
+// Use dataProcessing.js functions: processVersions, processApps, filterAndSortAppsWithPriority
 
 // ============= Tab Configuration =============
 
@@ -487,184 +428,9 @@ export const validateSetNotEmpty = R.curry((message, set) =>
 );
 
 // ============= Widget Property Operations =============
-
-// Recursively extract all properties from a property group with full category path
-const extractPropertiesFromGroup = (categoryPath, group) => {
-  const groupCaption = R.prop("caption", group);
-  const fullPath = categoryPath
-    ? (groupCaption ? `${categoryPath} > ${groupCaption}` : categoryPath)
-    : (groupCaption || "General");
-
-  const directProperties = R.pipe(
-    R.propOr([], "properties"),
-    R.map(R.assoc("category", fullPath)),
-  )(group);
-
-  const nestedGroups = R.propOr([], "property_groups", group);
-  const nestedProperties = R.chain(
-    (nestedGroup) => extractPropertiesFromGroup(fullPath, nestedGroup),
-    nestedGroups,
-  );
-
-  return R.concat(directProperties, nestedProperties);
-};
-
-// Parse widget properties from XML definition
-export const parseWidgetProperties = R.curry((widgetDefinition) => {
-  // Get root-level properties (with "General" category)
-  const rootProperties = R.pipe(
-    R.propOr([], "properties"),
-    R.map(R.assoc("category", "General")),
-  )(widgetDefinition);
-
-  // Get all properties from property groups with their full category paths
-  const propertyGroups = R.propOr([], "property_groups", widgetDefinition);
-  const groupProperties = R.chain(
-    (group) => extractPropertiesFromGroup("", group),
-    propertyGroups,
-  );
-
-  const allProperties = R.concat(rootProperties, groupProperties);
-
-  return R.map(
-    R.pipe(
-      R.applySpec({
-        key: R.prop("key"),
-        type: R.prop("property_type"),
-        caption: R.prop("caption"),
-        description: R.prop("description"),
-        required: R.prop("required"),
-        defaultValue: R.prop("default_value"),
-        options: R.prop("options"),
-        category: R.prop("category"),
-      }),
-      R.reject(R.isNil),
-    ),
-    allProperties,
-  );
-});
-
-// Map property type to UI component type
-export const mapPropertyTypeToUIType = R.cond([
-  [R.equals("string"), R.always("text")],
-  [R.equals("boolean"), R.always("checkbox")],
-  [R.equals("integer"), R.always("number")],
-  [R.equals("decimal"), R.always("number")],
-  [R.equals("enumeration"), R.always("select")],
-  [R.equals("expression"), R.always("textarea")],
-  [R.equals("textTemplate"), R.always("textarea")],
-  [R.equals("action"), R.always("select")],
-  [R.equals("attribute"), R.always("select")],
-  [R.equals("association"), R.always("select")],
-  [R.equals("object"), R.always("select")],
-  [R.equals("file"), R.always("file")],
-  [R.equals("datasource"), R.always("select")],
-  [R.equals("icon"), R.always("icon")],
-  [R.equals("image"), R.always("image")],
-  [R.equals("widgets"), R.always("widgets")],
-  [R.T, R.always("text")],
-]);
-
-// Get default value for property type
-export const getDefaultValueForType = R.cond([
-  [R.equals("string"), R.always("")],
-  [R.equals("boolean"), R.always(false)],
-  [R.equals("integer"), R.always(0)],
-  [R.equals("decimal"), R.always(0.0)],
-  [R.equals("enumeration"), R.always("")],
-  [R.equals("expression"), R.always("")],
-  [R.equals("textTemplate"), R.always("")],
-  [R.T, R.always("")],
-]);
-
-// Create property value object from definition
-export const createPropertyValue = R.curry((property) => ({
-  key: R.prop("key", property),
-  value: R.pipe(
-    R.prop("defaultValue"),
-    R.when(R.isNil, () => getDefaultValueForType(R.prop("type", property))),
-  )(property),
-}));
-
-// Initialize property values from widget definition
-export const initializePropertyValues = R.pipe(
-  parseWidgetProperties,
-  R.map(createPropertyValue),
-  R.reduce(
-    (acc, prop) => R.assoc(R.prop("key", prop), R.prop("value", prop), acc),
-    {},
-  ),
-);
-
-// Validate property value
-export const validatePropertyValue = R.curry((property, value) => {
-  const type = R.prop("type", property);
-  const required = R.prop("required", property);
-
-  // Check if required field is empty
-  if (required && (R.isNil(value) || R.isEmpty(String(value)))) {
-    return { isValid: false, error: "This field is required" };
-  }
-
-  // Type-specific validation
-  const typeValidation = R.cond([
-    [
-      R.equals("integer"),
-      () => {
-        if (R.isEmpty(String(value))) return { isValid: true, error: null };
-        const num = parseInt(value, 10);
-        return isNaN(num)
-          ? { isValid: false, error: "Must be a valid integer" }
-          : { isValid: true, error: null };
-      },
-    ],
-    [
-      R.equals("decimal"),
-      () => {
-        if (R.isEmpty(String(value))) return { isValid: true, error: null };
-        const num = parseFloat(value);
-        return isNaN(num)
-          ? { isValid: false, error: "Must be a valid decimal number" }
-          : { isValid: true, error: null };
-      },
-    ],
-    [
-      R.equals("enumeration"),
-      () => {
-        const options = R.prop("options", property);
-        return R.isEmpty(String(value)) || R.includes(value, options)
-          ? { isValid: true, error: null }
-          : { isValid: false, error: "Must be one of the available options" };
-      },
-    ],
-    [R.T, R.always({ isValid: true, error: null })],
-  ])(type);
-
-  return typeValidation;
-});
-
-// Group properties by category
-export const groupPropertiesByCategory = R.pipe(
-  R.groupBy(R.propOr("General", "category")),
-  R.toPairs,
-  R.map(([category, properties]) => ({ category, properties })),
-);
-
-// Filter properties by search term
-export const filterPropertiesBySearch = R.curry((searchTerm, properties) =>
-  R.isEmpty(searchTerm)
-    ? properties
-    : R.filter(
-        R.pipe(
-          R.props(["caption", "description", "key"]),
-          R.filter(R.identity),
-          R.join(" "),
-          toLower,
-          R.includes(toLower(searchTerm)),
-        ),
-        properties,
-      ),
-);
+// NOTE: Most property operations have been moved to Rust backend.
+// Use dataProcessing.js functions: initializePropertyValues, validatePropertyValue,
+// filterPropertiesBySearch, groupPropertiesByCategory, mapPropertyTypeToUIType, getDefaultValueForType
 
 // Create property change handler
 export const createPropertyChangeHandler = R.curry(

@@ -1,6 +1,7 @@
 use quick_xml::events::Event;
 use quick_xml::Reader;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -587,6 +588,327 @@ pub fn read_editor_config(widget_path: String) -> Result<EditorConfigResult, Str
             file_path: None,
         }),
     }
+}
+
+// ============= Property UI Type Mapping =============
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UITypeMapping {
+    pub property_type: String,
+    pub ui_type: String,
+}
+
+fn map_property_type_to_ui_type_internal(property_type: &str) -> &'static str {
+    match property_type {
+        "string" => "text",
+        "boolean" => "checkbox",
+        "integer" => "number",
+        "decimal" => "number",
+        "enumeration" => "select",
+        "expression" => "textarea",
+        "textTemplate" => "textarea",
+        "action" => "select",
+        "attribute" => "select",
+        "association" => "select",
+        "object" => "select",
+        "file" => "file",
+        "datasource" => "select",
+        "icon" => "icon",
+        "image" => "image",
+        "widgets" => "widgets",
+        _ => "text",
+    }
+}
+
+#[tauri::command]
+pub fn map_property_type_to_ui_type(property_type: String) -> Result<String, String> {
+    Ok(map_property_type_to_ui_type_internal(&property_type).to_string())
+}
+
+#[tauri::command]
+pub fn get_ui_type_mappings() -> Result<Vec<UITypeMapping>, String> {
+    let types = vec![
+        "string", "boolean", "integer", "decimal", "enumeration", "expression",
+        "textTemplate", "action", "attribute", "association", "object", "file",
+        "datasource", "icon", "image", "widgets",
+    ];
+
+    Ok(types.iter().map(|t| UITypeMapping {
+        property_type: t.to_string(),
+        ui_type: map_property_type_to_ui_type_internal(t).to_string(),
+    }).collect())
+}
+
+// ============= Property Default Values =============
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PropertyValue {
+    String(String),
+    Boolean(bool),
+    Integer(i64),
+    Decimal(f64),
+}
+
+fn get_default_value_for_type_internal(property_type: &str) -> PropertyValue {
+    match property_type {
+        "string" => PropertyValue::String(String::new()),
+        "boolean" => PropertyValue::Boolean(false),
+        "integer" => PropertyValue::Integer(0),
+        "decimal" => PropertyValue::Decimal(0.0),
+        "enumeration" => PropertyValue::String(String::new()),
+        "expression" => PropertyValue::String(String::new()),
+        "textTemplate" => PropertyValue::String(String::new()),
+        _ => PropertyValue::String(String::new()),
+    }
+}
+
+#[tauri::command]
+pub fn get_default_value_for_type(property_type: String) -> Result<PropertyValue, String> {
+    Ok(get_default_value_for_type_internal(&property_type))
+}
+
+// ============= Property Validation =============
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidationResult {
+    pub is_valid: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PropertyForValidation {
+    pub property_type: String,
+    pub required: bool,
+    pub options: Option<Vec<String>>,
+}
+
+fn validate_property_value_internal(
+    property: &PropertyForValidation,
+    value: &str,
+) -> ValidationResult {
+    // Check if required field is empty
+    if property.required && value.trim().is_empty() {
+        return ValidationResult {
+            is_valid: false,
+            error: Some("This field is required".to_string()),
+        };
+    }
+
+    // Type-specific validation
+    match property.property_type.as_str() {
+        "integer" => {
+            if value.trim().is_empty() {
+                return ValidationResult { is_valid: true, error: None };
+            }
+            match value.parse::<i64>() {
+                Ok(_) => ValidationResult { is_valid: true, error: None },
+                Err(_) => ValidationResult {
+                    is_valid: false,
+                    error: Some("Must be a valid integer".to_string()),
+                },
+            }
+        }
+        "decimal" => {
+            if value.trim().is_empty() {
+                return ValidationResult { is_valid: true, error: None };
+            }
+            match value.parse::<f64>() {
+                Ok(_) => ValidationResult { is_valid: true, error: None },
+                Err(_) => ValidationResult {
+                    is_valid: false,
+                    error: Some("Must be a valid decimal number".to_string()),
+                },
+            }
+        }
+        "enumeration" => {
+            if value.trim().is_empty() {
+                return ValidationResult { is_valid: true, error: None };
+            }
+            if let Some(ref options) = property.options {
+                if options.contains(&value.to_string()) {
+                    ValidationResult { is_valid: true, error: None }
+                } else {
+                    ValidationResult {
+                        is_valid: false,
+                        error: Some("Must be one of the available options".to_string()),
+                    }
+                }
+            } else {
+                ValidationResult { is_valid: true, error: None }
+            }
+        }
+        _ => ValidationResult { is_valid: true, error: None },
+    }
+}
+
+#[tauri::command]
+pub fn validate_property_value(
+    property: PropertyForValidation,
+    value: String,
+) -> Result<ValidationResult, String> {
+    Ok(validate_property_value_internal(&property, &value))
+}
+
+// ============= Property Search Filtering =============
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParsedProperty {
+    pub key: String,
+    #[serde(rename = "type")]
+    pub property_type: String,
+    pub caption: String,
+    pub description: Option<String>,
+    pub required: bool,
+    pub default_value: Option<String>,
+    pub options: Vec<String>,
+    pub category: String,
+}
+
+fn property_matches_search(property: &ParsedProperty, search_term: &str) -> bool {
+    let search_lower = search_term.to_lowercase();
+
+    property.caption.to_lowercase().contains(&search_lower)
+        || property.key.to_lowercase().contains(&search_lower)
+        || property.description
+            .as_ref()
+            .map(|d| d.to_lowercase().contains(&search_lower))
+            .unwrap_or(false)
+}
+
+#[tauri::command]
+pub fn filter_properties_by_search(
+    properties: Vec<ParsedProperty>,
+    search_term: String,
+) -> Result<Vec<ParsedProperty>, String> {
+    if search_term.trim().is_empty() {
+        return Ok(properties);
+    }
+
+    Ok(properties
+        .into_iter()
+        .filter(|p| property_matches_search(p, &search_term))
+        .collect())
+}
+
+// ============= Property Initialization =============
+
+fn extract_properties_from_group_with_category(
+    group: &WidgetPropertyGroup,
+    category_path: &str,
+) -> Vec<ParsedProperty> {
+    let full_path = if category_path.is_empty() {
+        group.caption.clone()
+    } else if group.caption.is_empty() {
+        category_path.to_string()
+    } else {
+        format!("{} > {}", category_path, group.caption)
+    };
+
+    let mut result: Vec<ParsedProperty> = group.properties.iter().map(|p| ParsedProperty {
+        key: p.key.clone(),
+        property_type: p.property_type.clone(),
+        caption: p.caption.clone(),
+        description: if p.description.is_empty() { None } else { Some(p.description.clone()) },
+        required: p.required,
+        default_value: p.default_value.clone(),
+        options: p.options.clone(),
+        category: if full_path.is_empty() { "General".to_string() } else { full_path.clone() },
+    }).collect();
+
+    // Recursively process nested groups
+    for nested_group in &group.property_groups {
+        result.extend(extract_properties_from_group_with_category(nested_group, &full_path));
+    }
+
+    result
+}
+
+fn parse_widget_properties_enhanced(definition: &WidgetDefinition) -> Vec<ParsedProperty> {
+    let mut result: Vec<ParsedProperty> = Vec::new();
+
+    // Root-level properties
+    for p in &definition.properties {
+        result.push(ParsedProperty {
+            key: p.key.clone(),
+            property_type: p.property_type.clone(),
+            caption: p.caption.clone(),
+            description: if p.description.is_empty() { None } else { Some(p.description.clone()) },
+            required: p.required,
+            default_value: p.default_value.clone(),
+            options: p.options.clone(),
+            category: "General".to_string(),
+        });
+    }
+
+    // Properties from groups
+    for group in &definition.property_groups {
+        result.extend(extract_properties_from_group_with_category(group, ""));
+    }
+
+    result
+}
+
+#[tauri::command]
+pub fn parse_widget_properties_to_parsed(widget_path: String) -> Result<Vec<ParsedProperty>, String> {
+    let definition = parse_widget_xml(&widget_path).map_err(|e| e.to_string())?;
+    Ok(parse_widget_properties_enhanced(&definition))
+}
+
+#[tauri::command]
+pub fn initialize_property_values(widget_path: String) -> Result<HashMap<String, PropertyValue>, String> {
+    let definition = parse_widget_xml(&widget_path).map_err(|e| e.to_string())?;
+    let properties = parse_widget_properties_enhanced(&definition);
+
+    let mut values: HashMap<String, PropertyValue> = HashMap::new();
+
+    for prop in properties {
+        let value = if let Some(default) = prop.default_value {
+            // Use default value based on type
+            match prop.property_type.as_str() {
+                "boolean" => PropertyValue::Boolean(default == "true"),
+                "integer" => PropertyValue::Integer(default.parse().unwrap_or(0)),
+                "decimal" => PropertyValue::Decimal(default.parse().unwrap_or(0.0)),
+                _ => PropertyValue::String(default),
+            }
+        } else {
+            get_default_value_for_type_internal(&prop.property_type)
+        };
+
+        values.insert(prop.key, value);
+    }
+
+    Ok(values)
+}
+
+// ============= Group Properties by Category =============
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PropertyGroup {
+    pub category: String,
+    pub properties: Vec<ParsedProperty>,
+}
+
+#[tauri::command]
+pub fn group_properties_by_category(properties: Vec<ParsedProperty>) -> Result<Vec<PropertyGroup>, String> {
+    let mut groups: HashMap<String, Vec<ParsedProperty>> = HashMap::new();
+
+    for prop in properties {
+        groups.entry(prop.category.clone()).or_default().push(prop);
+    }
+
+    let mut result: Vec<PropertyGroup> = groups.into_iter()
+        .map(|(category, properties)| PropertyGroup { category, properties })
+        .collect();
+
+    // Sort groups: "General" first, then alphabetically
+    result.sort_by(|a, b| {
+        if a.category == "General" { std::cmp::Ordering::Less }
+        else if b.category == "General" { std::cmp::Ordering::Greater }
+        else { a.category.cmp(&b.category) }
+    });
+
+    Ok(result)
 }
 
 #[cfg(test)]
