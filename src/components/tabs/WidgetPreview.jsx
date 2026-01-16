@@ -17,7 +17,7 @@ const isWidgetSelectedForPreview = R.curry((selectedWidgetForPreview, widget) =>
   R.equals(selectedWidgetForPreview, R.prop("id", widget)),
 );
 
-const getWidgetClassName = R.curry((selectedWidgetForPreview, widget) =>
+const buildWidgetItemClassName = R.curry((selectedWidgetForPreview, widget) =>
   R.join(" ", [
     "version-list-item",
     isWidgetSelectedForPreview(selectedWidgetForPreview, widget)
@@ -26,7 +26,7 @@ const getWidgetClassName = R.curry((selectedWidgetForPreview, widget) =>
   ]),
 );
 
-const calculateNewSelection = R.curry((currentSelection, widgetId) =>
+const toggleWidgetSelection = R.curry((currentSelection, widgetId) =>
   R.ifElse(
     R.equals(currentSelection),
     R.always(null),
@@ -34,15 +34,15 @@ const calculateNewSelection = R.curry((currentSelection, widgetId) =>
   )(widgetId),
 );
 
-const createWidgetSelectionHandler = R.curry(
+const handleWidgetItemClick = R.curry(
   (selectedWidgetForPreview, setSelectedWidgetForPreview, widgetId) =>
     R.pipe(
-      calculateNewSelection(selectedWidgetForPreview),
+      toggleWidgetSelection(selectedWidgetForPreview),
       setSelectedWidgetForPreview,
     )(widgetId),
 );
 
-const createWidgetDeleteHandler = R.curry(
+const handleWidgetItemDelete = R.curry(
   (handleWidgetDeleteClick, widget, e) =>
     R.pipe(
       R.tap(() => e.preventDefault()),
@@ -62,10 +62,10 @@ const renderWidgetItem = R.curry(
     <div
       key={R.prop("id", widget)}
       data-label={R.prop("id", widget)}
-      className={getWidgetClassName(selectedWidgetForPreview, widget)}
+      className={buildWidgetItemClassName(selectedWidgetForPreview, widget)}
       onClick={R.pipe(
         R.always(R.prop("id", widget)),
-        createWidgetSelectionHandler(
+        handleWidgetItemClick(
           selectedWidgetForPreview,
           setSelectedWidgetForPreview,
         ),
@@ -80,7 +80,7 @@ const renderWidgetItem = R.curry(
       <button
         className="install-button uninstall-button"
         onMouseDown={(e) => e.stopPropagation()}
-        onClick={createWidgetDeleteHandler(handleWidgetDeleteClick, widget)}
+        onClick={handleWidgetItemDelete(handleWidgetDeleteClick, widget)}
       >
         <span className="button-icon">🗑️</span>
       </button>
@@ -88,14 +88,14 @@ const renderWidgetItem = R.curry(
   ),
 );
 
-const renderNoProperties = R.always(
+const renderNoConfigurableProperties = R.always(
   <div className="no-properties">
     <span className="info-icon">ℹ️</span>
     <p>No configurable properties found</p>
   </div>,
 );
 
-const renderPropertyInput = R.curry((properties, updateProperty, property) => (
+const renderPropertyInputField = R.curry((properties, updateProperty, property) => (
   <DynamicPropertyInput
     key={R.prop("key", property)}
     property={property}
@@ -109,7 +109,7 @@ const renderPropertyInput = R.curry((properties, updateProperty, property) => (
   />
 ));
 
-const countVisibleGroupProperties = R.curry((visibleKeys, group) => {
+const countVisiblePropertiesInGroup = R.curry((visibleKeys, group) => {
   const groupProperties = R.propOr([], "properties", group);
   const filteredProperties = visibleKeys
     ? R.filter((prop) => R.includes(R.prop("key", prop), visibleKeys), groupProperties)
@@ -117,7 +117,7 @@ const countVisibleGroupProperties = R.curry((visibleKeys, group) => {
   const directCount = R.length(filteredProperties);
   const nestedCount = R.pipe(
     R.propOr([], "property_groups"),
-    R.map(countVisibleGroupProperties(visibleKeys)),
+    R.map(countVisiblePropertiesInGroup(visibleKeys)),
     R.sum,
   )(group);
   return directCount + nestedCount;
@@ -139,7 +139,7 @@ const PropertyGroupAccordion = ({
   const groupProperties = R.propOr([], "properties", group);
   const nestedGroups = R.propOr([], "property_groups", group);
 
-  const visibleCount = countVisibleGroupProperties(visibleKeys, group);
+  const visibleCount = countVisiblePropertiesInGroup(visibleKeys, group);
 
   if (visibleCount === 0) {
     return null;
@@ -166,7 +166,7 @@ const PropertyGroupAccordion = ({
   );
 
   const visibleNestedGroups = R.filter(
-    (nestedGroup) => countVisibleGroupProperties(visibleKeys, nestedGroup) > 0,
+    (nestedGroup) => countVisiblePropertiesInGroup(visibleKeys, nestedGroup) > 0,
     nestedGroups,
   );
 
@@ -187,7 +187,7 @@ const PropertyGroupAccordion = ({
       {isExpanded && (
         <div className={contentClassName}>
           {R.map(
-            (prop) => renderPropertyInput(properties, updateProperty, prop),
+            (prop) => renderPropertyInputField(properties, updateProperty, prop),
             parsedProperties,
           )}
           {R.map(
@@ -212,7 +212,7 @@ const PropertyGroupAccordion = ({
   );
 };
 
-const renderRootProperties = R.curry(
+const renderRootPropertyGroup = R.curry(
   (properties, updateProperty, visibleKeys, rootProps) => {
     if (R.isEmpty(rootProps)) return null;
 
@@ -246,7 +246,7 @@ const renderRootProperties = R.curry(
         </div>
         <div className="property-group-content">
           {R.map(
-            (prop) => renderPropertyInput(properties, updateProperty, prop),
+            (prop) => renderPropertyInputField(properties, updateProperty, prop),
             parsedProperties,
           )}
         </div>
@@ -255,7 +255,7 @@ const renderRootProperties = R.curry(
   },
 );
 
-const renderNestedPropertyGroups = R.curry(
+const renderWidgetPropertyGroups = R.curry(
   (properties, updateProperty, expandedGroups, toggleGroup, visibleKeys, definition) => {
     const rootProperties = R.propOr([], "properties", definition);
     const propertyGroups = R.propOr([], "property_groups", definition);
@@ -265,24 +265,24 @@ const renderNestedPropertyGroups = R.curry(
       : rootProperties;
 
     const visibleGroupsCount = R.pipe(
-      R.map(countVisibleGroupProperties(visibleKeys)),
+      R.map(countVisiblePropertiesInGroup(visibleKeys)),
       R.sum,
     )(propertyGroups);
 
     const totalVisibleCount = R.length(visibleRootProps) + visibleGroupsCount;
 
     if (totalVisibleCount === 0) {
-      return renderNoProperties();
+      return renderNoConfigurableProperties();
     }
 
     const visibleGroups = R.filter(
-      (group) => countVisibleGroupProperties(visibleKeys, group) > 0,
+      (group) => countVisiblePropertiesInGroup(visibleKeys, group) > 0,
       propertyGroups,
     );
 
     return (
       <>
-        {renderRootProperties(properties, updateProperty, visibleKeys, rootProperties)}
+        {renderRootPropertyGroup(properties, updateProperty, visibleKeys, rootProperties)}
         {R.map(
           (group) => (
             <PropertyGroupAccordion
@@ -304,21 +304,21 @@ const renderNestedPropertyGroups = R.curry(
   },
 );
 
-const renderLoadingProperties = R.always(
+const renderPropertiesLoadingState = R.always(
   <div className="property-loading">
     <span className="loading-icon">⏳</span>
     <p>Loading widget properties...</p>
   </div>,
 );
 
-const renderNoWidgetSelected = R.always(
+const renderNoWidgetSelectedState = R.always(
   <div className="no-widget-selected">
     <span className="no-widget-icon">🧩</span>
     <p>Select a widget to view its properties</p>
   </div>,
 );
 
-const renderDynamicPropertiesSection = R.curry(
+const renderPropertiesPanel = R.curry(
   (selectedWidget, widgetDefinition, properties, updateProperty, expandedGroups, toggleGroup, visibleKeys) => (
     <div className="property-section">
       {R.ifElse(
@@ -326,35 +326,31 @@ const renderDynamicPropertiesSection = R.curry(
         R.always(
           R.ifElse(
             R.identity,
-            renderNestedPropertyGroups(properties, updateProperty, expandedGroups, toggleGroup, visibleKeys),
-            renderLoadingProperties,
+            renderWidgetPropertyGroups(properties, updateProperty, expandedGroups, toggleGroup, visibleKeys),
+            renderPropertiesLoadingState,
           )(widgetDefinition),
         ),
-        renderNoWidgetSelected,
+        renderNoWidgetSelectedState,
       )(selectedWidget)}
     </div>
   ),
 );
 
-// Check if widgets are empty and no search term
-const isEmptyWithoutSearch = R.converge(R.and, [
+const hasWidgetsWithoutSearch = R.converge(R.and, [
   R.pipe(R.prop("reorderedWidgets"), R.isEmpty),
   R.pipe(R.prop("widgetSearchTerm"), R.isEmpty),
 ]);
 
-// Check if widgets are empty with search term
-const isEmptyWithSearch = R.converge(R.and, [
+const hasNoSearchResults = R.converge(R.and, [
   R.pipe(R.prop("reorderedWidgets"), R.isEmpty),
   R.pipe(R.prop("widgetSearchTerm"), R.complement(R.isEmpty)),
 ]);
 
-// Create search not found message
-const createSearchNotFoundMessage = R.pipe(
+const formatSearchNotFoundMessage = R.pipe(
   R.prop("widgetSearchTerm"),
   (term) => `No widgets found matching "${term}"`,
 );
 
-// Render widget list items
 const renderWidgetListItems = R.curry((widgetData, widgetHandlers) =>
   R.pipe(
     R.prop("reorderedWidgets"),
@@ -368,15 +364,14 @@ const renderWidgetListItems = R.curry((widgetData, widgetHandlers) =>
   )(widgetData),
 );
 
-// Create widget list content predicates and renderers
-const createWidgetListConditions = R.curry((widgetData, widgetHandlers) => [
+const buildWidgetListRenderConditions = R.curry((widgetData, widgetHandlers) => [
   [
-    isEmptyWithoutSearch,
+    hasWidgetsWithoutSearch,
     R.always(renderLoadingIndicator("🧩", "No widgets registered")),
   ],
   [
-    isEmptyWithSearch,
-    R.pipe(createSearchNotFoundMessage, (msg) => renderLoadingIndicator("🔍", msg)),
+    hasNoSearchResults,
+    R.pipe(formatSearchNotFoundMessage, (msg) => renderLoadingIndicator("🔍", msg)),
   ],
   [R.T, R.always(renderWidgetListItems(widgetData, widgetHandlers))],
 ]);
@@ -406,14 +401,14 @@ const renderAddWidgetButton = R.curry((modalHandlers) => (
   </div>
 ));
 
-const renderWidgetListArea = R.curryN(
+const renderWidgetListPanel = R.curryN(
   4,
   (widgetData, widgetHandlers, modalHandlers, listRef) => (
     <div className="list-area">
       {renderAddWidgetButton(modalHandlers)}
       <div className="draggable-widget-list" ref={listRef}>
         {R.apply(R.cond, [
-          createWidgetListConditions(widgetData, widgetHandlers),
+          buildWidgetListRenderConditions(widgetData, widgetHandlers),
         ])(widgetData)}
       </div>
     </div>
@@ -476,7 +471,7 @@ const WidgetPreview = memo(
       R.defaultTo(null),
     )(widgets);
 
-    const clearWidgetDefinitionState = () => {
+    const resetWidgetPropertiesState = () => {
       setWidgetDefinition(null);
       setDynamicProperties({});
       setEditorConfigHandler(null);
@@ -485,7 +480,7 @@ const WidgetPreview = memo(
 
     useEffect(() => {
       if (!selectedWidget) {
-        clearWidgetDefinitionState();
+        resetWidgetPropertiesState();
         return;
       }
 
@@ -580,7 +575,7 @@ const WidgetPreview = memo(
             value={widgetSearchTerm}
             onChange={setWidgetSearchTerm}
           />
-          {renderWidgetListArea(
+          {renderWidgetListPanel(
             {
               reorderedWidgets,
               widgetSearchTerm,
@@ -632,7 +627,7 @@ const WidgetPreview = memo(
               <p>{buildError}</p>
             </div>
           )}
-          {renderDynamicPropertiesSection(
+          {renderPropertiesPanel(
             selectedWidget,
             widgetDefinition,
             combinedProperties,

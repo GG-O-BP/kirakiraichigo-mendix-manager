@@ -13,25 +13,21 @@ import {
   filterAndSortAppsWithPriority,
 } from "../../utils/dataProcessing";
 
-// ============= Constants =============
-
 const ITEMS_PER_PAGE = 10;
 
-// ============= Legacy Filter Functions (kept for backward compatibility) =============
-
-const filterDownloadableOnly = R.curry(
+const excludeInstalledVersions = R.curry(
   (installedVersions, showOnlyDownloadable, versions) =>
     R.pipe(
       R.defaultTo([]),
       R.ifElse(
         () => showOnlyDownloadable,
-        R.filter(R.complement(isVersionAlreadyInstalled(installedVersions))),
+        R.filter(R.complement(isVersionInInstalledList(installedVersions))),
         R.identity,
       ),
     )(versions),
 );
 
-const filterByVersionType = R.curry(
+const filterByVersionSupportType = R.curry(
   (showLTSOnly, showMTSOnly, showBetaOnly, versions) =>
     R.pipe(
       R.defaultTo([]),
@@ -48,7 +44,7 @@ const filterByVersionType = R.curry(
     )(versions),
 );
 
-const filterBySearch = R.curry((searchTerm, items) =>
+const filterBySearchTerm = R.curry((searchTerm, items) =>
   R.pipe(
     R.when(() => R.isEmpty(searchTerm), R.identity),
     R.unless(
@@ -58,9 +54,7 @@ const filterBySearch = R.curry((searchTerm, items) =>
   )(items),
 );
 
-// ============= Pagination Functions =============
-
-const calculateNextPage = R.pipe(
+const calculateNextPageNumber = R.pipe(
   R.defaultTo([]),
   R.length,
   R.max(0),
@@ -70,7 +64,7 @@ const calculateNextPage = R.pipe(
   R.max(1),
 );
 
-const createPaginationHandler = R.curry(
+const createLoadMoreVersionsHandler = R.curry(
   (downloadableVersions, isLoading, fetchFunction) => {
     if (isLoading) {
       return null;
@@ -82,7 +76,7 @@ const createPaginationHandler = R.curry(
         R.always(false),
         R.identity,
         R.pipe(
-          calculateNextPage,
+          calculateNextPageNumber,
           R.when(
             R.pipe(R.gte(R.__, 1), R.and(R.lt(R.__, 100))),
             (page) => () => {
@@ -98,11 +92,9 @@ const createPaginationHandler = R.curry(
   },
 );
 
-// ============= Data Processing Functions =============
+const normalizeVersionString = R.pipe(R.defaultTo(""), String, R.trim);
 
-const toVersionString = R.pipe(R.defaultTo(""), String, R.trim);
-
-const getDateValue = R.pipe(
+const extractModifiedDateTimestamp = R.pipe(
   R.prop("last_modified"),
   R.when(R.isNil, R.always(0)),
   R.unless(
@@ -115,37 +107,7 @@ const getDateValue = R.pipe(
   ),
 );
 
-// ============= Selection State Functions =============
-
-const isAppDisabled = R.curry((selectedVersion, app) =>
-  R.pipe(
-    R.always(selectedVersion),
-    R.ifElse(
-      R.isNil,
-      R.always(false),
-      R.pipe(
-        R.prop("version"), // Get version string from selectedVersion object
-        toVersionString,
-        (versionStr) =>
-          R.pipe(
-            R.prop("version"),
-            toVersionString,
-            R.complement(R.equals)(versionStr),
-          )(app),
-      ),
-    ),
-  )(),
-);
-
-const isVersionAlreadyInstalled = R.curry((installedVersions, version) =>
-  R.pipe(
-    R.defaultTo([]),
-    R.map(R.pipe(R.prop("version"), toVersionString)),
-    R.includes(R.pipe(R.prop("version"), toVersionString)(version)),
-  )(installedVersions),
-);
-
-const isVersionSelected = R.curry((selectedVersion, version) =>
+const isAppVersionMismatch = R.curry((selectedVersion, app) =>
   R.pipe(
     R.always(selectedVersion),
     R.ifElse(
@@ -153,62 +115,78 @@ const isVersionSelected = R.curry((selectedVersion, version) =>
       R.always(false),
       R.pipe(
         R.prop("version"),
-        toVersionString,
-        R.equals(R.pipe(R.prop("version"), toVersionString)(version)),
+        normalizeVersionString,
+        (versionStr) =>
+          R.pipe(
+            R.prop("version"),
+            normalizeVersionString,
+            R.complement(R.equals)(versionStr),
+          )(app),
       ),
     ),
   )(),
 );
 
-// ============= Button State Functions =============
-
-const isDownloadButtonDisabled = R.curry((versions, version) =>
-  isVersionAlreadyInstalled(versions, version),
+const isVersionInInstalledList = R.curry((installedVersions, version) =>
+  R.pipe(
+    R.defaultTo([]),
+    R.map(R.pipe(R.prop("version"), normalizeVersionString)),
+    R.includes(R.pipe(R.prop("version"), normalizeVersionString)(version)),
+  )(installedVersions),
 );
 
-// ============= Event Handlers =============
+const isVersionCurrentlySelected = R.curry((selectedVersion, version) =>
+  R.pipe(
+    R.always(selectedVersion),
+    R.ifElse(
+      R.isNil,
+      R.always(false),
+      R.pipe(
+        R.prop("version"),
+        normalizeVersionString,
+        R.equals(R.pipe(R.prop("version"), normalizeVersionString)(version)),
+      ),
+    ),
+  )(),
+);
 
-const createVersionClickHandler = R.curry(
+const createVersionSelectionHandler = R.curry(
   (handleClick, version) => () => handleClick(version),
 );
 
-const createAppClickHandler = R.curry(
+const createAppSelectionHandler = R.curry(
   (handleClick, app) => () => handleClick(app),
 );
 
-const createDownloadHandler = R.curry((handleClick, version) => () => {
-  if (!isVersionAlreadyInstalled([], version)) {
+const createVersionDownloadHandler = R.curry((handleClick, version) => () => {
+  if (!isVersionInInstalledList([], version)) {
     handleClick(version);
   }
 });
 
-const createLoadMoreHandler = R.curry((fetchFunction, page) => {
+const createFetchMoreHandler = R.curry((fetchFunction, page) => {
   if (fetchFunction && page > 0) {
     return () => fetchFunction(page);
   }
   return null;
 });
 
-// ============= Launch/Uninstall Handlers =============
-
-const createLaunchHandler = R.curry(
+const createVersionLaunchHandler = R.curry(
   (handleLaunch, version) => () => handleLaunch(version.version),
 );
 
-const createUninstallHandler = R.curry(
+const createVersionUninstallHandler = R.curry(
   (handleUninstall, version) => () => handleUninstall(version),
 );
 
-// ============= Render Functions =============
-
-const renderEmptyState = R.curry((message) => (
+const renderEmptyListMessage = R.curry((message) => (
   <div className="no-content">
     <span className="berry-icon">🍓</span>
     <p>{message}</p>
   </div>
 ));
 
-const renderVersionBadge = R.curry((badge, badgeClass) =>
+const renderSupportTypeBadge = R.curry((badge, badgeClass) =>
   badge ? (
     <span key={badgeClass} className={`version-badge ${badgeClass}`}>
       {badge}
@@ -216,7 +194,7 @@ const renderVersionBadge = R.curry((badge, badgeClass) =>
   ) : null,
 );
 
-const renderVersionBadges = (version) =>
+const renderVersionSupportBadges = (version) =>
   R.pipe(
     R.juxt([
       R.pipe(
@@ -232,11 +210,11 @@ const renderVersionBadges = (version) =>
         R.ifElse(R.identity, R.always("LATEST"), R.always(null)),
       ),
     ]),
-    R.zipWith(renderVersionBadge, R.__, ["lts", "mts", "latest"]),
+    R.zipWith(renderSupportTypeBadge, R.__, ["lts", "mts", "latest"]),
     R.filter(R.identity),
   )(version);
 
-const renderCheckbox = R.curry((checked, onChange, label) => (
+const renderFilterCheckbox = R.curry((checked, onChange, label) => (
   <label className="checkbox-label">
     <input
       type="checkbox"
@@ -248,11 +226,9 @@ const renderCheckbox = R.curry((checked, onChange, label) => (
   </label>
 ));
 
-// ============= List Item Renderers =============
-
-const renderDownloadableVersionItem = R.curry(
+const renderDownloadableVersion = R.curry(
   (versions, versionLoadingStates, handleDownload, version) => {
-    const isInstalled = isVersionAlreadyInstalled(versions, version);
+    const isInstalled = isVersionInInstalledList(versions, version);
     const loadingState = getVersionLoadingState(
       versionLoadingStates,
       version.version,
@@ -270,7 +246,7 @@ const renderDownloadableVersionItem = R.curry(
             <span className="version-date">{version.release_date}</span>
           </div>
         </div>
-        <div className="version-badges-row">{renderVersionBadges(version)}</div>
+        <div className="version-badges-row">{renderVersionSupportBadges(version)}</div>
         {loadingState.isDownloading ? (
           <div className="download-progress">
             <div className="progress-bar">
@@ -286,7 +262,7 @@ const renderDownloadableVersionItem = R.curry(
         ) : (
           <button
             className="install-button"
-            onClick={createDownloadHandler(handleDownload, version)}
+            onClick={createVersionDownloadHandler(handleDownload, version)}
             disabled={isInstalled}
           >
             {!isInstalled && <span className="button-icon">💫</span>}
@@ -298,7 +274,7 @@ const renderDownloadableVersionItem = R.curry(
   },
 );
 
-const renderLoadMoreItem = R.curry((fetchFunction, isLoading, totalCount) => {
+const renderLoadMoreIndicator = R.curry((fetchFunction, isLoading, totalCount) => {
   if (isLoading) {
     return (
       <div key="loading-more" className="loading-indicator">
@@ -308,8 +284,8 @@ const renderLoadMoreItem = R.curry((fetchFunction, isLoading, totalCount) => {
     );
   }
 
-  // 초기 로드 전이거나 데이터가 없으면 아무것도 표시하지 않음
-  if (!fetchFunction && totalCount === 0) {
+  const isInitialLoadOrEmpty = !fetchFunction && totalCount === 0;
+  if (isInitialLoadOrEmpty) {
     return null;
   }
 
@@ -332,7 +308,7 @@ const renderLoadMoreItem = R.curry((fetchFunction, isLoading, totalCount) => {
   );
 });
 
-const renderVersionListItem = R.curry(
+const renderInstalledVersion = R.curry(
   (
     versionLoadingStates,
     handleLaunch,
@@ -354,22 +330,20 @@ const renderVersionListItem = R.curry(
         getVersionLoadingState(versionLoadingStates, version.version)
           .isUninstalling
       }
-      isSelected={isVersionSelected(selectedVersion, version)}
-      onClick={createVersionClickHandler(handleVersionClick, version)}
+      isSelected={isVersionCurrentlySelected(selectedVersion, version)}
+      onClick={createVersionSelectionHandler(handleVersionClick, version)}
     />
   ),
 );
 
-const renderAppListItem = R.curry((selectedVersion, handleClick, app) => (
+const renderMendixApp = R.curry((selectedVersion, handleClick, app) => (
   <MendixAppListItem
     key={`app-${app.name}`}
     app={app}
-    isDisabled={isAppDisabled(selectedVersion, app)}
-    onClick={createAppClickHandler(handleClick, app)}
+    isDisabled={isAppVersionMismatch(selectedVersion, app)}
+    onClick={createAppSelectionHandler(handleClick, app)}
   />
 ));
-
-// ============= List Renderers =============
 
 const renderDownloadableVersionsList = R.curry(
   (
@@ -382,9 +356,9 @@ const renderDownloadableVersionsList = R.curry(
     fetchFunction,
   ) => {
     const hasVersions = !R.isEmpty(filteredVersions);
-    const loadMoreHandler = createLoadMoreHandler(
+    const loadMoreHandler = createFetchMoreHandler(
       fetchFunction,
-      calculateNextPage(downloadableVersions),
+      calculateNextPageNumber(downloadableVersions),
     );
 
     return R.cond([
@@ -392,22 +366,22 @@ const renderDownloadableVersionsList = R.curry(
         R.always(hasVersions),
         R.always([
           ...R.map(
-            renderDownloadableVersionItem(
+            renderDownloadableVersion(
               installedVersions,
               versionLoadingStates,
               handleDownload,
             ),
             filteredVersions,
           ),
-          renderLoadMoreItem(loadMoreHandler, isLoading, R.length(downloadableVersions)),
+          renderLoadMoreIndicator(loadMoreHandler, isLoading, R.length(downloadableVersions)),
         ]),
       ],
-      [R.T, R.always(renderEmptyState("No downloadable versions found"))],
+      [R.T, R.always(renderEmptyListMessage("No downloadable versions found"))],
     ])();
   },
 );
 
-const renderVersionsList = R.curry(
+const renderInstalledVersionsList = R.curry(
   (
     versions,
     versionLoadingStates,
@@ -418,9 +392,9 @@ const renderVersionsList = R.curry(
   ) =>
     R.ifElse(
       R.isEmpty,
-      () => renderEmptyState("No installed versions found"),
+      () => renderEmptyListMessage("No installed versions found"),
       R.map(
-        renderVersionListItem(
+        renderInstalledVersion(
           versionLoadingStates,
           handleLaunch,
           handleUninstall,
@@ -431,17 +405,15 @@ const renderVersionsList = R.curry(
     )(versions),
 );
 
-const renderAppsList = R.curry((apps, selectedVersion, handleClick) =>
+const renderMendixAppsList = R.curry((apps, selectedVersion, handleClick) =>
   R.ifElse(
     R.isEmpty,
-    () => renderEmptyState("No apps found"),
-    R.map(renderAppListItem(selectedVersion, handleClick)),
+    () => renderEmptyListMessage("No apps found"),
+    R.map(renderMendixApp(selectedVersion, handleClick)),
   )(apps),
 );
 
-// ============= Search Controls =============
-
-const renderSearchControls = R.curry((config) => (
+const renderPanelSearchControls = R.curry((config) => (
   <div className="search-controls">
     <SearchBox
       placeholder={config.placeholder}
@@ -451,24 +423,24 @@ const renderSearchControls = R.curry((config) => (
     {config.isDownloadablePanel && (
       <>
         <div className="search-row">
-          {renderCheckbox(
+          {renderFilterCheckbox(
             config.showOnlyDownloadableVersions,
             (e) => config.setShowOnlyDownloadableVersions(e.target.checked),
             "Only Show Downloadable",
           )}
         </div>
         <div className="version-type-filters">
-          {renderCheckbox(
+          {renderFilterCheckbox(
             config.showLTSOnly,
             (e) => config.setShowLTSOnly(e.target.checked),
             "LTS",
           )}
-          {renderCheckbox(
+          {renderFilterCheckbox(
             config.showMTSOnly,
             (e) => config.setShowMTSOnly(e.target.checked),
             "MTS",
           )}
-          {renderCheckbox(
+          {renderFilterCheckbox(
             config.showBetaOnly,
             (e) => config.setShowBetaOnly(e.target.checked),
             "Beta",
@@ -478,8 +450,6 @@ const renderSearchControls = R.curry((config) => (
     )}
   </div>
 ));
-
-// ============= Main Component =============
 
 const StudioProManager = memo(
   ({
@@ -508,28 +478,25 @@ const StudioProManager = memo(
     showBetaOnly,
     setShowBetaOnly,
   }) => {
-    // State for Rust-processed data
-    const [filteredVersionsRust, setFilteredVersionsRust] = useState([]);
-    const [filteredAppsRust, setFilteredAppsRust] = useState([]);
+    const [rustFilteredVersions, setRustFilteredVersions] = useState([]);
+    const [rustFilteredApps, setRustFilteredApps] = useState([]);
 
-    // Process versions with Rust backend using Ramda
     useEffect(() => {
       const processVersions = R.tryCatch(
         R.pipeWith(R.andThen, [
           R.always(filterMendixVersions(versions, searchTerm, true)),
-          setFilteredVersionsRust,
+          setRustFilteredVersions,
         ]),
         R.pipe(
           R.tap((error) => console.error("Failed to filter versions:", error)),
           R.always(versions),
-          setFilteredVersionsRust,
+          setRustFilteredVersions,
         ),
       );
 
       R.when(R.pipe(R.length, R.gt(R.__, 0)), processVersions)(versions || []);
     }, [versions, searchTerm]);
 
-    // Process apps with Rust backend - all logic moved to Rust for performance
     useEffect(() => {
       const processApps = R.tryCatch(
         R.pipeWith(R.andThen, [
@@ -540,12 +507,12 @@ const StudioProManager = memo(
               R.path(["version"], selectedVersion),
             ),
           ),
-          setFilteredAppsRust,
+          setRustFilteredApps,
         ]),
         R.pipe(
           R.tap((error) => console.error("Failed to filter apps:", error)),
           R.always(apps),
-          setFilteredAppsRust,
+          setRustFilteredApps,
         ),
       );
 
@@ -554,17 +521,17 @@ const StudioProManager = memo(
 
     const computedData = useMemo(() => {
       return R.applySpec({
-        sortedAndFilteredMendixApps: R.always(filteredAppsRust),
+        sortedAndFilteredMendixApps: R.always(rustFilteredApps),
         filteredDownloadableVersions: R.pipe(
           R.always(downloadableVersions),
-          filterDownloadableOnly(versions, showOnlyDownloadableVersions),
-          filterByVersionType(showLTSOnly, showMTSOnly, showBetaOnly),
-          filterBySearch(searchTerm),
+          excludeInstalledVersions(versions, showOnlyDownloadableVersions),
+          filterByVersionSupportType(showLTSOnly, showMTSOnly, showBetaOnly),
+          filterBySearchTerm(searchTerm),
         ),
         versionLoadingStates: R.always(versionLoadingStates),
       })();
     }, [
-      filteredAppsRust,
+      rustFilteredApps,
       downloadableVersions,
       versions,
       versionLoadingStates,
@@ -580,7 +547,7 @@ const StudioProManager = memo(
         {
           key: "downloadable-versions",
           className: "list-container downloadable-list",
-          searchControls: renderSearchControls({
+          searchControls: renderPanelSearchControls({
             placeholder: "Search downloadable versions...",
             searchTerm,
             setSearchTerm,
@@ -607,14 +574,14 @@ const StudioProManager = memo(
         {
           key: "versions",
           className: "list-container",
-          searchControls: renderSearchControls({
+          searchControls: renderPanelSearchControls({
             placeholder: "Search installed versions...",
             searchTerm,
             setSearchTerm,
             isDownloadablePanel: false,
           }),
-          content: renderVersionsList(
-            filteredVersionsRust,
+          content: renderInstalledVersionsList(
+            rustFilteredVersions,
             versionLoadingStates,
             handleLaunchStudioPro,
             handleUninstallClick,
@@ -625,13 +592,13 @@ const StudioProManager = memo(
         {
           key: "apps",
           className: "list-container",
-          searchControls: renderSearchControls({
+          searchControls: renderPanelSearchControls({
             placeholder: "Search apps...",
             searchTerm,
             setSearchTerm,
             isDownloadablePanel: false,
           }),
-          content: renderAppsList(
+          content: renderMendixAppsList(
             computedData.sortedAndFilteredMendixApps,
             selectedVersion,
             handleItemClick,
@@ -648,7 +615,7 @@ const StudioProManager = memo(
         handleVersionClick,
         handleItemClick,
         selectedVersion,
-        filteredVersionsRust,
+        rustFilteredVersions,
         downloadableVersions,
         versions,
         handleDownloadVersion,

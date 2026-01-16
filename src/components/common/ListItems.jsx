@@ -6,40 +6,31 @@ import {
   generateListData,
 } from "../../utils/functional";
 
-// Re-export for convenience
 export { createListItem, generateListData };
 
-// Convert to lowercase for comparison
 const toLower = R.toLower;
 
-// Get searchable text from item
-const getSearchableText = R.pipe(
+const extractSearchableText = R.pipe(
   R.props(["label", "version", "name"]),
   R.filter(R.identity),
   R.join(" "),
   toLower,
 );
 
-// Create search filter
 export const createSearchFilter = R.curry((searchTerm) =>
-  R.pipe(getSearchableText, R.includes(toLower(searchTerm))),
+  R.pipe(extractSearchableText, R.includes(toLower(searchTerm))),
 );
 
-// ============= Component Helpers =============
+const composeClassNames = R.pipe(R.filter(R.identity), R.join(" "));
 
-// Build class names
-const buildClassNames = R.pipe(R.filter(R.identity), R.join(" "));
-
-// Get version badge type
-const getVersionBadge = R.cond([
+const getVersionValidityBadge = R.cond([
   [R.prop("is_valid"), R.always("✓")],
   [R.prop("is_lts"), R.always("LTS")],
   [R.prop("is_mts"), R.always("MTS")],
   [R.T, R.always(null)],
 ]);
 
-// Format date with fallback
-const formatDate = R.curry((fallbackText, dateStr) =>
+const formatDateWithFallback = R.curry((fallbackText, dateStr) =>
   R.ifElse(
     R.identity,
     R.pipe(
@@ -50,8 +41,7 @@ const formatDate = R.curry((fallbackText, dateStr) =>
   )(dateStr),
 );
 
-// Handle button click with event propagation prevention
-const handleButtonClick = R.curry((onClick, e) =>
+const preventPropagationAndExecute = R.curry((onClick, e) =>
   R.pipe(
     R.tap((e) => e.stopPropagation()),
     R.tap(() => onClick()),
@@ -59,18 +49,16 @@ const handleButtonClick = R.curry((onClick, e) =>
   )(e),
 );
 
-// ============= MendixVersionListItem Component =============
-
-const renderVersionBadge = R.curry((badge, badgeClass) =>
+const renderSupportBadge = R.curry((badge, badgeClass) =>
   badge ? <span className={`version-badge ${badgeClass}`}>{badge}</span> : null,
 );
 
-const getVersionDate = R.cond([
+const getVersionStatusText = R.cond([
   [R.prop("isLaunching"), R.always("Launching...")],
   [R.prop("isUninstalling"), R.always("Uninstalling...")],
   [
     R.T,
-    R.pipe(R.prop("install_date"), formatDate("Installation date unknown")),
+    R.pipe(R.prop("install_date"), formatDateWithFallback("Installation date unknown")),
   ],
 ]);
 
@@ -78,7 +66,7 @@ const renderLaunchButton = R.curry(
   (onLaunch, version, isLaunching, isUninstalling) => (
     <button
       className="install-button"
-      onClick={handleButtonClick(() => onLaunch(version))}
+      onClick={preventPropagationAndExecute(() => onLaunch(version))}
       disabled={isLaunching || !version.is_valid || isUninstalling}
     >
       <span className="button-icon">▶️</span>
@@ -91,7 +79,7 @@ const renderUninstallButton = R.curry(
   (onUninstall, version, isUninstalling, isLaunching) => (
     <button
       className="install-button uninstall-button"
-      onClick={handleButtonClick(() => onUninstall(version))}
+      onClick={preventPropagationAndExecute(() => onUninstall(version))}
       disabled={isUninstalling || !version.is_valid || isLaunching}
       style={{
         background:
@@ -115,7 +103,7 @@ export const MendixVersionListItem = memo(
     isSelected,
     onClick,
   }) => {
-    const className = buildClassNames([
+    const className = composeClassNames([
       "version-list-item",
       isSelected && "selected",
       isUninstalling && "disabled",
@@ -134,7 +122,7 @@ export const MendixVersionListItem = memo(
           <div className="version-details">
             <span className="version-number">{version.version}</span>
             <span className="version-date">
-              {getVersionDate({ ...version, isLaunching, isUninstalling })}
+              {getVersionStatusText({ ...version, isLaunching, isUninstalling })}
             </span>
           </div>
         </div>
@@ -154,16 +142,14 @@ export const MendixVersionListItem = memo(
 
 MendixVersionListItem.displayName = "MendixVersionListItem";
 
-// ============= MendixAppListItem Component =============
-
-const renderVersionBadgeSpan = R.curry((version) =>
+const renderAppVersionBadge = R.curry((version) =>
   version ? (
     <span className="version-badge app-version">v{version}</span>
   ) : null,
 );
 
 export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
-  const className = buildClassNames([
+  const className = composeClassNames([
     "version-list-item",
     isDisabled && "disabled",
   ]);
@@ -184,8 +170,8 @@ export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
         <div className="version-details">
           <span className="version-number">{app.name}</span>
           <span className="version-date">
-            {renderVersionBadgeSpan(app.version)}
-            {formatDate("Date unknown", app.last_modified)}
+            {renderAppVersionBadge(app.version)}
+            {formatDateWithFallback("Date unknown", app.last_modified)}
           </span>
         </div>
       </div>
@@ -195,9 +181,7 @@ export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
 
 MendixAppListItem.displayName = "MendixAppListItem";
 
-// ============= VersionListItem Component =============
-
-const renderProgressBar = R.curry((downloadProgress) => (
+const renderDownloadProgressBar = R.curry((downloadProgress) => (
   <div className="download-progress">
     <div className="progress-bar">
       <div
@@ -212,7 +196,7 @@ const renderProgressBar = R.curry((downloadProgress) => (
 const renderInstallButton = R.curry((onInstall, version) => (
   <button
     className="install-button"
-    onClick={handleButtonClick(() => onInstall(version))}
+    onClick={preventPropagationAndExecute(() => onInstall(version))}
     disabled={false}
   >
     <span className="button-icon">💫</span>
@@ -228,15 +212,15 @@ export const VersionListItem = memo(
         <div className="version-details">
           <span className="version-number">
             {version.version}
-            {renderVersionBadge(version.is_lts && "LTS", "lts")}
-            {renderVersionBadge(version.is_mts && "MTS", "mts")}
+            {renderSupportBadge(version.is_lts && "LTS", "lts")}
+            {renderSupportBadge(version.is_mts && "MTS", "mts")}
           </span>
           <span className="version-date">{version.release_date}</span>
         </div>
       </div>
       {R.ifElse(
         R.identity,
-        () => renderProgressBar(downloadProgress),
+        () => renderDownloadProgressBar(downloadProgress),
         () => renderInstallButton(onInstall, version),
       )(isInstalling)}
     </div>
@@ -245,9 +229,7 @@ export const VersionListItem = memo(
 
 VersionListItem.displayName = "VersionListItem";
 
-// ============= ListArea Component =============
-
-const filterItems = R.curry((searchTerm, items) =>
+const filterItemsBySearchTerm = R.curry((searchTerm, items) =>
   R.ifElse(
     () => R.isEmpty(searchTerm),
     R.identity,
@@ -255,19 +237,19 @@ const filterItems = R.curry((searchTerm, items) =>
   )(items),
 );
 
-const renderListItem = R.curry((onItemClick, item) => (
+const renderListItemWithHandler = R.curry((onItemClick, item) => (
   <ListItem key={item.id} item={item} onClick={onItemClick} />
 ));
 
 export const ListArea = memo(({ items, searchTerm, onItemClick }) => {
   const filteredItems = useMemo(
-    () => filterItems(searchTerm, items),
+    () => filterItemsBySearchTerm(searchTerm, items),
     [items, searchTerm],
   );
 
   return (
     <div className="list-area">
-      {R.map(renderListItem(onItemClick), filteredItems)}
+      {R.map(renderListItemWithHandler(onItemClick), filteredItems)}
     </div>
   );
 });
