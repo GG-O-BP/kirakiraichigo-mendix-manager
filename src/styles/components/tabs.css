@@ -293,9 +293,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--space-lg);
     gap: var(--space-md);
     min-height: 44px;
+    flex-shrink: 0;
 }
 
 .properties-header h3 {
@@ -303,6 +303,176 @@
     padding: 0;
     flex: 1;
     line-height: 1.2;
+}
+
+/* ============= Property Group Accordion ============= */
+.property-group {
+    border: 1px solid var(--theme-border);
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    background: var(--theme-surface);
+    flex-shrink: 0;
+}
+
+.property-group-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--theme-surface-secondary);
+    border: none;
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--theme-text);
+    text-align: left;
+    transition: background var(--transition-fast);
+}
+
+.property-group-header:hover {
+    background: var(--theme-hover-bg);
+}
+
+.property-group-icon {
+    font-size: 10px;
+    color: var(--theme-text-secondary);
+    transition: transform var(--transition-fast);
+}
+
+.property-group-title {
+    flex: 1;
+}
+
+.property-group-count {
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--theme-text-secondary);
+    background: var(--theme-surface);
+    padding: 2px 8px;
+    border-radius: var(--border-radius-sm);
+}
+
+.property-group-content {
+    padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    border-top: 1px solid var(--theme-border);
+}
+
+.property-group.collapsed .property-group-header {
+    border-radius: var(--border-radius-md);
+}
+
+/* ============= Nested Property Group Depth Styles ============= */
+.property-group.depth-0 {
+    margin-bottom: 0;
+}
+
+.property-group.depth-1 {
+    margin-top: var(--space-sm);
+    background: var(--theme-surface-secondary);
+    border-color: var(--theme-border-light, var(--theme-border));
+}
+
+.property-group.depth-1 > .property-group-header {
+    background: var(--theme-surface-tertiary, var(--theme-surface-secondary));
+    padding-left: var(--space-lg);
+}
+
+/* 2단계(depth-1) 이상 - 간격 없이 붙어있는 스타일 */
+/* depth-0 내부의 content에서 gap 제거 */
+.property-group.depth-0 > .property-group-content {
+    gap: 0 !important;
+}
+
+/* depth-1 그룹들 (2단계) 스타일 */
+.property-group.depth-1 {
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    border-bottom: 1px solid var(--theme-border) !important;
+}
+
+.property-group.depth-1:last-child {
+    border-bottom: none !important;
+}
+
+/* depth-1 내부 content */
+.property-group.depth-1 > .property-group-content {
+    gap: 0 !important;
+}
+
+/* 아코디언 그룹만 있을 때 padding 제거 */
+.property-group-content.groups-only {
+    padding: 0 !important;
+}
+
+/* depth-2 이상 그룹들 스타일 */
+.property-group.depth-2,
+.property-group.depth-3,
+.property-group.depth-4 {
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    border-bottom: 1px solid var(--theme-border) !important;
+}
+
+.property-group.depth-2:last-child,
+.property-group.depth-3:last-child,
+.property-group.depth-4:last-child {
+    border-bottom: none !important;
+}
+
+
+
+/* Depth 2+ header styles */
+.property-group.depth-2 > .property-group-header {
+    padding-left: calc(var(--space-lg) + var(--space-md));
+    font-size: var(--font-size-xs);
+}
+
+.property-group.depth-3 > .property-group-header {
+    padding-left: calc(var(--space-lg) + var(--space-lg));
+    font-size: var(--font-size-xs);
+}
+
+.property-group.depth-4 > .property-group-header {
+    padding-left: calc(var(--space-lg) + var(--space-lg) + var(--space-md));
+    font-size: var(--font-size-xs);
+}
+
+/* ============= Root Properties Static Header ============= */
+.property-group.root-properties {
+    border-style: dashed;
+}
+
+.property-group-header-static {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--theme-surface-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--theme-text);
+    text-align: left;
+    border-bottom: 1px solid var(--theme-border);
+}
+
+.property-group-header-static .property-group-title {
+    flex: 1;
+}
+
+.property-group-header-static .property-group-count {
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--theme-text-secondary);
+    background: var(--theme-surface);
+    padding: 2px 8px;
+    border-radius: var(--border-radius-sm);
 }
 
 /* ============= Run Preview Button ============= */
@@ -436,7 +606,8 @@
     background: rgba(211, 47, 47, 0.1);
     border: 1px solid rgba(211, 47, 47, 0.3);
     border-radius: var(--radius-md);
-    margin: var(--space-md) 0;
+    margin-bottom: var(--space-md);
+    flex-shrink: 0;
 }
 
 .build-error .error-icon {

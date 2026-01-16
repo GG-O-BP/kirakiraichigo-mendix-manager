@@ -100,7 +100,11 @@
 /* ============= Form Elements ============= */
 .property-label {
     display: block;
-    margin-bottom: var(--space-lg);
+    margin-bottom: var(--space-sm);
+}
+
+.property-group-content > :last-child .property-label {
+    margin-bottom: 0;
 }
 
 .label-text {

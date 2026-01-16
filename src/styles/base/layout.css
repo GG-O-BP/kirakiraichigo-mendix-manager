@@ -72,9 +72,12 @@
 
 .preview-middle {
     width: 420px;
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .preview-right {

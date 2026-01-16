@@ -90,7 +90,11 @@
 .property-section {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--space-sm);
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: var(--space-xs);
 }
 
 .property-label {

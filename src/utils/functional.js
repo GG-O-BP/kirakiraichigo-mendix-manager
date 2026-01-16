@@ -488,22 +488,41 @@ export const validateSetNotEmpty = R.curry((message, set) =>
 
 // ============= Widget Property Operations =============
 
-// Recursively extract all properties from a property group (including nested groups)
-const extractPropertiesFromGroup = (group) => {
-  const directProperties = R.prop("properties", group) || [];
-  const nestedGroups = R.prop("property_groups", group) || [];
-  const nestedProperties = R.chain(extractPropertiesFromGroup, nestedGroups);
+// Recursively extract all properties from a property group with full category path
+const extractPropertiesFromGroup = (categoryPath, group) => {
+  const groupCaption = R.prop("caption", group);
+  const fullPath = categoryPath
+    ? (groupCaption ? `${categoryPath} > ${groupCaption}` : categoryPath)
+    : (groupCaption || "General");
+
+  const directProperties = R.pipe(
+    R.propOr([], "properties"),
+    R.map(R.assoc("category", fullPath)),
+  )(group);
+
+  const nestedGroups = R.propOr([], "property_groups", group);
+  const nestedProperties = R.chain(
+    (nestedGroup) => extractPropertiesFromGroup(fullPath, nestedGroup),
+    nestedGroups,
+  );
+
   return R.concat(directProperties, nestedProperties);
 };
 
 // Parse widget properties from XML definition
 export const parseWidgetProperties = R.curry((widgetDefinition) => {
-  // Get root-level properties
-  const rootProperties = R.prop("properties", widgetDefinition) || [];
+  // Get root-level properties (with "General" category)
+  const rootProperties = R.pipe(
+    R.propOr([], "properties"),
+    R.map(R.assoc("category", "General")),
+  )(widgetDefinition);
 
-  // Get all properties from property groups (including nested)
-  const propertyGroups = R.prop("property_groups", widgetDefinition) || [];
-  const groupProperties = R.chain(extractPropertiesFromGroup, propertyGroups);
+  // Get all properties from property groups with their full category paths
+  const propertyGroups = R.propOr([], "property_groups", widgetDefinition);
+  const groupProperties = R.chain(
+    (group) => extractPropertiesFromGroup("", group),
+    propertyGroups,
+  );
 
   const allProperties = R.concat(rootProperties, groupProperties);
 
