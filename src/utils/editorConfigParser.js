@@ -142,5 +142,3 @@ export const createEditorConfigHandler = (configContent) => {
     },
   };
 };
-
-export const widgetDefinitionToDefaultProperties = transformWidgetDefinitionToEditorFormatInternal;

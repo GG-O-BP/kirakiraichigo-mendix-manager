@@ -6,14 +6,9 @@ export { default as TabButton } from './TabButton';
 export { default as ConfirmModal } from './ConfirmModal';
 export { default as WidgetListItem } from './WidgetListItem';
 export {
-  invokeExtractSearchableText,
-  invokeTextMatchesSearch,
-  filterItemsBySearchTerm,
   invokeGetVersionValidityBadge,
   invokeFormatDateWithFallback,
   invokeGetVersionStatusText,
   MendixVersionListItem,
   MendixAppListItem,
-  VersionListItem,
-  ListArea,
 } from './ListItems';

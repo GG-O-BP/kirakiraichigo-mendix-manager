@@ -2,7 +2,7 @@ import * as R from "ramda";
 import { memo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import { saveToStorage, STORAGE_KEYS } from "../../utils/functional";
+import { saveToStorage, STORAGE_KEYS, createWidget } from "../../utils/functional";
 import { extractFolderNameFromPath } from "../../utils/dataProcessing";
 
 const DISABLED_BUTTON_STYLE = {
@@ -23,12 +23,6 @@ const isWidgetActionModalVisible = R.both(
   R.prop("showWidgetModal"),
   R.complement(R.prop("showAddWidgetForm")),
 );
-
-const createWidgetFromFormData = R.curry((caption, path) => ({
-  id: Date.now().toString(),
-  caption,
-  path,
-}));
 
 const hasValidCaptionAndPath = R.both(
   R.pipe(R.prop("newWidgetCaption"), R.complement(R.isEmpty)),
@@ -65,7 +59,7 @@ const handleAddWidgetSubmit = R.curry(async (props) => {
       }
 
       R.pipe(
-        () => createWidgetFromFormData(newWidgetCaption, newWidgetPath),
+        () => createWidget(newWidgetCaption, newWidgetPath),
         (newWidget) =>
           setWidgets((prev) => {
             const newWidgets = [...prev, newWidget];

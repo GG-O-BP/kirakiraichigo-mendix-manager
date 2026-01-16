@@ -805,10 +805,15 @@ async fn extract_build_number_from_marketplace(
 
 // Pure file download function
 async fn download_file_to_path(url: &str, file_path: &str) -> Result<(), String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let response = client
         .get(url)
+        .header("Referer", "https://marketplace.mendix.com/")
+        .header("Accept", "application/octet-stream,*/*")
         .send()
         .await
         .map_err(|e| format!("Failed to start download: {}", e))?;

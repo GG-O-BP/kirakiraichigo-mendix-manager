@@ -132,20 +132,6 @@ body {
     box-shadow: 0 0 0 2px var(--theme-primary);
 }
 
-/* ============= Global Hover Effects ============= */
-
-.hover\:scale-105:hover {
-    transform: scale(1.05);
-}
-
-.hover\:scale-110:hover {
-    transform: scale(1.1);
-}
-
-.hover\:translate-y-1:hover {
-    transform: translateY(-0.25rem);
-}
-
 /* ============= Global Disabled States ============= */
 
 .disabled,
@@ -213,55 +199,6 @@ body {
     backdrop-filter: blur(16px);
 }
 
-/* ============= Global Print Styles ============= */
-
-@media print {
-    * {
-        color-adjust: exact;
-        -webkit-print-color-adjust: exact;
-    }
-
-    .no-print {
-        display: none !important;
-    }
-
-    body {
-        font-size: 12pt;
-        line-height: 1.4;
-    }
-
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6 {
-        page-break-after: avoid;
-        page-break-inside: avoid;
-    }
-
-    img {
-        max-width: 100% !important;
-        page-break-inside: avoid;
-    }
-
-    table {
-        page-break-inside: avoid;
-    }
-
-    .page-break-before {
-        page-break-before: always;
-    }
-
-    .page-break-after {
-        page-break-after: always;
-    }
-
-    .page-break-inside-avoid {
-        page-break-inside: avoid;
-    }
-}
-
 /* ============= Global Reduced Motion Support ============= */
 
 @media (prefers-reduced-motion: reduce) {
@@ -281,20 +218,6 @@ body {
     .high-contrast-border {
         border-width: 2px !important;
     }
-}
-
-/* ============= Development Helper Classes ============= */
-
-.debug {
-    outline: 2px solid red !important;
-}
-
-.debug-info {
-    outline: 2px solid blue !important;
-}
-
-.debug-warning {
-    outline: 2px solid orange !important;
 }
 
 /* ============= End of Global Styles ============= */
