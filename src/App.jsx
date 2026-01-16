@@ -153,7 +153,6 @@ const createInitialState = () => ({
   selectedWidgets: new Set(),
   selectedVersion: null,
   versionFilter: "all",
-  isLaunching: false,
   isUninstalling: false,
   downloadProgress: {},
   currentPage: 1,
@@ -373,7 +372,6 @@ function App() {
   const [versionFilter, setVersionFilter] = useState(
     initialState.versionFilter,
   );
-  const [isLaunching, setIsLaunching] = useState(initialState.isLaunching);
   const [isUninstalling, setIsUninstalling] = useState(
     initialState.isUninstalling,
   );
@@ -1017,8 +1015,6 @@ function App() {
       selectedVersion,
       handleVersionClick,
       apps,
-      isLaunching,
-      isUninstalling,
       handleLaunchStudioPro,
       handleUninstallClick,
       fetchVersionsFromDatagrid,

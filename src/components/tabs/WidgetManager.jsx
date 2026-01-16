@@ -3,6 +3,7 @@ import { memo, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Dropdown from "../common/Dropdown";
 import SearchBox from "../common/SearchBox";
+import WidgetListItem from "../common/WidgetListItem";
 import { renderLoadingIndicator } from "../common/LoadingIndicator";
 import { renderPanel } from "../common/Panel";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
@@ -20,23 +21,11 @@ const isAppSelected = R.curry((selectedApps, app) =>
   selectedApps.has(R.prop("path", app)),
 );
 
-const isWidgetSelected = R.curry((selectedWidgets, widget) =>
-  selectedWidgets.has(R.prop("id", widget)),
-);
-
 const getAppClassName = R.curry((selectedApps, app) =>
   R.join(" ", [
     "version-list-item",
     "widget-item-clickable",
     isAppSelected(selectedApps, app) ? "selected" : "",
-  ]),
-);
-
-const getWidgetClassName = R.curry((selectedWidgets, widget) =>
-  R.join(" ", [
-    "version-list-item",
-    "widget-item-clickable",
-    isWidgetSelected(selectedWidgets, widget) ? "selected" : "",
   ]),
 );
 
@@ -76,30 +65,14 @@ const toggleWidgetInSet = (widgetSet, widgetId) => {
   return newSet;
 };
 
-const createWidgetSelectionHandler = R.curry(
-  (setSelectedWidgets, widgetId, e) =>
-    R.pipe(
-      R.tap(() => e.preventDefault()),
-      R.tap(() => e.stopPropagation()),
-      R.always(widgetId),
-      (id) => {
-        setSelectedWidgets((prev) => {
-          const newSet = toggleWidgetInSet(prev, id);
-          persistWidgetSelection(newSet);
-          return newSet;
-        });
-      },
-    )(),
-);
-
-const createWidgetDeleteHandler = R.curry(
-  (handleWidgetDeleteClick, widget, e) =>
-    R.pipe(
-      R.tap(() => e.preventDefault()),
-      R.tap(() => e.stopPropagation()),
-      R.always(widget),
-      handleWidgetDeleteClick,
-    )(),
+const createWidgetClickHandler = R.curry(
+  (setSelectedWidgets, widgetId) => {
+    setSelectedWidgets((prev) => {
+      const newSet = toggleWidgetInSet(prev, widgetId);
+      persistWidgetSelection(newSet);
+      return newSet;
+    });
+  },
 );
 
 const createAddWidgetClickHandler = (modalHandlers) => () => {
@@ -130,10 +103,6 @@ const renderSearchControls = R.curry((config) => (
 
 const renderAppIcon = R.curry((selectedApps, app) =>
   isAppSelected(selectedApps, app) ? "☑️" : "📁",
-);
-
-const renderWidgetIcon = R.curry((selectedWidgets, widget) =>
-  isWidgetSelected(selectedWidgets, widget) ? "☑️" : "🧩",
 );
 
 const renderVersionBadge = R.ifElse(
@@ -192,37 +161,6 @@ const AppListItem = memo(({ app, selectedApps, handleAppClick }) => {
 });
 
 AppListItem.displayName = "AppListItem";
-
-const renderWidgetListItem = R.curry(
-  (selectedWidgets, setSelectedWidgets, handleWidgetDeleteClick, widget) => (
-    <div
-      key={R.prop("id", widget)}
-      data-label={R.prop("id", widget)}
-      className={getWidgetClassName(selectedWidgets, widget)}
-      onClick={createWidgetSelectionHandler(
-        setSelectedWidgets,
-        R.prop("id", widget),
-      )}
-    >
-      <div className="version-info">
-        <span className="version-icon">
-          {renderWidgetIcon(selectedWidgets, widget)}
-        </span>
-        <div className="version-details">
-          <span className="version-number">{R.prop("caption", widget)}</span>
-          <span className="version-date">{R.prop("path", widget)}</span>
-        </div>
-      </div>
-      <button
-        className="install-button uninstall-button"
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={createWidgetDeleteHandler(handleWidgetDeleteClick, widget)}
-      >
-        <span className="button-icon">🗑️</span>
-      </button>
-    </div>
-  ),
-);
 
 const renderAddWidgetItem = (modalHandlers) => (
   <div
@@ -366,26 +304,32 @@ const renderWidgetsList = R.curry(
             {shouldEnableDragDrop ? (
               <div ref={widgetListRef} className="draggable-widget-list">
                 {R.map(
-                  (widget) =>
-                    renderWidgetListItem(
-                      selectedWidgets,
-                      setSelectedWidgets,
-                      handleWidgetDeleteClick,
-                      widget,
-                    ),
+                  (widget) => (
+                    <WidgetListItem
+                      key={R.prop("id", widget)}
+                      widget={widget}
+                      isSelected={selectedWidgets.has(R.prop("id", widget))}
+                      onClick={() => createWidgetClickHandler(setSelectedWidgets, R.prop("id", widget))}
+                      onDelete={handleWidgetDeleteClick}
+                      showIcon={true}
+                    />
+                  ),
                   widgetsToShow,
                 )}
               </div>
             ) : (
               <div className="widget-list">
                 {R.map(
-                  (widget) =>
-                    renderWidgetListItem(
-                      selectedWidgets,
-                      setSelectedWidgets,
-                      handleWidgetDeleteClick,
-                      widget,
-                    ),
+                  (widget) => (
+                    <WidgetListItem
+                      key={R.prop("id", widget)}
+                      widget={widget}
+                      isSelected={selectedWidgets.has(R.prop("id", widget))}
+                      onClick={() => createWidgetClickHandler(setSelectedWidgets, R.prop("id", widget))}
+                      onDelete={handleWidgetDeleteClick}
+                      showIcon={true}
+                    />
+                  ),
                   widgetsToShow,
                 )}
               </div>

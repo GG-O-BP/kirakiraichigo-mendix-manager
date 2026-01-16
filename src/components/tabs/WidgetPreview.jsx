@@ -2,6 +2,7 @@ import * as R from "ramda";
 import { memo, useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import SearchBox from "../common/SearchBox";
+import WidgetListItem from "../common/WidgetListItem";
 import DynamicPropertyInput from "../common/DynamicPropertyInput";
 import WidgetPreviewFrame from "../common/WidgetPreviewFrame";
 import { renderLoadingIndicator } from "../common/LoadingIndicator";
@@ -15,79 +16,12 @@ const ADD_WIDGET_BUTTON_STYLE = {
   backgroundColor: "var(--theme-hover-bg)",
 };
 
-const isWidgetSelectedForPreview = R.curry((selectedWidgetForPreview, widget) =>
-  R.equals(selectedWidgetForPreview, R.prop("id", widget)),
-);
-
-const buildWidgetItemClassName = R.curry((selectedWidgetForPreview, widget) =>
-  R.join(" ", [
-    "version-list-item",
-    isWidgetSelectedForPreview(selectedWidgetForPreview, widget)
-      ? "selected"
-      : "",
-  ]),
-);
-
 const toggleWidgetSelection = R.curry((currentSelection, widgetId) =>
   R.ifElse(
     R.equals(currentSelection),
     R.always(null),
     R.always(widgetId),
   )(widgetId),
-);
-
-const handleWidgetItemClick = R.curry(
-  (selectedWidgetForPreview, setSelectedWidgetForPreview, widgetId) =>
-    R.pipe(
-      toggleWidgetSelection(selectedWidgetForPreview),
-      setSelectedWidgetForPreview,
-    )(widgetId),
-);
-
-const handleWidgetItemDelete = R.curry(
-  (handleWidgetDeleteClick, widget, e) =>
-    R.pipe(
-      R.tap(() => e.preventDefault()),
-      R.tap(() => e.stopPropagation()),
-      R.always(widget),
-      handleWidgetDeleteClick,
-    )(),
-);
-
-const renderWidgetItem = R.curry(
-  (
-    selectedWidgetForPreview,
-    setSelectedWidgetForPreview,
-    handleWidgetDeleteClick,
-    widget,
-  ) => (
-    <div
-      key={R.prop("id", widget)}
-      data-label={R.prop("id", widget)}
-      className={buildWidgetItemClassName(selectedWidgetForPreview, widget)}
-      onClick={R.pipe(
-        R.always(R.prop("id", widget)),
-        handleWidgetItemClick(
-          selectedWidgetForPreview,
-          setSelectedWidgetForPreview,
-        ),
-      )}
-    >
-      <div className="version-info">
-        <div className="version-details">
-          <span className="version-number">{R.prop("caption", widget)}</span>
-          <span className="version-date">{R.prop("path", widget)}</span>
-        </div>
-      </div>
-      <button
-        className="install-button uninstall-button"
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={handleWidgetItemDelete(handleWidgetDeleteClick, widget)}
-      >
-        <span className="button-icon">🗑️</span>
-      </button>
-    </div>
-  ),
 );
 
 const renderNoConfigurableProperties = R.always(
@@ -356,13 +290,18 @@ const formatSearchNotFoundMessage = R.pipe(
 const renderWidgetListItems = R.curry((widgetData, widgetHandlers) =>
   R.pipe(
     R.prop("reorderedWidgets"),
-    R.map(
-      renderWidgetItem(
-        widgetData.selectedWidgetForPreview,
-        widgetHandlers.setSelectedWidgetForPreview,
-        widgetHandlers.handleWidgetDeleteClick,
-      ),
-    ),
+    R.map((widget) => (
+      <WidgetListItem
+        key={R.prop("id", widget)}
+        widget={widget}
+        isSelected={R.equals(widgetData.selectedWidgetForPreview, R.prop("id", widget))}
+        onClick={() => widgetHandlers.setSelectedWidgetForPreview(
+          toggleWidgetSelection(widgetData.selectedWidgetForPreview, R.prop("id", widget))
+        )}
+        onDelete={widgetHandlers.handleWidgetDeleteClick}
+        showIcon={false}
+      />
+    )),
   )(widgetData),
 );
 
