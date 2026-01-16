@@ -1,10 +1,31 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
 const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) => {
   const iframeRef = useRef(null);
+  const iframeReadyRef = useRef(false);
+  const bundleRef = useRef(null);
 
+  // Send properties update to iframe via postMessage
+  const sendPropertiesToIframe = useCallback((props) => {
+    if (!iframeRef.current || !iframeReadyRef.current) return;
+
+    const iframe = iframeRef.current;
+    iframe.contentWindow?.postMessage(
+      { type: "UPDATE_PROPERTIES", properties: props },
+      "*"
+    );
+  }, []);
+
+  // Initialize iframe with bundle (only when bundle changes)
   useEffect(() => {
     if (!iframeRef.current || !bundle) return;
+
+    // Skip if bundle hasn't changed
+    if (bundleRef.current === bundle) {
+      return;
+    }
+    bundleRef.current = bundle;
+    iframeReadyRef.current = false;
 
     const iframe = iframeRef.current;
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -135,6 +156,9 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                 // Create React root
                 const root = ReactDOM.createRoot(container);
 
+                // Store root globally for re-renders
+                window.__widgetRoot = root;
+
                 // Mock Mendix context and APIs
                 const createMockAttribute = (value) => ({
                   value: value,
@@ -150,22 +174,26 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                   status: 'available'
                 });
 
-                // Map properties to widget format
-                const props = ${safeProperties};
-                const widgetProps = {};
+                // Function to map properties to widget format
+                const mapPropsToWidgetFormat = (props) => {
+                  const widgetProps = {};
+                  Object.keys(props).forEach(key => {
+                    const value = props[key];
+                    if (key.includes('attribute') || key.includes('date') || key.includes('Date')) {
+                      widgetProps[key] = createMockAttribute(value);
+                    } else if (key.includes('expression') || key.includes('min') || key.includes('max')) {
+                      widgetProps[key] = createMockExpression(value);
+                    } else {
+                      widgetProps[key] = value;
+                    }
+                  });
+                  return widgetProps;
+                };
 
-                Object.keys(props).forEach(key => {
-                  const value = props[key];
-                  if (key.includes('attribute') || key.includes('date') || key.includes('Date')) {
-                    widgetProps[key] = createMockAttribute(value);
-                  } else if (key.includes('expression') || key.includes('min') || key.includes('max')) {
-                    widgetProps[key] = createMockExpression(value);
-                  } else {
-                    widgetProps[key] = value;
-                  }
-                });
+                // Store the mapping function globally
+                window.__mapPropsToWidgetFormat = mapPropsToWidgetFormat;
 
-                // Try to find and render the widget
+                // Try to find the widget
                 let Widget = null;
 
                 if (WidgetModule) {
@@ -212,8 +240,30 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                   throw new Error('Widget "${safeWidgetName}" (${safeWidgetId}) not found.');
                 }
 
-                // Render the widget
+                // Store Widget globally for re-renders
+                window.__WidgetComponent = Widget;
+
+                // Initial render with properties
+                const initialProps = ${safeProperties};
+                const widgetProps = mapPropsToWidgetFormat(initialProps);
                 root.render(React.createElement(Widget, widgetProps));
+
+                // Listen for property updates from parent
+                window.addEventListener('message', (event) => {
+                  if (event.data && event.data.type === 'UPDATE_PROPERTIES') {
+                    const newProps = event.data.properties;
+                    const mappedProps = window.__mapPropsToWidgetFormat(newProps);
+                    const WidgetComp = window.__WidgetComponent;
+                    const reactRoot = window.__widgetRoot;
+
+                    if (WidgetComp && reactRoot) {
+                      reactRoot.render(React.createElement(WidgetComp, mappedProps));
+                    }
+                  }
+                });
+
+                // Notify parent that iframe is ready
+                window.parent.postMessage({ type: 'IFRAME_READY' }, '*');
 
               } catch (error) {
                 console.error('[Widget Preview] Error:', error);
@@ -240,7 +290,28 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
     iframeDoc.open();
     iframeDoc.write(html);
     iframeDoc.close();
-  }, [bundle, css, widgetName, widgetId, properties]);
+  }, [bundle, css, widgetName, widgetId]);
+
+  // Listen for iframe ready message
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data && event.data.type === "IFRAME_READY") {
+        iframeReadyRef.current = true;
+        // Send current properties when iframe is ready
+        sendPropertiesToIframe(properties);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [properties, sendPropertiesToIframe]);
+
+  // Send property updates to iframe when properties change (without rebuilding)
+  useEffect(() => {
+    if (iframeReadyRef.current && properties) {
+      sendPropertiesToIframe(properties);
+    }
+  }, [properties, sendPropertiesToIframe]);
 
   return (
     <iframe

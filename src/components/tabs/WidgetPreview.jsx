@@ -663,7 +663,6 @@ const WidgetPreview = memo(
             css: response.css_content,
             widgetName: response.widget_name,
             widgetId: response.widget_id,
-            properties: combinedProperties,
           });
           setBuildError(null);
         } else {
@@ -760,7 +759,7 @@ const WidgetPreview = memo(
               css={previewData.css}
               widgetName={previewData.widgetName}
               widgetId={previewData.widgetId}
-              properties={previewData.properties}
+              properties={combinedProperties}
             />
           ) : (
             <div className="preview-instructions">
