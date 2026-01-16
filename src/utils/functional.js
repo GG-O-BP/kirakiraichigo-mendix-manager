@@ -50,10 +50,6 @@ export const setProperty = R.curry((propertyName, value, obj) =>
   R.set(R.lensProp(propertyName), value, obj),
 );
 
-export const createPropertyUpdater = R.curry(
-  (propertyKey, updateFunction) => updateFunction(propertyKey),
-);
-
 export const invokeValidateRequired = async (fields, values) =>
   invoke("validate_required_fields", { requiredFields: fields, values });
 

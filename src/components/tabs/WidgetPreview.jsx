@@ -6,7 +6,6 @@ import WidgetListItem from "../common/WidgetListItem";
 import DynamicPropertyInput from "../common/DynamicPropertyInput";
 import WidgetPreviewFrame from "../common/WidgetPreviewFrame";
 import { renderLoadingIndicator } from "../common/LoadingIndicator";
-import { createPropertyUpdater } from "../../utils/functional";
 import { createEditorConfigHandler } from "../../utils/editorConfigParser";
 import { initializePropertyValues, countAllWidgetGroupsVisibleProperties } from "../../utils/dataProcessing";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
@@ -36,10 +35,7 @@ const renderPropertyInputField = R.curry((properties, updateProperty, property) 
     key={R.prop("key", property)}
     property={property}
     value={R.prop(R.prop("key", property), properties)}
-    onChange={createPropertyUpdater(
-      R.prop("key", property),
-      updateProperty,
-    )}
+    onChange={updateProperty(R.prop("key", property))}
     disabled={false}
     showValidation={true}
   />

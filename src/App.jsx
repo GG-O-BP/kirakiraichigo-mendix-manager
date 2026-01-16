@@ -184,19 +184,14 @@ const createInitialState = () => ({
 });
 
 function App() {
-  const [state, setState] = useState(createInitialState);
+  const initialState = useMemo(createInitialState, []);
+  const [currentTheme, setCurrentTheme] = useState(initialState.currentTheme);
 
   const currentCatppuccinLogo = ["latte", "kiraichi-light"].includes(
-    state.currentTheme,
+    currentTheme,
   )
     ? catppuccinLatteLogo
     : catppuccinLogo;
-
-  const updateState = useCallback((updater) => setState(updater), []);
-  const setStateProperty = useCallback(
-    (lens, value) => updateState((prevState) => R.set(lens, value, prevState)),
-    [updateState],
-  );
 
   const applyTheme = useCallback((themeName) => {
     const root = document.documentElement;
@@ -286,16 +281,16 @@ function App() {
   const handleThemeChange = useCallback(
     (event) => {
       const newTheme = event.target.value;
-      setStateProperty(R.lensProp("currentTheme"), newTheme);
+      setCurrentTheme(newTheme);
       saveToStorage(STORAGE_KEYS.THEME, newTheme).catch(console.error);
       applyTheme(newTheme);
     },
-    [setStateProperty, applyTheme],
+    [applyTheme],
   );
 
   useEffect(() => {
-    applyTheme(state.currentTheme);
-  }, [applyTheme, state.currentTheme]);
+    applyTheme(currentTheme);
+  }, [applyTheme, currentTheme]);
 
   const fetchVersionsFromDatagrid = useCallback(async (page = 1) => {
     const isFirstPage = page === 1;
@@ -326,8 +321,6 @@ function App() {
       return [];
     }
   }, []);
-
-  const initialState = useMemo(createInitialState, []);
 
   const [activeTab, setActiveTab] = useState(initialState.activeTab);
   const [versions, setVersions] = useState(initialState.versions);
@@ -542,13 +535,11 @@ function App() {
         const [theme, pkgManager, selectedAppsArray, selectedWidgetsArray] =
           await Promise.all(stateLoaders());
 
-        R.pipe(
-          R.tap(() => setStateProperty(R.lensProp("currentTheme"), theme)),
-          R.tap(() => applyTheme(theme)),
-          R.tap(() => setPackageManager(pkgManager)),
-          R.tap(() => setSelectedApps(arrayToSet(selectedAppsArray))),
-          R.tap(() => setSelectedWidgets(arrayToSet(selectedWidgetsArray))),
-        )();
+        setCurrentTheme(theme);
+        applyTheme(theme);
+        setPackageManager(pkgManager);
+        setSelectedApps(arrayToSet(selectedAppsArray));
+        setSelectedWidgets(arrayToSet(selectedWidgetsArray));
       } catch (error) {
         console.error("Failed to load initial state:", error);
       }
@@ -719,7 +710,7 @@ function App() {
   }, [selectedWidgets, widgets, packageManager]);
 
   const handleBuildDeploy = useCallback(async () => {
-    const validationError = invokeValidateBuildDeploySelections(
+    const validationError = await invokeValidateBuildDeploySelections(
       selectedWidgets,
       selectedApps,
     );
@@ -754,18 +745,15 @@ function App() {
       createCatastrophicErrorResult,
     );
 
-    const finalizeResults = R.pipe(
-      R.tap((results) => setBuildResults(results)),
-      R.tap((results) => setInlineResults(results)),
-      R.tap(() => setIsBuilding(false)),
-      R.when(
-        invokeHasBuildFailures,
-        R.tap(() => setShowResultModal(true)),
-      ),
-    );
-
     const results = await executeBuildDeploy();
-    finalizeResults(results);
+    setBuildResults(results);
+    setInlineResults(results);
+    setIsBuilding(false);
+
+    const hasFailures = await invokeHasBuildFailures(results);
+    if (hasFailures) {
+      setShowResultModal(true);
+    }
   }, [selectedWidgets, selectedApps, widgets, apps, packageManager]);
 
   const updateProperty = useCallback(
@@ -1135,7 +1123,7 @@ function App() {
                 type="radio"
                 name="theme"
                 value="kiraichi"
-                checked={state.currentTheme === "kiraichi"}
+                checked={currentTheme === "kiraichi"}
                 onChange={handleThemeChange}
               />
               <span>KiraIchi Dark</span>
@@ -1145,7 +1133,7 @@ function App() {
                 type="radio"
                 name="theme"
                 value="kiraichi-light"
-                checked={state.currentTheme === "kiraichi-light"}
+                checked={currentTheme === "kiraichi-light"}
                 onChange={handleThemeChange}
               />
               <span>KiraIchi Light</span>
@@ -1156,7 +1144,7 @@ function App() {
                 type="radio"
                 name="theme"
                 value="latte"
-                checked={state.currentTheme === "latte"}
+                checked={currentTheme === "latte"}
                 onChange={handleThemeChange}
               />
               <span>Latte</span>
@@ -1166,7 +1154,7 @@ function App() {
                 type="radio"
                 name="theme"
                 value="frappe"
-                checked={state.currentTheme === "frappe"}
+                checked={currentTheme === "frappe"}
                 onChange={handleThemeChange}
               />
               <span>Frappé</span>
@@ -1176,7 +1164,7 @@ function App() {
                 type="radio"
                 name="theme"
                 value="macchiato"
-                checked={state.currentTheme === "macchiato"}
+                checked={currentTheme === "macchiato"}
                 onChange={handleThemeChange}
               />
               <span>Macchiato</span>
@@ -1186,7 +1174,7 @@ function App() {
                 type="radio"
                 name="theme"
                 value="mocha"
-                checked={state.currentTheme === "mocha"}
+                checked={currentTheme === "mocha"}
                 onChange={handleThemeChange}
               />
               <span>Mocha</span>
