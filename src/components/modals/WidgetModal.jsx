@@ -2,6 +2,7 @@ import * as R from "ramda";
 import { memo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
+import { saveToStorage, STORAGE_KEYS } from "../../utils/functional";
 
 const DISABLED_BUTTON_STYLE = {
   opacity: 0.5,
@@ -67,7 +68,7 @@ const handleAddWidgetSubmit = R.curry(async (props) => {
         (newWidget) =>
           setWidgets((prev) => {
             const newWidgets = [...prev, newWidget];
-            localStorage.setItem("kirakiraWidgets", JSON.stringify(newWidgets));
+            saveToStorage(STORAGE_KEYS.WIDGETS, newWidgets).catch(console.error);
             return newWidgets;
           }),
         () => closeFormAndResetFields(props),

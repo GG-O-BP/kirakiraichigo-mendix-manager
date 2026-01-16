@@ -4,10 +4,44 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+// Input types for frontend selections
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WidgetInput {
+    pub id: String,
+    pub caption: String,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppInput {
+    pub name: String,
+    pub path: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WidgetBuildRequest {
     pub widget_path: String,
     pub caption: String,
+}
+
+// Pure transformation functions
+fn transform_widget_to_build_request(widget: &WidgetInput) -> WidgetBuildRequest {
+    WidgetBuildRequest {
+        widget_path: widget.path.clone(),
+        caption: widget.caption.clone(),
+    }
+}
+
+fn transform_widgets_to_build_requests(widgets: &[WidgetInput]) -> Vec<WidgetBuildRequest> {
+    widgets.iter().map(transform_widget_to_build_request).collect()
+}
+
+fn extract_app_paths(apps: &[AppInput]) -> Vec<String> {
+    apps.iter().map(|app| app.path.clone()).collect()
+}
+
+fn extract_app_names(apps: &[AppInput]) -> Vec<String> {
+    apps.iter().map(|app| app.name.clone()).collect()
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -176,4 +210,20 @@ fn process_widget_build_and_deploy(
         widget: widget_caption,
         apps: app_names.to_vec(),
     })
+}
+
+/// New command that takes raw widget/app selections and handles transformation internally
+#[tauri::command]
+pub async fn build_and_deploy_from_selections(
+    widgets: Vec<WidgetInput>,
+    apps: Vec<AppInput>,
+    package_manager: String,
+) -> Result<BuildDeployResult, String> {
+    // Transform inputs to build requests
+    let widget_requests = transform_widgets_to_build_requests(&widgets);
+    let app_paths = extract_app_paths(&apps);
+    let app_names = extract_app_names(&apps);
+
+    // Delegate to existing build_and_deploy_widgets
+    build_and_deploy_widgets(widget_requests, app_paths, app_names, package_manager).await
 }

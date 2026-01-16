@@ -213,14 +213,6 @@ body {
     backdrop-filter: blur(16px);
 }
 
-/* ============= Global Container Queries Support ============= */
-
-@supports (container-type: inline-size) {
-    .container-query {
-        container-type: inline-size;
-    }
-}
-
 /* ============= Global Print Styles ============= */
 
 @media print {
@@ -231,10 +223,6 @@ body {
 
     .no-print {
         display: none !important;
-    }
-
-    .print-only {
-        display: block !important;
     }
 
     body {
@@ -285,10 +273,6 @@ body {
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
     }
-
-    .reduce-motion-hidden {
-        display: none;
-    }
 }
 
 /* ============= Global High Contrast Support ============= */
@@ -296,55 +280,6 @@ body {
 @media (prefers-contrast: high) {
     .high-contrast-border {
         border-width: 2px !important;
-    }
-
-    .high-contrast-text {
-        font-weight: bold !important;
-    }
-}
-
-/* ============= Global Color Scheme Support ============= */
-
-@media (prefers-color-scheme: dark) {
-    .auto-dark-hidden {
-        display: none;
-    }
-
-    .auto-dark-visible {
-        display: block;
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    .auto-light-hidden {
-        display: none;
-    }
-
-    .auto-light-visible {
-        display: block;
-    }
-}
-
-/* ============= Browser-Specific Fixes ============= */
-
-/* Firefox */
-@-moz-document url-prefix() {
-    .firefox-only {
-        display: block;
-    }
-}
-
-/* Safari */
-@supports (-webkit-appearance: none) {
-    .safari-only {
-        display: block;
-    }
-}
-
-/* Chrome/Edge */
-@supports (-webkit-background-clip: text) {
-    .chromium-only {
-        display: block;
     }
 }
 

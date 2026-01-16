@@ -3,35 +3,32 @@ import { memo, useMemo, useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import ListItem from "./ListItem";
 
-const UNINSTALL_BUTTON_STYLE = {
+const UNINSTALL_BUTTON_GRADIENT = {
   background: "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",
   borderColor: "rgba(220, 20, 60, 0.4)",
 };
 
-const BUTTON_GROUP_STYLE = { display: "flex", gap: "8px" };
+const INLINE_FLEX_GAP = { display: "flex", gap: "8px" };
 
-// Search text extraction (Rust backend)
-export const extractSearchableText = async (label, version, name) =>
+export const invokeExtractSearchableText = async (label, version, name) =>
   invoke("extract_searchable_text", { label, version, name });
 
-// Search filter using Rust backend
-export const textMatchesSearch = async (searchableText, searchTerm) =>
+export const invokeTextMatchesSearch = async (searchableText, searchTerm) =>
   invoke("text_matches_search", { searchableText, searchTerm });
 
-// Create search filter that works with items (async batch processing)
-export const filterItemsBySearch = async (items, searchTerm) => {
+export const filterItemsBySearchTerm = async (items, searchTerm) => {
   if (!searchTerm || searchTerm.trim() === "") {
     return items;
   }
 
   const results = await Promise.all(
     items.map(async (item) => {
-      const searchableText = await extractSearchableText(
+      const searchableText = await invokeExtractSearchableText(
         item.label || item.caption,
         item.version,
         item.name
       );
-      const matches = await textMatchesSearch(searchableText, searchTerm);
+      const matches = await invokeTextMatchesSearch(searchableText, searchTerm);
       return matches ? item : null;
     })
   );
@@ -39,21 +36,18 @@ export const filterItemsBySearch = async (items, searchTerm) => {
   return results.filter(Boolean);
 };
 
-const composeClassNames = R.pipe(R.filter(R.identity), R.join(" "));
+const joinTruthyClassNames = R.pipe(R.filter(R.identity), R.join(" "));
 
-// Version validity badge (Rust backend)
-export const getVersionValidityBadge = async (isValid, isLts, isMts) =>
+export const invokeGetVersionValidityBadge = async (isValid, isLts, isMts) =>
   invoke("get_version_validity_badge", { isValid, isLts, isMts });
 
-// Date formatting (Rust backend)
-export const formatDateWithFallback = async (dateStr, fallback) =>
+export const invokeFormatDateWithFallback = async (dateStr, fallback) =>
   invoke("format_date_with_fallback", { dateStr, fallback });
 
-// Version status text (Rust backend)
-export const getVersionStatusText = async (isLaunching, isUninstalling, installDate) =>
+export const invokeGetVersionStatusText = async (isLaunching, isUninstalling, installDate) =>
   invoke("get_version_status_text", { isLaunching, isUninstalling, installDate });
 
-const preventPropagationAndExecute = R.curry((onClick, e) =>
+const executeWithStoppedPropagation = R.curry((onClick, e) =>
   R.pipe(
     R.tap((e) => e.stopPropagation()),
     R.tap(() => onClick()),
@@ -69,7 +63,7 @@ const renderLaunchButton = R.curry(
   (onLaunch, version, isLaunching, isUninstalling) => (
     <button
       className="install-button"
-      onClick={preventPropagationAndExecute(() => onLaunch(version))}
+      onClick={executeWithStoppedPropagation(() => onLaunch(version))}
       disabled={isLaunching || !version.is_valid || isUninstalling}
     >
       <span className="button-icon">▶️</span>
@@ -82,9 +76,9 @@ const renderUninstallButton = R.curry(
   (onUninstall, version, isUninstalling, isLaunching) => (
     <button
       className="install-button uninstall-button"
-      onClick={preventPropagationAndExecute(() => onUninstall(version))}
+      onClick={executeWithStoppedPropagation(() => onUninstall(version))}
       disabled={isUninstalling || !version.is_valid || isLaunching}
-      style={UNINSTALL_BUTTON_STYLE}
+      style={UNINSTALL_BUTTON_GRADIENT}
     >
       <span className="button-icon">🗑️</span>
       {isUninstalling ? "..." : ""}
@@ -105,12 +99,12 @@ export const MendixVersionListItem = memo(
     const [statusText, setStatusText] = useState("Loading...");
 
     useEffect(() => {
-      getVersionStatusText(isLaunching, isUninstalling, version.install_date)
+      invokeGetVersionStatusText(isLaunching, isUninstalling, version.install_date)
         .then(setStatusText)
         .catch(() => setStatusText("Date unknown"));
     }, [isLaunching, isUninstalling, version.install_date]);
 
-    const className = composeClassNames([
+    const className = joinTruthyClassNames([
       "version-list-item",
       isSelected && "selected",
       isUninstalling && "disabled",
@@ -131,7 +125,7 @@ export const MendixVersionListItem = memo(
             <span className="version-date">{statusText}</span>
           </div>
         </div>
-        <div style={BUTTON_GROUP_STYLE}>
+        <div style={INLINE_FLEX_GAP}>
           {renderLaunchButton(onLaunch, version, isLaunching, isUninstalling)}
           {renderUninstallButton(
             onUninstall,
@@ -157,12 +151,12 @@ export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
   const [formattedDate, setFormattedDate] = useState("Loading...");
 
   useEffect(() => {
-    formatDateWithFallback(app.last_modified, "Date unknown")
+    invokeFormatDateWithFallback(app.last_modified, "Date unknown")
       .then(setFormattedDate)
       .catch(() => setFormattedDate("Date unknown"));
   }, [app.last_modified]);
 
-  const className = composeClassNames([
+  const className = joinTruthyClassNames([
     "version-list-item",
     isDisabled && "disabled",
   ]);
@@ -209,7 +203,7 @@ const renderDownloadProgressBar = R.curry((downloadProgress) => (
 const renderInstallButton = R.curry((onInstall, version) => (
   <button
     className="install-button"
-    onClick={preventPropagationAndExecute(() => onInstall(version))}
+    onClick={executeWithStoppedPropagation(() => onInstall(version))}
     disabled={false}
   >
     <span className="button-icon">💫</span>
@@ -250,7 +244,7 @@ export const ListArea = memo(({ items, searchTerm, onItemClick }) => {
   const [filteredItems, setFilteredItems] = useState(items);
 
   useEffect(() => {
-    filterItemsBySearch(items, searchTerm)
+    filterItemsBySearchTerm(items, searchTerm)
       .then(setFilteredItems)
       .catch(() => setFilteredItems(items));
   }, [items, searchTerm]);

@@ -1,26 +1,4 @@
 import * as R from "ramda";
-import { invoke } from "@tauri-apps/api/core";
-
-// ============= Rust Backend Functions (Primary API) =============
-
-// Transform widget definition to editor format (Rust backend)
-export const transformWidgetDefinitionToEditorFormat = async (widgetPath) =>
-  invoke("transform_widget_definition_to_editor_format", { widgetPath });
-
-// Extract all property keys from groups (Rust backend)
-export const extractAllPropertyKeysFromGroups = async (groups) =>
-  invoke("extract_all_property_keys_from_groups", { groups });
-
-// Filter parsed properties by keys (Rust backend)
-export const filterParsedPropertiesByKeys = async (visibleKeys, parsedProperties) =>
-  invoke("filter_parsed_properties_by_keys", { visibleKeys, parsedProperties });
-
-// Check if property key exists in groups (Rust backend)
-export const isPropertyKeyInGroups = async (groups, propertyKey) =>
-  invoke("is_property_key_in_groups", { groups, propertyKey });
-
-// ============= Internal JS Functions (for eval-based editorConfig) =============
-// These functions are required for JavaScript eval() execution and cannot be moved to Rust
 
 const transformRustPropertyToEditorFormatInternal = (prop) => ({
   key: R.prop("key", prop),
@@ -74,8 +52,6 @@ const extractAllPropertyKeysFromGroupsInternal = R.curry((filteredGroups) => {
 
   return R.uniq(R.chain(extractKeysFromGroup, filteredGroups));
 });
-
-// ============= EditorConfig JS Execution (Cannot be moved to Rust) =============
 
 const parseEditorConfigToExecutableModule = (configContent) => {
   try {
@@ -135,8 +111,6 @@ const invokeCheckWithFallback = R.curry((editorConfig, values) => {
   }
 });
 
-// Creates a handler for editorConfig that uses JavaScript eval
-// This function CANNOT be moved to Rust as it requires JavaScript runtime execution
 export const createEditorConfigHandler = (configContent) => {
   const parsedConfig = configContent ? parseEditorConfigToExecutableModule(configContent) : null;
 
@@ -169,5 +143,4 @@ export const createEditorConfigHandler = (configContent) => {
   };
 };
 
-// Export internal sync version for cases where it's needed (e.g., within createEditorConfigHandler)
 export const widgetDefinitionToDefaultProperties = transformWidgetDefinitionToEditorFormatInternal;

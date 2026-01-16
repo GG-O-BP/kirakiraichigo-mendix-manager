@@ -322,3 +322,61 @@ pub fn check_version_folder_exists(version: String) -> Result<bool, String> {
 pub fn delete_mendix_app(app_path: String) -> Result<(), String> {
     remove_directory(&app_path)
 }
+
+// Result type for uninstall operation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UninstallResult {
+    pub success: bool,
+    pub version: String,
+    pub timed_out: bool,
+}
+
+/// Uninstall Studio Pro and wait for the folder to be deleted
+/// This handles the polling internally with a configurable timeout
+#[tauri::command]
+pub async fn uninstall_studio_pro_and_wait(
+    version: String,
+    timeout_seconds: Option<u64>,
+) -> Result<UninstallResult, String> {
+    let timeout = timeout_seconds.unwrap_or(60);
+    let mendix_dir = "C:\\Program Files\\Mendix";
+
+    // First, trigger the uninstallation
+    uninstall_studio_pro(version.clone())?;
+
+    // Poll to check if the folder is deleted
+    let poll_interval = std::time::Duration::from_secs(1);
+    let start_time = std::time::Instant::now();
+    let timeout_duration = std::time::Duration::from_secs(timeout);
+
+    loop {
+        // Check if folder still exists
+        let folder_exists = scan_mendix_directory(mendix_dir)
+            .map(|entries| {
+                entries
+                    .into_iter()
+                    .any(|(dir_name, _)| dir_name.starts_with(&version))
+            })
+            .unwrap_or(false);
+
+        if !folder_exists {
+            return Ok(UninstallResult {
+                success: true,
+                version,
+                timed_out: false,
+            });
+        }
+
+        // Check if we've timed out
+        if start_time.elapsed() >= timeout_duration {
+            return Ok(UninstallResult {
+                success: false,
+                version,
+                timed_out: true,
+            });
+        }
+
+        // Wait before next poll
+        tokio::time::sleep(poll_interval).await;
+    }
+}

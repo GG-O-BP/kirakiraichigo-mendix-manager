@@ -14,8 +14,8 @@ mod widget_preview;
 pub use config::PackageManagerConfig;
 pub use mendix::{
     check_version_folder_exists, delete_mendix_app, get_apps_by_version, get_installed_mendix_apps,
-    get_installed_mendix_versions, launch_studio_pro, uninstall_studio_pro, MendixApp,
-    MendixVersion,
+    get_installed_mendix_versions, launch_studio_pro, uninstall_studio_pro,
+    uninstall_studio_pro_and_wait, MendixApp, MendixVersion,
 };
 pub use package_manager::run_package_manager_command;
 pub use utils::{copy_widget_to_apps, greet};
@@ -26,7 +26,7 @@ pub use web_scraper::{
     wait_for_datagrid_content, BuildInfo, DownloadProgress, DownloadableVersion,
 };
 
-pub use build_deploy::build_and_deploy_widgets;
+pub use build_deploy::{build_and_deploy_from_selections, build_and_deploy_widgets};
 pub use storage::{
     clear_app_state, load_app_state, load_from_storage, save_app_state, save_to_storage,
 };
@@ -72,6 +72,7 @@ pub fn run() {
             get_installed_mendix_versions,
             launch_studio_pro,
             uninstall_studio_pro,
+            uninstall_studio_pro_and_wait,
             check_version_folder_exists,
             delete_mendix_app,
             get_apps_by_version,
@@ -99,6 +100,7 @@ pub fn run() {
             get_download_url_for_version,
             build_widget_for_preview,
             build_and_deploy_widgets,
+            build_and_deploy_from_selections,
             filter_mendix_versions,
             filter_mendix_apps,
             filter_widgets,

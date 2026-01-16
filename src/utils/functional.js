@@ -1,29 +1,35 @@
 import * as R from "ramda";
 import { invoke } from "@tauri-apps/api/core";
 
-// Ramda re-exports (used internally)
-export const lensPath = R.lensPath;
-export const set = R.set;
+export const STORAGE_KEYS = {
+  SELECTED_APPS: "selectedApps",
+  SELECTED_WIDGETS: "selectedWidgets",
+  WIDGETS: "kirakiraWidgets",
+  WIDGET_ORDER: "widgetOrder",
+  PACKAGE_MANAGER: "packageManagerConfig",
+  WIDGET_PROPERTIES: "widgetProperties",
+  THEME: "theme",
+  LAST_TAB: "lastTab",
+  SELECTED_VERSION: "selectedVersion",
+};
 
-// Set utilities
+export const PACKAGE_MANAGERS = ["npm", "yarn", "pnpm", "bun"];
+
+export const ITEMS_PER_PAGE = 20;
+
+const VERSION_OPERATIONS = {
+  LAUNCH: "launch",
+  UNINSTALL: "uninstall",
+  DOWNLOAD: "download",
+};
+
 export const arrayToSet = (arr) => new Set(arr);
 
-// Widget creation
 export const createWidget = R.curry((caption, path) => ({
   id: Date.now().toString(),
   caption,
   path,
 }));
-
-// Build/Deploy helpers
-const captionLens = R.lensProp("caption");
-
-const transformWidgetToBuildRequest = R.applySpec({
-  widget_path: R.prop("path"),
-  caption: R.prop("caption"),
-});
-
-const transformWidgetsToBuildRequests = R.map(transformWidgetToBuildRequest);
 
 const filterBySetMembership = R.curry((set, prop, items) =>
   R.filter(
@@ -40,20 +46,7 @@ export const createAppFilter = R.curry((selectedApps) =>
   filterBySetMembership(selectedApps, "path"),
 );
 
-const extractAppPaths = R.map(R.prop("path"));
-const extractAppNames = R.map(R.prop("name"));
-
-export const createBuildDeployParams = R.curry(
-  (widgets, apps, packageManager) => ({
-    widgets: transformWidgetsToBuildRequests(widgets),
-    appPaths: extractAppPaths(apps),
-    appNames: extractAppNames(apps),
-    packageManager,
-  }),
-);
-
-// Check if build result has failures (Rust backend)
-export const hasBuildFailures = async (result) => {
+export const invokeHasBuildFailures = async (result) => {
   const failed = R.propOr([], "failed", result);
   return invoke("has_build_failures", { failed });
 };
@@ -68,22 +61,18 @@ export const createCatastrophicErrorResult = R.curry((error) => ({
   ],
 }));
 
-// Property utilities
-export const updateProp = R.curry((prop, value, obj) =>
-  set(R.lensProp(prop), value, obj),
+export const setProperty = R.curry((propertyName, value, obj) =>
+  R.set(R.lensProp(propertyName), value, obj),
 );
 
-export const createPropertyChangeHandler = R.curry(
-  (propertyKey, updateFunction) =>
-    R.pipe(R.identity, updateFunction(propertyKey)),
+export const createPropertyUpdater = R.curry(
+  (propertyKey, updateFunction) => updateFunction(propertyKey),
 );
 
-// Validation utilities (Rust backend)
-export const validateRequired = async (fields, values) =>
+export const invokeValidateRequired = async (fields, values) =>
   invoke("validate_required_fields", { requiredFields: fields, values });
 
-// Validate build/deploy selections (Rust backend)
-export const validateBuildDeploySelections = async (selectedWidgets, selectedApps) => {
+export const invokeValidateBuildDeploySelections = async (selectedWidgets, selectedApps) => {
   const result = await invoke("validate_build_deploy_selections", {
     selectedWidgetCount: selectedWidgets.size,
     selectedAppCount: selectedApps.size,
@@ -91,9 +80,8 @@ export const validateBuildDeploySelections = async (selectedWidgets, selectedApp
   return result.is_valid ? null : result.error_message;
 };
 
-export const isSetNotEmpty = R.pipe(R.prop("size"), R.gt(R.__, 0));
+export const hasItems = R.pipe(R.prop("size"), R.gt(R.__, 0));
 
-// Storage utilities
 const createStorageResult = R.curry((success, data, error = null) => ({
   success,
   data,
@@ -135,7 +123,6 @@ export const loadFromStorage = R.curry((key, defaultValue) =>
   )(),
 );
 
-// Async wrapper
 export const wrapAsync = R.curry((errorHandler, asyncFn) => async (...args) => {
   try {
     return await asyncFn(...args);
@@ -145,52 +132,38 @@ export const wrapAsync = R.curry((errorHandler, asyncFn) => async (...args) => {
   }
 });
 
-// Version loading state management
 const createVersionLoadingState = R.curry(
-  (versionId, operation, value) => ({
+  (versionId, operation, isActive) => ({
     versionId,
     operation,
-    value,
+    value: isActive,
     timestamp: Date.now(),
   }),
 );
 
 export const updateVersionLoadingStates = R.curry(
-  (versionId, operation, value, statesMap) =>
+  (versionId, operation, isActive, statesMap) =>
     R.pipe(
       R.assoc(
         versionId,
-        createVersionLoadingState(versionId, operation, value),
+        createVersionLoadingState(versionId, operation, isActive),
       ),
-      R.when(() => !value, R.dissoc(versionId)),
+      R.when(() => !isActive, R.dissoc(versionId)),
     )(statesMap),
 );
 
 export const getVersionLoadingState = R.curry((statesMap, versionId) => {
   const state = statesMap[versionId];
-  if (!state) {
-    return { isLaunching: false, isUninstalling: false, isDownloading: false };
-  }
+  const noActiveOperations = { isLaunching: false, isUninstalling: false, isDownloading: false };
+
+  if (!state) return noActiveOperations;
+
+  const isActiveOperation = (operationType) =>
+    state.operation === operationType && state.value;
+
   return {
-    isLaunching: state.operation === "launch" && state.value,
-    isUninstalling: state.operation === "uninstall" && state.value,
-    isDownloading: state.operation === "download" && state.value,
+    isLaunching: isActiveOperation(VERSION_OPERATIONS.LAUNCH),
+    isUninstalling: isActiveOperation(VERSION_OPERATIONS.UNINSTALL),
+    isDownloading: isActiveOperation(VERSION_OPERATIONS.DOWNLOAD),
   };
 });
-
-// Constants
-export const STORAGE_KEYS = {
-  SELECTED_APPS: "selectedApps",
-  SELECTED_WIDGETS: "selectedWidgets",
-  WIDGETS: "kirakiraWidgets",
-  WIDGET_ORDER: "widgetOrder",
-  PACKAGE_MANAGER: "packageManagerConfig",
-  WIDGET_PROPERTIES: "widgetProperties",
-  THEME: "theme",
-  LAST_TAB: "lastTab",
-  SELECTED_VERSION: "selectedVersion",
-};
-
-export const PACKAGE_MANAGERS = ["npm", "yarn", "pnpm", "bun"];
-
-export const ITEMS_PER_PAGE = 20;

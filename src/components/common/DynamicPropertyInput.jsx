@@ -1,22 +1,26 @@
 import * as R from "ramda";
 import { memo } from "react";
 
-const getEventValue = R.path(["target", "value"]);
-const getEventChecked = R.path(["target", "checked"]);
+const DECIMAL_STEP = 0.01;
+const INTEGER_STEP = 1;
+const DECIMAL_PRECISION_MULTIPLIER = 100;
+
+const extractInputValue = R.path(["target", "value"]);
+const extractCheckboxState = R.path(["target", "checked"]);
+
+const parseIntegerOrEmpty = (value) =>
+  value === "" ? "" : parseInt(value, 10);
+
+const parseDecimalOrEmpty = (value) =>
+  value === "" ? "" : parseFloat(value);
 
 const createChangeHandler = R.curry((onChange, type, event) => {
-  const rawValue = getEventValue(event);
+  const rawValue = extractInputValue(event);
 
   const value = R.cond([
-    [R.equals("boolean"), R.always(getEventChecked(event))],
-    [
-      R.equals("integer"),
-      R.always(rawValue === "" ? "" : parseInt(rawValue, 10)),
-    ],
-    [
-      R.equals("decimal"),
-      R.always(rawValue === "" ? "" : parseFloat(rawValue)),
-    ],
+    [R.equals("boolean"), R.always(extractCheckboxState(event))],
+    [R.equals("integer"), R.always(parseIntegerOrEmpty(rawValue))],
+    [R.equals("decimal"), R.always(parseDecimalOrEmpty(rawValue))],
     [R.T, R.always(rawValue)],
   ])(type);
 
@@ -86,24 +90,25 @@ const renderTextarea = R.curry((property, value, onChange, disabled) => (
 
 const renderNumberInput = R.curry((property, value, onChange, disabled) => {
   const type = R.prop("type", property);
-  const step = R.equals("decimal", type) ? 0.01 : 1;
+  const isDecimal = R.equals("decimal", type);
+  const step = isDecimal ? DECIMAL_STEP : INTEGER_STEP;
   const numValue = value === "" || R.isNil(value) ? 0 : Number(value);
+
+  const roundDecimalPrecision = (num) =>
+    Math.round(num * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_MULTIPLIER;
+
+  const calculateNewValue = (currentValue, delta) =>
+    isDecimal ? roundDecimalPrecision(currentValue + delta) : currentValue + delta;
 
   const handleDecrement = () => {
     if (!disabled) {
-      const newValue = R.equals("decimal", type)
-        ? Math.round((numValue - step) * 100) / 100
-        : numValue - step;
-      onChange(newValue);
+      onChange(calculateNewValue(numValue, -step));
     }
   };
 
   const handleIncrement = () => {
     if (!disabled) {
-      const newValue = R.equals("decimal", type)
-        ? Math.round((numValue + step) * 100) / 100
-        : numValue + step;
-      onChange(newValue);
+      onChange(calculateNewValue(numValue, step));
     }
   };
 
@@ -157,7 +162,7 @@ const renderCheckbox = R.curry((property, value, onChange, disabled) => (
 
 const renderSelect = R.curry((property, value, onChange, disabled) => {
   const options = R.prop("options", property);
-  const hasEmptyOption = !R.includes("", options);
+  const needsPlaceholderOption = !R.includes("", options);
 
   return (
     <select
@@ -166,7 +171,7 @@ const renderSelect = R.curry((property, value, onChange, disabled) => {
       onChange={createChangeHandler(onChange, "enumeration")}
       disabled={disabled}
     >
-      {hasEmptyOption && <option value="">Select...</option>}
+      {needsPlaceholderOption && <option value="">Select...</option>}
       {R.map(
         (option) => (
           <option key={option} value={option}>

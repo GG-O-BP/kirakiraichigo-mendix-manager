@@ -3,25 +3,22 @@ import { memo, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Dropdown from "../common/Dropdown";
 import SearchBox from "../common/SearchBox";
+import WidgetListItem from "../common/WidgetListItem";
 import { renderLoadingIndicator } from "../common/LoadingIndicator";
 import { renderPanel } from "../common/Panel";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
-import { PACKAGE_MANAGERS } from "../../utils/functional";
+import { PACKAGE_MANAGERS, STORAGE_KEYS, saveToStorage } from "../../utils/functional";
 
-// Version options creation (Rust backend)
-export const createVersionOptions = async (versions) =>
+const DEFAULT_VERSION_FILTER = { value: "all", label: "📦 All Versions" };
+
+export const invokeCreateVersionOptions = async (versions) =>
   invoke("create_version_options", { versions });
 
-// Date formatting (Rust backend)
-export const formatDate = async (dateStr) =>
+export const invokeFormatDate = async (dateStr) =>
   invoke("format_date", { dateStr });
 
 const isAppSelected = R.curry((selectedApps, app) =>
   selectedApps.has(R.prop("path", app)),
-);
-
-const isWidgetSelected = R.curry((selectedWidgets, widget) =>
-  selectedWidgets.has(R.prop("id", widget)),
 );
 
 const getAppClassName = R.curry((selectedApps, app) =>
@@ -29,14 +26,6 @@ const getAppClassName = R.curry((selectedApps, app) =>
     "version-list-item",
     "widget-item-clickable",
     isAppSelected(selectedApps, app) ? "selected" : "",
-  ]),
-);
-
-const getWidgetClassName = R.curry((selectedWidgets, widget) =>
-  R.join(" ", [
-    "version-list-item",
-    "widget-item-clickable",
-    isWidgetSelected(selectedWidgets, widget) ? "selected" : "",
   ]),
 );
 
@@ -61,42 +50,29 @@ const createAppClickHandler = R.curry((handleAppClick, app, e) =>
   )(),
 );
 
-const createWidgetSelectionHandler = R.curry(
-  (setSelectedWidgets, widgetId, e) =>
-    R.pipe(
-      R.tap(() => e.preventDefault()),
-      R.tap(() => e.stopPropagation()),
-      R.always(widgetId),
-      (id) => {
-        setSelectedWidgets((prev) => {
-          const newSet = new Set(prev);
-          if (newSet.has(id)) {
-            newSet.delete(id);
-          } else {
-            newSet.add(id);
-          }
+const persistWidgetSelection = (widgetSet) =>
+  saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS, Array.from(widgetSet)).catch(
+    console.error,
+  );
 
-          try {
-            localStorage.setItem(
-              "kirakiraSelectedWidgets",
-              JSON.stringify(Array.from(newSet)),
-            );
-          } catch (error) {}
+const toggleWidgetInSet = (widgetSet, widgetId) => {
+  const newSet = new Set(widgetSet);
+  if (newSet.has(widgetId)) {
+    newSet.delete(widgetId);
+  } else {
+    newSet.add(widgetId);
+  }
+  return newSet;
+};
 
-          return newSet;
-        });
-      },
-    )(),
-);
-
-const createWidgetDeleteHandler = R.curry(
-  (handleWidgetDeleteClick, widget, e) =>
-    R.pipe(
-      R.tap(() => e.preventDefault()),
-      R.tap(() => e.stopPropagation()),
-      R.always(widget),
-      handleWidgetDeleteClick,
-    )(),
+const createWidgetClickHandler = R.curry(
+  (setSelectedWidgets, widgetId) => {
+    setSelectedWidgets((prev) => {
+      const newSet = toggleWidgetInSet(prev, widgetId);
+      persistWidgetSelection(newSet);
+      return newSet;
+    });
+  },
 );
 
 const createAddWidgetClickHandler = (modalHandlers) => () => {
@@ -129,10 +105,6 @@ const renderAppIcon = R.curry((selectedApps, app) =>
   isAppSelected(selectedApps, app) ? "☑️" : "📁",
 );
 
-const renderWidgetIcon = R.curry((selectedWidgets, widget) =>
-  isWidgetSelected(selectedWidgets, widget) ? "☑️" : "🧩",
-);
-
 const renderVersionBadge = R.ifElse(
   R.prop("version"),
   (app) => (
@@ -157,12 +129,11 @@ const renderPackageManagerOption = R.curry(
   ),
 );
 
-// App list item component with async date formatting
 const AppListItem = memo(({ app, selectedApps, handleAppClick }) => {
   const [formattedDate, setFormattedDate] = useState("Loading...");
 
   useEffect(() => {
-    formatDate(app.last_modified)
+    invokeFormatDate(app.last_modified)
       .then(setFormattedDate)
       .catch(() => setFormattedDate("Date unknown"));
   }, [app.last_modified]);
@@ -190,37 +161,6 @@ const AppListItem = memo(({ app, selectedApps, handleAppClick }) => {
 });
 
 AppListItem.displayName = "AppListItem";
-
-const renderWidgetListItem = R.curry(
-  (selectedWidgets, setSelectedWidgets, handleWidgetDeleteClick, widget) => (
-    <div
-      key={R.prop("id", widget)}
-      data-label={R.prop("id", widget)}
-      className={getWidgetClassName(selectedWidgets, widget)}
-      onClick={createWidgetSelectionHandler(
-        setSelectedWidgets,
-        R.prop("id", widget),
-      )}
-    >
-      <div className="version-info">
-        <span className="version-icon">
-          {renderWidgetIcon(selectedWidgets, widget)}
-        </span>
-        <div className="version-details">
-          <span className="version-number">{R.prop("caption", widget)}</span>
-          <span className="version-date">{R.prop("path", widget)}</span>
-        </div>
-      </div>
-      <button
-        className="install-button uninstall-button"
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={createWidgetDeleteHandler(handleWidgetDeleteClick, widget)}
-      >
-        <span className="button-icon">🗑️</span>
-      </button>
-    </div>
-  ),
-);
 
 const renderAddWidgetItem = (modalHandlers) => (
   <div
@@ -364,26 +304,32 @@ const renderWidgetsList = R.curry(
             {shouldEnableDragDrop ? (
               <div ref={widgetListRef} className="draggable-widget-list">
                 {R.map(
-                  (widget) =>
-                    renderWidgetListItem(
-                      selectedWidgets,
-                      setSelectedWidgets,
-                      handleWidgetDeleteClick,
-                      widget,
-                    ),
+                  (widget) => (
+                    <WidgetListItem
+                      key={R.prop("id", widget)}
+                      widget={widget}
+                      isSelected={selectedWidgets.has(R.prop("id", widget))}
+                      onClick={() => createWidgetClickHandler(setSelectedWidgets, R.prop("id", widget))}
+                      onDelete={handleWidgetDeleteClick}
+                      showIcon={true}
+                    />
+                  ),
                   widgetsToShow,
                 )}
               </div>
             ) : (
               <div className="widget-list">
                 {R.map(
-                  (widget) =>
-                    renderWidgetListItem(
-                      selectedWidgets,
-                      setSelectedWidgets,
-                      handleWidgetDeleteClick,
-                      widget,
-                    ),
+                  (widget) => (
+                    <WidgetListItem
+                      key={R.prop("id", widget)}
+                      widget={widget}
+                      isSelected={selectedWidgets.has(R.prop("id", widget))}
+                      onClick={() => createWidgetClickHandler(setSelectedWidgets, R.prop("id", widget))}
+                      onDelete={handleWidgetDeleteClick}
+                      showIcon={true}
+                    />
+                  ),
                   widgetsToShow,
                 )}
               </div>
@@ -425,19 +371,13 @@ const WidgetManager = memo(
     setInlineResults,
     handleWidgetDeleteClick,
   }) => {
-    const [versionOptions, setVersionOptions] = useState([
-      { value: "all", label: "📦 All Versions" }
-    ]);
+    const [versionOptions, setVersionOptions] = useState([DEFAULT_VERSION_FILTER]);
 
-    // Fetch version options from Rust backend
     useEffect(() => {
       if (versions && versions.length > 0) {
-        createVersionOptions(versions)
+        invokeCreateVersionOptions(versions)
           .then(setVersionOptions)
-          .catch(() => {
-            // Fallback to default options
-            setVersionOptions([{ value: "all", label: "📦 All Versions" }]);
-          });
+          .catch(() => setVersionOptions([DEFAULT_VERSION_FILTER]));
       }
     }, [versions]);
 

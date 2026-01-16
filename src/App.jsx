@@ -20,20 +20,23 @@ import {
   wrapAsync,
   arrayToSet,
   createWidget,
-  validateRequired,
-  updateProp,
+  invokeValidateRequired,
+  setProperty,
   updateVersionLoadingStates,
   getVersionLoadingState,
-  validateBuildDeploySelections,
-  createBuildDeployParams,
+  invokeValidateBuildDeploySelections,
   createCatastrophicErrorResult,
-  hasBuildFailures,
+  invokeHasBuildFailures,
   createWidgetFilter,
   createAppFilter,
-  isSetNotEmpty,
+  hasItems,
 } from "./utils/functional";
 
-import { filterMendixApps, filterWidgets } from "./utils/dataProcessing";
+import {
+  filterMendixApps,
+  filterWidgets,
+  filterMendixVersions,
+} from "./utils/dataProcessing";
 
 import { TabButton, ConfirmModal } from "./components/common";
 import {
@@ -46,6 +49,86 @@ import {
   BuildResultModal,
   DownloadModal,
 } from "./components/modals";
+
+const LAUNCH_LOADING_RESET_DELAY_MS = 60000;
+
+const STUDIO_PRO_MANAGER_PROP_KEYS = [
+  "searchTerm",
+  "setSearchTerm",
+  "versions",
+  "filteredVersions",
+  "selectedVersion",
+  "handleVersionClick",
+  "apps",
+  "versionLoadingStates",
+  "handleLaunchStudioPro",
+  "handleUninstallClick",
+  "fetchVersionsFromDatagrid",
+  "downloadableVersions",
+  "isLoadingDownloadableVersions",
+  "handleDownloadVersion",
+  "showOnlyDownloadableVersions",
+  "setShowOnlyDownloadableVersions",
+  "showLTSOnly",
+  "setShowLTSOnly",
+  "showMTSOnly",
+  "setShowMTSOnly",
+  "showBetaOnly",
+  "setShowBetaOnly",
+];
+
+const WIDGET_MANAGER_PROP_KEYS = [
+  "versionFilter",
+  "setVersionFilter",
+  "versions",
+  "appSearchTerm",
+  "setAppSearchTerm",
+  "filteredApps",
+  "currentPage",
+  "setCurrentPage",
+  "hasMore",
+  "selectedApps",
+  "handleAppClick",
+  "packageManager",
+  "setPackageManager",
+  "handleInstall",
+  "handleBuildDeploy",
+  "isInstalling",
+  "isBuilding",
+  "selectedWidgets",
+  "setSelectedWidgets",
+  "widgets",
+  "filteredWidgets",
+  "widgetSearchTerm",
+  "setWidgetSearchTerm",
+  "setShowWidgetModal",
+  "setShowAddWidgetForm",
+  "setNewWidgetCaption",
+  "setNewWidgetPath",
+  "setWidgets",
+  "inlineResults",
+  "setInlineResults",
+  "handleWidgetDeleteClick",
+];
+
+const WIDGET_PREVIEW_PROP_KEYS = [
+  "widgetPreviewSearch",
+  "setWidgetPreviewSearch",
+  "properties",
+  "updateProperty",
+  "widgets",
+  "filteredWidgets",
+  "widgetSearchTerm",
+  "setWidgetSearchTerm",
+  "selectedWidgetForPreview",
+  "setSelectedWidgetForPreview",
+  "setWidgets",
+  "setShowWidgetModal",
+  "setShowAddWidgetForm",
+  "setNewWidgetCaption",
+  "setNewWidgetPath",
+  "handleWidgetDeleteClick",
+];
 
 const createInitialState = () => ({
   downloadableVersions: [],
@@ -70,7 +153,6 @@ const createInitialState = () => ({
   selectedWidgets: new Set(),
   selectedVersion: null,
   versionFilter: "all",
-  isLaunching: false,
   isUninstalling: false,
   downloadProgress: {},
   currentPage: 1,
@@ -89,12 +171,7 @@ const createInitialState = () => ({
   widgetToDelete: null,
   newWidgetCaption: "",
   newWidgetPath: "",
-  properties: {
-    prop1: "",
-    prop2: "",
-    prop3: "",
-    prop4: "Select...",
-  },
+  properties: {},
   packageManager: "npm",
   isInstalling: false,
   isBuilding: false,
@@ -295,7 +372,6 @@ function App() {
   const [versionFilter, setVersionFilter] = useState(
     initialState.versionFilter,
   );
-  const [isLaunching, setIsLaunching] = useState(initialState.isLaunching);
   const [isUninstalling, setIsUninstalling] = useState(
     initialState.isUninstalling,
   );
@@ -493,20 +569,25 @@ function App() {
   }, [loadVersions, loadApps, loadWidgets]);
 
   useEffect(() => {
-    R.pipe(
-      R.ifElse(
-        () => R.isEmpty(searchTerm),
-        R.identity,
-        R.filter(
-          R.pipe(
-            R.prop("version"),
-            R.toLower,
-            R.includes(R.toLower(searchTerm)),
-          ),
-        ),
-      ),
-      setFilteredVersions,
-    )(versions);
+    const processVersions = async () => {
+      try {
+        const filtered = await filterMendixVersions(
+          versions,
+          searchTerm || null,
+          true,
+        );
+        setFilteredVersions(filtered);
+      } catch (error) {
+        console.error("Failed to filter versions:", error);
+        setFilteredVersions(versions);
+      }
+    };
+
+    if (versions && versions.length > 0) {
+      processVersions();
+    } else {
+      setFilteredVersions([]);
+    }
   }, [versions, searchTerm]);
 
   useEffect(() => {
@@ -604,7 +685,7 @@ function App() {
   );
 
   const handleInstall = useCallback(async () => {
-    if (!isSetNotEmpty(selectedWidgets)) {
+    if (!hasItems(selectedWidgets)) {
       alert("Please select at least one widget to install");
       return;
     }
@@ -644,7 +725,7 @@ function App() {
   }, [selectedWidgets, widgets, packageManager]);
 
   const handleBuildDeploy = useCallback(async () => {
-    const validationError = validateBuildDeploySelections(
+    const validationError = invokeValidateBuildDeploySelections(
       selectedWidgets,
       selectedApps,
     );
@@ -669,14 +750,13 @@ function App() {
     const widgetsList = widgetFilter(widgets);
     const appsList = appFilter(apps);
 
-    const buildParams = createBuildDeployParams(
-      widgetsList,
-      appsList,
-      packageManager,
-    );
-
     const executeBuildDeploy = R.tryCatch(
-      async () => await invoke("build_and_deploy_widgets", buildParams),
+      async () =>
+        await invoke("build_and_deploy_from_selections", {
+          widgets: widgetsList,
+          apps: appsList,
+          packageManager,
+        }),
       createCatastrophicErrorResult,
     );
 
@@ -685,7 +765,7 @@ function App() {
       R.tap((results) => setInlineResults(results)),
       R.tap(() => setIsBuilding(false)),
       R.when(
-        hasBuildFailures,
+        invokeHasBuildFailures,
         R.tap(() => setShowResultModal(true)),
       ),
     );
@@ -695,7 +775,7 @@ function App() {
   }, [selectedWidgets, selectedApps, widgets, apps, packageManager]);
 
   const updateProperty = useCallback(
-    R.curry((key, value) => setProperties(updateProp(key, value))),
+    R.curry((key, value) => setProperties(setProperty(key, value))),
     [],
   );
 
@@ -723,7 +803,7 @@ function App() {
           setVersionLoadingStates((prev) =>
             updateVersionLoadingStates(versionId, "launch", false, prev),
           );
-        }, 60000);
+        }, LAUNCH_LOADING_RESET_DELAY_MS);
       } catch (error) {
         alert(`Failed to launch Studio Pro: ${error}`);
         setVersionLoadingStates((prev) =>
@@ -810,31 +890,23 @@ function App() {
           }
         }
 
-        await invoke("uninstall_studio_pro", {
+        const result = await invoke("uninstall_studio_pro_and_wait", {
           version: version.version,
+          timeoutSeconds: 60,
         });
 
-        const monitorDeletion = setInterval(async () => {
-          try {
-            const folderExists = await invoke("check_version_folder_exists", {
-              version: version.version,
-            });
+        await loadVersions();
+        if (deleteApps) {
+          await loadApps();
+        }
 
-            if (!folderExists) {
-              clearInterval(monitorDeletion);
-              await loadVersions();
-              if (deleteApps) {
-                await loadApps();
-              }
-              cleanupUninstallState();
-            }
-          } catch (error) {}
-        }, 1000);
+        if (result.timed_out) {
+          console.warn(
+            `Uninstall of Studio Pro ${version.version} timed out, but may still complete`,
+          );
+        }
 
-        setTimeout(() => {
-          clearInterval(monitorDeletion);
-          cleanupUninstallState();
-        }, 60000);
+        cleanupUninstallState();
       } catch (error) {
         const errorMsg = deleteApps
           ? `Failed to uninstall Studio Pro ${version.version} with apps: ${error}`
@@ -864,91 +936,13 @@ function App() {
     });
   }, []);
 
-  const studioProManagerKeys = [
-    "searchTerm",
-    "setSearchTerm",
-    "versions",
-    "filteredVersions",
-    "selectedVersion",
-    "handleVersionClick",
-    "apps",
-    "versionLoadingStates",
-    "handleLaunchStudioPro",
-    "handleUninstallClick",
-    "fetchVersionsFromDatagrid",
-    "downloadableVersions",
-    "isLoadingDownloadableVersions",
-    "handleDownloadVersion",
-    "showOnlyDownloadableVersions",
-    "setShowOnlyDownloadableVersions",
-    "showLTSOnly",
-    "setShowLTSOnly",
-    "showMTSOnly",
-    "setShowMTSOnly",
-    "showBetaOnly",
-    "setShowBetaOnly",
-  ];
-
-  const widgetManagerKeys = [
-    "versionFilter",
-    "setVersionFilter",
-    "versions",
-    "appSearchTerm",
-    "setAppSearchTerm",
-    "filteredApps",
-    "currentPage",
-    "setCurrentPage",
-    "hasMore",
-    "selectedApps",
-    "handleAppClick",
-    "packageManager",
-    "setPackageManager",
-    "handleInstall",
-    "handleBuildDeploy",
-    "isInstalling",
-    "isBuilding",
-    "selectedWidgets",
-    "setSelectedWidgets",
-    "widgets",
-    "filteredWidgets",
-    "widgetSearchTerm",
-    "setWidgetSearchTerm",
-    "setShowWidgetModal",
-    "setShowAddWidgetForm",
-    "setNewWidgetCaption",
-    "setNewWidgetPath",
-    "setWidgets",
-    "inlineResults",
-    "setInlineResults",
-    "handleWidgetDeleteClick",
-  ];
-
-  const widgetPreviewKeys = [
-    "widgetPreviewSearch",
-    "setWidgetPreviewSearch",
-    "properties",
-    "updateProperty",
-    "widgets",
-    "filteredWidgets",
-    "widgetSearchTerm",
-    "setWidgetSearchTerm",
-    "selectedWidgetForPreview",
-    "setSelectedWidgetForPreview",
-    "setWidgets",
-    "setShowWidgetModal",
-    "setShowAddWidgetForm",
-    "setNewWidgetCaption",
-    "setNewWidgetPath",
-    "handleWidgetDeleteClick",
-  ];
-
   const createTabPropsFromState = R.applySpec({
-    studioProManager: R.pick(studioProManagerKeys),
+    studioProManager: R.pick(STUDIO_PRO_MANAGER_PROP_KEYS),
     widgetManager: R.pipe(
-      R.pick(widgetManagerKeys),
+      R.pick(WIDGET_MANAGER_PROP_KEYS),
       R.assoc("ITEMS_PER_PAGE", ITEMS_PER_PAGE),
     ),
-    widgetPreview: R.pick(widgetPreviewKeys),
+    widgetPreview: R.pick(WIDGET_PREVIEW_PROP_KEYS),
   });
 
   const stateObject = {
@@ -1021,8 +1015,6 @@ function App() {
       selectedVersion,
       handleVersionClick,
       apps,
-      isLaunching,
-      isUninstalling,
       handleLaunchStudioPro,
       handleUninstallClick,
       fetchVersionsFromDatagrid,
@@ -1095,7 +1087,7 @@ function App() {
 
   const handleAddWidget = useCallback(() => {
     if (
-      validateRequired(["caption", "path"], {
+      invokeValidateRequired(["caption", "path"], {
         caption: newWidgetCaption,
         path: newWidgetPath,
       })

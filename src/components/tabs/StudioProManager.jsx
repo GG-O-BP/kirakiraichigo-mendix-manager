@@ -13,28 +13,32 @@ import {
   filterAndSortAppsWithPriority,
 } from "../../utils/dataProcessing";
 
-const ITEMS_PER_PAGE = 10;
+const DOWNLOADABLE_VERSIONS_PAGE_SIZE = 10;
 
-// Version filtering functions (Rust backend)
-export const excludeInstalledVersions = async (versions, installedVersions, showOnlyDownloadable) =>
+const VERSION_SUPPORT_BADGES = {
+  LTS: { text: "LTS", className: "lts" },
+  MTS: { text: "MTS", className: "mts" },
+  LATEST: { text: "LATEST", className: "latest" },
+};
+
+export const invokeExcludeInstalledVersions = async (versions, installedVersions, showOnlyDownloadable) =>
   invoke("exclude_installed_versions", { versions, installedVersions, showOnlyDownloadable });
 
-export const filterByVersionSupportType = async (versions, showLtsOnly, showMtsOnly, showBetaOnly) =>
+export const invokeFilterByVersionSupportType = async (versions, showLtsOnly, showMtsOnly, showBetaOnly) =>
   invoke("filter_by_version_support_type", { versions, showLtsOnly, showMtsOnly, showBetaOnly });
 
-export const calculateNextPageNumber = async (totalItems, itemsPerPage) =>
+export const invokeCalculateNextPageNumber = async (totalItems, itemsPerPage) =>
   invoke("calculate_next_page_number", { totalItems, itemsPerPage });
 
-export const isAppVersionMismatch = async (selectedVersion, appVersion) =>
+export const invokeCheckAppVersionMismatch = async (selectedVersion, appVersion) =>
   invoke("is_app_version_mismatch", { selectedVersion, appVersion });
 
-export const isVersionInInstalledList = async (version, installedVersions) =>
+export const invokeCheckVersionInstalled = async (version, installedVersions) =>
   invoke("is_version_in_installed_list", { version, installedVersions });
 
-export const isVersionCurrentlySelected = async (selectedVersion, version) =>
+export const invokeCheckVersionSelected = async (selectedVersion, version) =>
   invoke("is_version_currently_selected", { selectedVersion, version });
 
-// Handler factories
 const createVersionSelectionHandler = R.curry(
   (handleClick, version) => () => handleClick(version),
 );
@@ -54,7 +58,6 @@ const createFetchMoreHandler = R.curry((fetchFunction, page) => {
   return null;
 });
 
-// Render helpers
 const renderEmptyListMessage = R.curry((message) => (
   <div className="no-content">
     <span className="berry-icon">🍓</span>
@@ -62,31 +65,32 @@ const renderEmptyListMessage = R.curry((message) => (
   </div>
 ));
 
-const renderSupportTypeBadge = R.curry((badge, badgeClass) =>
-  badge ? (
-    <span key={badgeClass} className={`version-badge ${badgeClass}`}>
-      {badge}
+const renderSupportTypeBadge = R.curry((badgeText, badgeClassName) =>
+  badgeText ? (
+    <span key={badgeClassName} className={`version-badge ${badgeClassName}`}>
+      {badgeText}
     </span>
   ) : null,
 );
 
+const extractBadgeText = (propName, badgeConfig) =>
+  R.pipe(
+    R.propOr(false, propName),
+    R.ifElse(R.identity, R.always(badgeConfig.text), R.always(null)),
+  );
+
 const renderVersionSupportBadges = (version) =>
   R.pipe(
     R.juxt([
-      R.pipe(
-        R.propOr(false, "is_lts"),
-        R.ifElse(R.identity, R.always("LTS"), R.always(null)),
-      ),
-      R.pipe(
-        R.propOr(false, "is_mts"),
-        R.ifElse(R.identity, R.always("MTS"), R.always(null)),
-      ),
-      R.pipe(
-        R.propOr(false, "is_latest"),
-        R.ifElse(R.identity, R.always("LATEST"), R.always(null)),
-      ),
+      extractBadgeText("is_lts", VERSION_SUPPORT_BADGES.LTS),
+      extractBadgeText("is_mts", VERSION_SUPPORT_BADGES.MTS),
+      extractBadgeText("is_latest", VERSION_SUPPORT_BADGES.LATEST),
     ]),
-    R.zipWith(renderSupportTypeBadge, R.__, ["lts", "mts", "latest"]),
+    R.zipWith(renderSupportTypeBadge, R.__, [
+      VERSION_SUPPORT_BADGES.LTS.className,
+      VERSION_SUPPORT_BADGES.MTS.className,
+      VERSION_SUPPORT_BADGES.LATEST.className,
+    ]),
     R.filter(R.identity),
   )(version);
 
@@ -102,7 +106,6 @@ const renderFilterCheckbox = R.curry((checked, onChange, label) => (
   </label>
 ));
 
-// Downloadable version item component
 const DownloadableVersionItem = memo(({
   version,
   installedVersions,
@@ -113,7 +116,7 @@ const DownloadableVersionItem = memo(({
   const loadingState = getVersionLoadingState(versionLoadingStates, version.version);
 
   useEffect(() => {
-    isVersionInInstalledList(version.version, installedVersions)
+    invokeCheckVersionInstalled(version.version, installedVersions)
       .then(setIsInstalled)
       .catch(() => setIsInstalled(false));
   }, [version.version, installedVersions]);
@@ -190,7 +193,6 @@ const renderLoadMoreIndicator = R.curry((fetchFunction, isLoading, totalCount) =
   );
 });
 
-// Installed version item component
 const InstalledVersionItem = memo(({
   version,
   versionLoadingStates,
@@ -204,7 +206,7 @@ const InstalledVersionItem = memo(({
 
   useEffect(() => {
     if (selectedVersion) {
-      isVersionCurrentlySelected(selectedVersion.version, version.version)
+      invokeCheckVersionSelected(selectedVersion.version, version.version)
         .then(setIsSelected)
         .catch(() => setIsSelected(false));
     } else {
@@ -227,13 +229,12 @@ const InstalledVersionItem = memo(({
 
 InstalledVersionItem.displayName = "InstalledVersionItem";
 
-// App item component
 const AppItem = memo(({ app, selectedVersion, handleClick }) => {
   const [isDisabled, setIsDisabled] = useState(false);
 
   useEffect(() => {
     if (selectedVersion) {
-      isAppVersionMismatch(selectedVersion.version, app.version)
+      invokeCheckAppVersionMismatch(selectedVersion.version, app.version)
         .then(setIsDisabled)
         .catch(() => setIsDisabled(false));
     } else {
@@ -317,26 +318,24 @@ const StudioProManager = memo(
     showBetaOnly,
     setShowBetaOnly,
   }) => {
-    const [rustFilteredVersions, setRustFilteredVersions] = useState([]);
-    const [rustFilteredApps, setRustFilteredApps] = useState([]);
-    const [filteredDownloadableVersions, setFilteredDownloadableVersions] = useState([]);
+    const [displayedInstalledVersions, setDisplayedInstalledVersions] = useState([]);
+    const [displayedApps, setDisplayedApps] = useState([]);
+    const [displayedDownloadableVersions, setDisplayedDownloadableVersions] = useState([]);
     const [nextPageNumber, setNextPageNumber] = useState(1);
 
-    // Filter installed versions using Rust backend
     useEffect(() => {
       if (versions && versions.length > 0) {
         filterMendixVersions(versions, searchTerm, true)
-          .then(setRustFilteredVersions)
+          .then(setDisplayedInstalledVersions)
           .catch((error) => {
             console.error("Failed to filter versions:", error);
-            setRustFilteredVersions(versions);
+            setDisplayedInstalledVersions(versions);
           });
       } else {
-        setRustFilteredVersions([]);
+        setDisplayedInstalledVersions([]);
       }
     }, [versions, searchTerm]);
 
-    // Filter apps using Rust backend
     useEffect(() => {
       if (apps && apps.length > 0) {
         filterAndSortAppsWithPriority(
@@ -344,60 +343,57 @@ const StudioProManager = memo(
           searchTerm,
           selectedVersion?.version
         )
-          .then(setRustFilteredApps)
+          .then(setDisplayedApps)
           .catch((error) => {
             console.error("Failed to filter apps:", error);
-            setRustFilteredApps(apps);
+            setDisplayedApps(apps);
           });
       } else {
-        setRustFilteredApps([]);
+        setDisplayedApps([]);
       }
     }, [apps, searchTerm, selectedVersion]);
 
-    // Filter downloadable versions using Rust backend
     useEffect(() => {
       const filterDownloadable = async () => {
         if (!downloadableVersions || downloadableVersions.length === 0) {
-          setFilteredDownloadableVersions([]);
+          setDisplayedDownloadableVersions([]);
           return;
         }
 
         try {
-          let filtered = await excludeInstalledVersions(
+          let filtered = await invokeExcludeInstalledVersions(
             downloadableVersions,
             versions || [],
             showOnlyDownloadableVersions
           );
 
-          filtered = await filterByVersionSupportType(
+          filtered = await invokeFilterByVersionSupportType(
             filtered,
             showLTSOnly,
             showMTSOnly,
             showBetaOnly
           );
 
-          // Filter by search term
           if (searchTerm && searchTerm.trim() !== "") {
-            const searchLower = searchTerm.toLowerCase();
+            const normalizedSearchTerm = searchTerm.toLowerCase();
             filtered = filtered.filter(v =>
-              v.version.toLowerCase().includes(searchLower)
+              v.version.toLowerCase().includes(normalizedSearchTerm)
             );
           }
 
-          setFilteredDownloadableVersions(filtered);
+          setDisplayedDownloadableVersions(filtered);
         } catch (error) {
           console.error("Failed to filter downloadable versions:", error);
-          setFilteredDownloadableVersions(downloadableVersions);
+          setDisplayedDownloadableVersions(downloadableVersions);
         }
       };
 
       filterDownloadable();
     }, [downloadableVersions, versions, showOnlyDownloadableVersions, showLTSOnly, showMTSOnly, showBetaOnly, searchTerm]);
 
-    // Calculate next page number
     useEffect(() => {
       if (downloadableVersions && downloadableVersions.length > 0) {
-        calculateNextPageNumber(downloadableVersions.length, ITEMS_PER_PAGE)
+        invokeCalculateNextPageNumber(downloadableVersions.length, DOWNLOADABLE_VERSIONS_PAGE_SIZE)
           .then(setNextPageNumber)
           .catch(() => setNextPageNumber(1));
       }
@@ -405,14 +401,13 @@ const StudioProManager = memo(
 
     const loadMoreHandler = createFetchMoreHandler(fetchVersionsFromDatagrid, nextPageNumber);
 
-    // Render downloadable versions list
     const renderDownloadableVersionsList = useCallback(() => {
-      if (filteredDownloadableVersions.length === 0) {
+      if (displayedDownloadableVersions.length === 0) {
         return renderEmptyListMessage("No downloadable versions found");
       }
 
       return [
-        ...filteredDownloadableVersions.map((version) => (
+        ...displayedDownloadableVersions.map((version) => (
           <DownloadableVersionItem
             key={`downloadable-${version.version}`}
             version={version}
@@ -423,15 +418,14 @@ const StudioProManager = memo(
         )),
         renderLoadMoreIndicator(loadMoreHandler, isLoadingDownloadableVersions, downloadableVersions?.length || 0),
       ];
-    }, [filteredDownloadableVersions, versions, versionLoadingStates, handleDownloadVersion, loadMoreHandler, isLoadingDownloadableVersions, downloadableVersions]);
+    }, [displayedDownloadableVersions, versions, versionLoadingStates, handleDownloadVersion, loadMoreHandler, isLoadingDownloadableVersions, downloadableVersions]);
 
-    // Render installed versions list
     const renderInstalledVersionsList = useCallback(() => {
-      if (rustFilteredVersions.length === 0) {
+      if (displayedInstalledVersions.length === 0) {
         return renderEmptyListMessage("No installed versions found");
       }
 
-      return rustFilteredVersions.map((version) => (
+      return displayedInstalledVersions.map((version) => (
         <InstalledVersionItem
           key={`installed-${version.version}`}
           version={version}
@@ -442,15 +436,14 @@ const StudioProManager = memo(
           selectedVersion={selectedVersion}
         />
       ));
-    }, [rustFilteredVersions, versionLoadingStates, handleLaunchStudioPro, handleUninstallClick, handleVersionClick, selectedVersion]);
+    }, [displayedInstalledVersions, versionLoadingStates, handleLaunchStudioPro, handleUninstallClick, handleVersionClick, selectedVersion]);
 
-    // Render apps list
     const renderMendixAppsList = useCallback(() => {
-      if (rustFilteredApps.length === 0) {
+      if (displayedApps.length === 0) {
         return renderEmptyListMessage("No apps found");
       }
 
-      return rustFilteredApps.map((app) => (
+      return displayedApps.map((app) => (
         <AppItem
           key={`app-${app.name}`}
           app={app}
@@ -458,7 +451,7 @@ const StudioProManager = memo(
           handleClick={handleItemClick}
         />
       ));
-    }, [rustFilteredApps, selectedVersion, handleItemClick]);
+    }, [displayedApps, selectedVersion, handleItemClick]);
 
     const panelConfigs = [
       {
