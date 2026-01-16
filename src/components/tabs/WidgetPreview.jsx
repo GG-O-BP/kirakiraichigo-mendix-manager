@@ -13,6 +13,11 @@ import {
 import { initializePropertyValues } from "../../utils/dataProcessing";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 
+const ADD_WIDGET_BUTTON_STYLE = {
+  cursor: "pointer",
+  backgroundColor: "var(--theme-hover-bg)",
+};
+
 const isWidgetSelectedForPreview = R.curry((selectedWidgetForPreview, widget) =>
   R.equals(selectedWidgetForPreview, R.prop("id", widget)),
 );
@@ -386,10 +391,7 @@ const renderAddWidgetButton = R.curry((modalHandlers) => (
       R.tap(() => modalHandlers.setNewWidgetPath("")),
       R.always(undefined),
     )}
-    style={{
-      cursor: "pointer",
-      backgroundColor: "var(--theme-hover-bg)",
-    }}
+    style={ADD_WIDGET_BUTTON_STYLE}
   >
     <div className="version-info">
       <span className="version-icon">➕</span>

@@ -3,6 +3,15 @@ import { memo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 
+const DISABLED_BUTTON_STYLE = {
+  opacity: 0.5,
+  cursor: "not-allowed",
+  background: "linear-gradient(135deg, rgba(169, 169, 169, 0.3) 0%, rgba(169, 169, 169, 0.5) 100%)",
+};
+
+const BROWSE_INPUT_CONTAINER_STYLE = { display: "flex", gap: "8px" };
+const BROWSE_INPUT_STYLE = { flex: 1 };
+
 const isAddWidgetFormVisible = R.both(
   R.prop("showWidgetModal"),
   R.prop("showAddWidgetForm"),
@@ -121,14 +130,14 @@ const renderLabeledInputWithBrowseButton = R.curry(
   (label, type, value, onChange, placeholder, onBrowse) => (
     <label className="property-label">
       <span className="label-text">{label}</span>
-      <div style={{ display: "flex", gap: "8px" }}>
+      <div style={BROWSE_INPUT_CONTAINER_STYLE}>
         <input
           type={type}
           className="property-input"
           value={value}
           onChange={R.pipe(R.path(["target", "value"]), onChange)}
           placeholder={placeholder}
-          style={{ flex: 1 }}
+          style={BROWSE_INPUT_STYLE}
         />
         <button
           type="button"
@@ -225,12 +234,7 @@ const renderWidgetActionSelectionModal = (props) => {
           <button
             className="modal-button"
             disabled
-            style={{
-              opacity: 0.5,
-              cursor: "not-allowed",
-              background:
-                "linear-gradient(135deg, rgba(169, 169, 169, 0.3) 0%, rgba(169, 169, 169, 0.5) 100%)",
-            }}
+            style={DISABLED_BUTTON_STYLE}
           >
             Create Widget
             <br />

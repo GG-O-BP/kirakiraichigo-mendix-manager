@@ -8,6 +8,13 @@ import {
 
 export { createListItem, generateListData };
 
+const UNINSTALL_BUTTON_STYLE = {
+  background: "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",
+  borderColor: "rgba(220, 20, 60, 0.4)",
+};
+
+const BUTTON_GROUP_STYLE = { display: "flex", gap: "8px" };
+
 const toLower = R.toLower;
 
 const extractSearchableText = R.pipe(
@@ -81,11 +88,7 @@ const renderUninstallButton = R.curry(
       className="install-button uninstall-button"
       onClick={preventPropagationAndExecute(() => onUninstall(version))}
       disabled={isUninstalling || !version.is_valid || isLaunching}
-      style={{
-        background:
-          "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",
-        borderColor: "rgba(220, 20, 60, 0.4)",
-      }}
+      style={UNINSTALL_BUTTON_STYLE}
     >
       <span className="button-icon">🗑️</span>
       {isUninstalling ? "..." : ""}
@@ -126,7 +129,7 @@ export const MendixVersionListItem = memo(
             </span>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={BUTTON_GROUP_STYLE}>
           {renderLaunchButton(onLaunch, version, isLaunching, isUninstalling)}
           {renderUninstallButton(
             onUninstall,

@@ -64,34 +64,6 @@ const calculateNextPageNumber = R.pipe(
   R.max(1),
 );
 
-const createLoadMoreVersionsHandler = R.curry(
-  (downloadableVersions, isLoading, fetchFunction) => {
-    if (isLoading) {
-      return null;
-    }
-
-    return R.pipe(
-      R.always(downloadableVersions),
-      R.ifElse(
-        R.always(false),
-        R.identity,
-        R.pipe(
-          calculateNextPageNumber,
-          R.when(
-            R.pipe(R.gte(R.__, 1), R.and(R.lt(R.__, 100))),
-            (page) => () => {
-              if (fetchFunction) {
-                return fetchFunction(page);
-              }
-            },
-          ),
-          R.defaultTo(() => console.warn("Invalid page calculation")),
-        ),
-      ),
-    )();
-  },
-);
-
 const normalizeVersionString = R.pipe(R.defaultTo(""), String, R.trim);
 
 const extractModifiedDateTimestamp = R.pipe(

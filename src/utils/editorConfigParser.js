@@ -1,7 +1,5 @@
 import * as R from "ramda";
 
-const EDITOR_CONFIG_EXPORTS = ["getProperties", "check", "getPreview", "getCustomCaption"];
-
 const transformRustPropertyToEditorFormat = (prop) => ({
   key: R.prop("key", prop),
   type: R.prop("property_type", prop),
