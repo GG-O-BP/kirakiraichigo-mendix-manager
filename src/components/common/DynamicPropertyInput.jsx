@@ -30,17 +30,6 @@ const createChangeHandler = R.curry((onChange, type, event) => {
 // Validate input value
 const validateInput = R.curry((property, value) => {
   const type = R.prop("type", property);
-  const required = R.prop("required", property);
-
-  // Check required
-  if (
-    required &&
-    (R.isNil(value) ||
-      value === "" ||
-      (typeof value === "string" && value.trim() === ""))
-  ) {
-    return { isValid: false, error: "This field is required" };
-  }
 
   // Type-specific validation
   return R.cond([
@@ -108,18 +97,57 @@ const renderTextarea = R.curry((property, value, onChange, disabled) => (
 // Render number input
 const renderNumberInput = R.curry((property, value, onChange, disabled) => {
   const type = R.prop("type", property);
-  const step = R.equals("decimal", type) ? "0.01" : "1";
+  const step = R.equals("decimal", type) ? 0.01 : 1;
+  const numValue = value === "" || R.isNil(value) ? 0 : Number(value);
+
+  const handleDecrement = () => {
+    if (!disabled) {
+      const newValue = R.equals("decimal", type)
+        ? Math.round((numValue - step) * 100) / 100
+        : numValue - step;
+      onChange(newValue);
+    }
+  };
+
+  const handleIncrement = () => {
+    if (!disabled) {
+      const newValue = R.equals("decimal", type)
+        ? Math.round((numValue + step) * 100) / 100
+        : numValue + step;
+      onChange(newValue);
+    }
+  };
 
   return (
-    <input
-      type="number"
-      step={step}
-      className="property-input"
-      value={value || ""}
-      onChange={createChangeHandler(onChange, type)}
-      disabled={disabled}
-      placeholder={R.prop("description", property)}
-    />
+    <div className="number-input-container">
+      <button
+        type="button"
+        className="number-input-btn decrement"
+        onClick={handleDecrement}
+        disabled={disabled}
+        aria-label="Decrease value"
+      >
+        −
+      </button>
+      <input
+        type="number"
+        step={step}
+        className="property-input number-input"
+        value={value ?? ""}
+        onChange={createChangeHandler(onChange, type)}
+        disabled={disabled}
+        placeholder={R.prop("description", property)}
+      />
+      <button
+        type="button"
+        className="number-input-btn increment"
+        onClick={handleIncrement}
+        disabled={disabled}
+        aria-label="Increase value"
+      >
+        +
+      </button>
+    </div>
   );
 });
 
@@ -263,10 +291,14 @@ const DynamicPropertyInput = memo(
       R.join(" "),
     )();
 
+    // Use div instead of label for number inputs to prevent implicit activation
+    const isNumberType = R.includes(type, ["integer", "decimal"]);
+    const WrapperElement = isNumberType ? "div" : "label";
+
     return (
       <div className={containerClass}>
         {/* Property Label */}
-        <label className="property-label">
+        <WrapperElement className="property-label">
           <span className="label-text">
             {caption}
             {required && <span className="required-indicator"> *</span>}
@@ -280,7 +312,7 @@ const DynamicPropertyInput = memo(
 
           {/* Validation Error */}
           {showValidation && renderValidationError(validation.error)}
-        </label>
+        </WrapperElement>
       </div>
     );
   },

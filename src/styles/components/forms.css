@@ -120,6 +120,28 @@
     line-height: 1.4;
 }
 
+.property-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--theme-surface-secondary);
+    border: 1px dashed var(--theme-border);
+}
+
+.placeholder-icon {
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+.placeholder-text {
+    font-size: 11px;
+    color: var(--theme-text-muted);
+    font-weight: 400;
+    opacity: 0.7;
+}
+
 .property-error {
     display: flex;
     align-items: center;
@@ -127,8 +149,9 @@
     margin-top: 4px;
 }
 
-.error-icon {
-    font-size: 12px;
+.property-error .error-icon {
+    font-size: 10px;
+    margin-right: 0;
 }
 
 .error-text {
@@ -215,10 +238,10 @@
 .property-input,
 .property-textarea,
 .property-select {
-    padding: 10px 14px;
+    padding: 6px 12px;
     border: 1px solid var(--theme-border);
-    border-radius: 12px;
-    font-size: 14px;
+    border-radius: 10px;
+    font-size: 13px;
     font-family: inherit;
     background: var(--theme-surface);
     color: var(--theme-text);
@@ -237,6 +260,101 @@
 .property-textarea {
     resize: vertical;
     min-height: 80px;
+}
+
+.property-select option {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    padding: 8px;
+}
+
+.theme-latte .property-select option,
+.theme-kiraichi-light .property-select option {
+    background: #eff1f5;
+    color: #4c4f69;
+}
+
+/* ============= Number Input Styles ============= */
+
+.number-input-container {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--theme-border);
+    background: var(--theme-surface);
+    transition: all 0.3s ease;
+}
+
+.number-input-container:focus-within {
+    border-color: var(--theme-primary);
+    box-shadow: 0 0 0 3px var(--theme-focus-ring);
+}
+
+.number-input-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    padding: 0;
+    border: none;
+    background: var(--theme-surface-secondary);
+    color: var(--theme-primary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.number-input-btn:hover:not(:disabled) {
+    background: var(--theme-primary);
+    color: var(--theme-surface);
+}
+
+.number-input-btn:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.number-input-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.number-input-btn.decrement {
+    border-right: 1px solid var(--theme-border);
+    border-radius: 9px 0 0 9px;
+}
+
+.number-input-btn.increment {
+    border-left: 1px solid var(--theme-border);
+    border-radius: 0 9px 9px 0;
+}
+
+.property-input.number-input {
+    flex: 1;
+    border: none;
+    border-radius: 0;
+    text-align: center;
+    min-width: 60px;
+}
+
+.property-input.number-input:focus {
+    box-shadow: none;
+    background: var(--theme-hover-bg);
+}
+
+.property-input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.property-input[type="number"]::-webkit-outer-spin-button,
+.property-input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
 }
 
 /* ============= Checkbox Components (Strawberry Style) ============= */

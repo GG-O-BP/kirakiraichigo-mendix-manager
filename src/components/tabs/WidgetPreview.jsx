@@ -1,5 +1,5 @@
 import * as R from "ramda";
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useState, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import SearchBox from "../common/SearchBox";
 import DynamicPropertyInput from "../common/DynamicPropertyInput";
@@ -10,6 +10,10 @@ import {
   createPropertyChangeHandler,
   groupPropertiesByCategory,
 } from "../../utils/functional";
+import {
+  createEditorConfigHandler,
+  filterParsedPropertiesByKeys,
+} from "../../utils/editorConfigParser";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 
 // ============= Helper Functions =============
@@ -163,11 +167,21 @@ const renderNoWidgetSelected = R.always(
   </div>,
 );
 
+// Filter properties by visible keys
+const filterByVisibleKeys = R.curry((visibleKeys, parsedProperties) =>
+  R.ifElse(
+    R.isNil,
+    R.always(parsedProperties),
+    (keys) => R.filter((prop) => R.includes(R.prop("key", prop), keys), parsedProperties),
+  )(visibleKeys),
+);
+
 // Render properties for selected widget with definition
 const renderWidgetProperties = R.curry(
-  (properties, updateProperty, definition) =>
+  (properties, updateProperty, visibleKeys, definition) =>
     R.pipe(
       parseWidgetProperties,
+      filterByVisibleKeys(visibleKeys),
       groupPropertiesByCategory,
       renderGroupedProperties(properties, updateProperty),
     )(definition),
@@ -175,14 +189,14 @@ const renderWidgetProperties = R.curry(
 
 // Render dynamic properties section
 const renderDynamicPropertiesSection = R.curry(
-  (selectedWidget, widgetDefinition, properties, updateProperty) => (
+  (selectedWidget, widgetDefinition, properties, updateProperty, visibleKeys) => (
     <div className="property-section">
       {R.ifElse(
         R.identity,
         R.always(
           R.ifElse(
             R.identity,
-            renderWidgetProperties(properties, updateProperty),
+            renderWidgetProperties(properties, updateProperty, visibleKeys),
             renderLoadingProperties,
           )(widgetDefinition),
         ),
@@ -303,6 +317,10 @@ const WidgetPreview = memo(
     const [widgetDefinition, setWidgetDefinition] = useState(null);
     const [dynamicProperties, setDynamicProperties] = useState({});
 
+    // State for editorConfig
+    const [editorConfigHandler, setEditorConfigHandler] = useState(null);
+    const [visiblePropertyKeys, setVisiblePropertyKeys] = useState(null);
+
     // State for preview
     const [previewData, setPreviewData] = useState(null);
     const [isBuilding, setIsBuilding] = useState(false);
@@ -360,7 +378,27 @@ const WidgetPreview = memo(
       R.pipe(
         R.tap(() => setWidgetDefinition(null)),
         R.tap(() => setDynamicProperties({})),
+        R.tap(() => setEditorConfigHandler(null)),
+        R.tap(() => setVisiblePropertyKeys(null)),
       )();
+
+    // Load editorConfig for widget
+    const loadEditorConfig = async (widgetPath) => {
+      try {
+        const result = await invoke("read_editor_config", { widgetPath });
+        if (result.found && result.content) {
+          const handler = createEditorConfigHandler(result.content);
+          setEditorConfigHandler(handler);
+          return handler;
+        }
+        setEditorConfigHandler(null);
+        return null;
+      } catch (error) {
+        console.error("Failed to load editorConfig:", error);
+        setEditorConfigHandler(null);
+        return null;
+      }
+    };
 
     // Load widget properties
     const loadWidgetProperties = R.curry(
@@ -382,21 +420,42 @@ const WidgetPreview = memo(
           ),
     );
 
-    // Load widget definition when widget is selected
+    // Load widget definition and editorConfig when widget is selected
     useEffect(() => {
-      R.cond([
-        [R.isNil, clearWidgetDefinitionState],
-        [
-          R.T,
-          (widget) =>
-            loadWidgetProperties(
-              widget,
-              setWidgetDefinition,
-              setDynamicProperties,
-            ),
-        ],
-      ])(selectedWidget);
+      if (!selectedWidget) {
+        clearWidgetDefinitionState();
+        return;
+      }
+
+      const loadWidgetData = async () => {
+        // Load widget properties
+        loadWidgetProperties(
+          selectedWidget,
+          setWidgetDefinition,
+          setDynamicProperties,
+        );
+
+        // Load editorConfig
+        await loadEditorConfig(R.prop("path", selectedWidget));
+      };
+
+      loadWidgetData();
     }, [selectedWidget]);
+
+    // Update visible property keys when values or editorConfig changes
+    useEffect(() => {
+      if (!editorConfigHandler || !editorConfigHandler.isAvailable || !widgetDefinition) {
+        setVisiblePropertyKeys(null);
+        return;
+      }
+
+      const combinedValues = R.mergeRight(properties, dynamicProperties);
+      const visibleKeys = editorConfigHandler.getVisiblePropertyKeys(
+        combinedValues,
+        widgetDefinition,
+      );
+      setVisiblePropertyKeys(visibleKeys);
+    }, [editorConfigHandler, widgetDefinition, dynamicProperties, properties]);
 
     // Create property update handler for dynamic properties
     const updateDynamicProperty = R.curry((propertyKey, value) =>
@@ -478,7 +537,7 @@ const WidgetPreview = memo(
         {/* Middle Panel - Properties */}
         <div className="preview-middle">
           <div className="properties-header">
-            <h3>🍓 Properties</h3>
+            <h3>Properties</h3>
             <div className="preview-controls">
               <select
                 value={packageManager}
@@ -512,13 +571,14 @@ const WidgetPreview = memo(
             widgetDefinition,
             combinedProperties,
             updateDynamicProperty,
+            visiblePropertyKeys,
           )}
         </div>
 
         {/* Right Panel - Widget Preview */}
         <div className="preview-right">
           <div className="properties-header">
-            <h3>✨ Widget Preview</h3>
+            <h3>Widget Preview</h3>
           </div>
           {previewData ? (
             <WidgetPreviewFrame
@@ -529,7 +589,7 @@ const WidgetPreview = memo(
             />
           ) : (
             <div className="preview-instructions">
-              <span className="preview-emoji">🍓✨</span>
+              <span className="preview-emoji">🍓</span>
               <p className="preview-message">
                 Pick a widget, click Run Preview,
                 <br />
