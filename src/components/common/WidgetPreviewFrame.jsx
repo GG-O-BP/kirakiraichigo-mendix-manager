@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
+const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) => {
   const iframeRef = useRef(null);
 
   useEffect(() => {
@@ -14,6 +14,7 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
     const safeWidgetId = (widgetId || "").replace(/'/g, "\\'");
     const safeProperties = JSON.stringify(properties || {});
     const safeBundle = bundle;
+    const safeCss = css || "";
 
     // Create preview HTML with React runtime and widget bundle
     const html = `
@@ -53,6 +54,10 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
               color: #666;
             }
           </style>
+          <!-- Widget CSS -->
+          <style>
+            ${safeCss}
+          </style>
         </head>
         <body>
           <div class="preview-container">
@@ -80,10 +85,18 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
                 window.React = React;
                 window.ReactDOM = ReactDOM;
 
+                // Create JSX runtime shim for React 18
+                const jsxRuntime = {
+                  jsx: React.createElement,
+                  jsxs: React.createElement,
+                  Fragment: React.Fragment,
+                };
+
                 // Configure RequireJS to handle React modules
                 if (typeof define !== 'undefined' && define.amd) {
                   define('react', [], function() { return React; });
                   define('react-dom', [], function() { return ReactDOM; });
+                  define('react/jsx-runtime', [], function() { return jsxRuntime; });
                 }
 
                 // Store the widget module
@@ -106,6 +119,7 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
                       const resolvedDeps = deps.map(dep => {
                         if (dep === 'react') return React;
                         if (dep === 'react-dom') return ReactDOM;
+                        if (dep === 'react/jsx-runtime') return jsxRuntime;
                         if (dep === 'exports') return exportsObject;
                         return undefined;
                       });
@@ -295,7 +309,7 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
     iframeDoc.open();
     iframeDoc.write(html);
     iframeDoc.close();
-  }, [bundle, widgetName, widgetId, properties]);
+  }, [bundle, css, widgetName, widgetId, properties]);
 
   return (
     <iframe

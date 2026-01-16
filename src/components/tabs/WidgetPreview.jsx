@@ -486,6 +486,7 @@ const WidgetPreview = memo(
         if (response.success) {
           setPreviewData({
             bundle: response.bundle_content,
+            css: response.css_content,
             widgetName: response.widget_name,
             widgetId: response.widget_id,
             properties: combinedProperties,
@@ -577,12 +578,10 @@ const WidgetPreview = memo(
 
         {/* Right Panel - Widget Preview */}
         <div className="preview-right">
-          <div className="properties-header">
-            <h3>Widget Preview</h3>
-          </div>
           {previewData ? (
             <WidgetPreviewFrame
               bundle={previewData.bundle}
+              css={previewData.css}
               widgetName={previewData.widgetName}
               widgetId={previewData.widgetId}
               properties={previewData.properties}

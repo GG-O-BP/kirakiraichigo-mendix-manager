@@ -3,7 +3,8 @@
     "allow": [
       "WebFetch(domain:marketplace.mendix.com)",
       "WebSearch",
-      "Bash(cargo check:*)"
+      "Bash(cargo check:*)",
+      "Bash(dir \"C:\\\\Users\\\\dohye\\\\workspace\\\\sbtChart\\\\dist\\\\tmp\\\\widgets\\\\sbtglobal\\\\sbtchart\" /b)"
     ]
   }
 }
