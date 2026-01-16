@@ -1,13 +1,9 @@
 import * as R from "ramda";
 import { memo } from "react";
 
-// ============= Helper Functions =============
-
-// Extract value from event
 const getEventValue = R.path(["target", "value"]);
 const getEventChecked = R.path(["target", "checked"]);
 
-// Create change handler for different input types
 const createChangeHandler = R.curry((onChange, type, event) => {
   const rawValue = getEventValue(event);
 
@@ -27,11 +23,9 @@ const createChangeHandler = R.curry((onChange, type, event) => {
   return onChange(value);
 });
 
-// Validate input value
 const validateInput = R.curry((property, value) => {
   const type = R.prop("type", property);
 
-  // Type-specific validation
   return R.cond([
     [
       R.equals("integer"),
@@ -68,9 +62,6 @@ const validateInput = R.curry((property, value) => {
   ])(type);
 });
 
-// ============= Input Renderers =============
-
-// Render text input
 const renderTextInput = R.curry((property, value, onChange, disabled) => (
   <input
     type="text"
@@ -82,7 +73,6 @@ const renderTextInput = R.curry((property, value, onChange, disabled) => (
   />
 ));
 
-// Render textarea
 const renderTextarea = R.curry((property, value, onChange, disabled) => (
   <textarea
     className="property-textarea"
@@ -94,7 +84,6 @@ const renderTextarea = R.curry((property, value, onChange, disabled) => (
   />
 ));
 
-// Render number input
 const renderNumberInput = R.curry((property, value, onChange, disabled) => {
   const type = R.prop("type", property);
   const step = R.equals("decimal", type) ? 0.01 : 1;
@@ -151,7 +140,6 @@ const renderNumberInput = R.curry((property, value, onChange, disabled) => {
   );
 });
 
-// Render checkbox
 const renderCheckbox = R.curry((property, value, onChange, disabled) => (
   <div className="property-checkbox-container">
     <input
@@ -167,7 +155,6 @@ const renderCheckbox = R.curry((property, value, onChange, disabled) => (
   </div>
 ));
 
-// Render select dropdown
 const renderSelect = R.curry((property, value, onChange, disabled) => {
   const options = R.prop("options", property);
   const hasEmptyOption = !R.includes("", options);
@@ -192,7 +179,6 @@ const renderSelect = R.curry((property, value, onChange, disabled) => {
   );
 });
 
-// Render file input
 const renderFileInput = R.curry((property, value, onChange, disabled) => (
   <input
     type="file"
@@ -202,7 +188,6 @@ const renderFileInput = R.curry((property, value, onChange, disabled) => (
   />
 ));
 
-// Render placeholder for unsupported types
 const renderPlaceholder = R.curry((property, value, onChange, disabled) => (
   <div className="property-placeholder">
     <span className="placeholder-icon">🔧</span>
@@ -212,9 +197,6 @@ const renderPlaceholder = R.curry((property, value, onChange, disabled) => (
   </div>
 ));
 
-// ============= Input Type Mapping =============
-
-// Map property types to renderers
 const inputRenderers = {
   string: renderTextInput,
   boolean: renderCheckbox,
@@ -234,12 +216,8 @@ const inputRenderers = {
   widgets: renderPlaceholder,
 };
 
-// Get renderer for property type
 const getRenderer = (type) => R.propOr(renderPlaceholder, type, inputRenderers);
 
-// ============= Validation Display =============
-
-// Render validation error
 const renderValidationError = R.curry((error) =>
   error ? (
     <div className="property-error">
@@ -249,7 +227,6 @@ const renderValidationError = R.curry((error) =>
   ) : null,
 );
 
-// Render property description
 const renderDescription = R.curry((description) =>
   description ? (
     <div className="property-description">
@@ -258,9 +235,6 @@ const renderDescription = R.curry((description) =>
   ) : null,
 );
 
-// ============= Main Component =============
-
-// DynamicPropertyInput component
 const DynamicPropertyInput = memo(
   ({ property, value, onChange, disabled = false, showValidation = true }) => {
     const type = R.prop("type", property);
@@ -268,18 +242,14 @@ const DynamicPropertyInput = memo(
     const description = R.prop("description", property);
     const required = R.prop("required", property);
 
-    // Validate current value
     const validation = showValidation
       ? validateInput(property, value)
       : { isValid: true, error: null };
 
-    // Get appropriate renderer
     const renderer = getRenderer(type);
 
-    // Create input element
     const inputElement = renderer(property, value, onChange, disabled);
 
-    // Determine container class
     const containerClass = R.pipe(
       R.always([
         "dynamic-property-input",
@@ -291,26 +261,18 @@ const DynamicPropertyInput = memo(
       R.join(" "),
     )();
 
-    // Use div instead of label for number inputs to prevent implicit activation
     const isNumberType = R.includes(type, ["integer", "decimal"]);
     const WrapperElement = isNumberType ? "div" : "label";
 
     return (
       <div className={containerClass}>
-        {/* Property Label */}
         <WrapperElement className="property-label">
           <span className="label-text">
             {caption}
             {required && <span className="required-indicator"> *</span>}
           </span>
-
-          {/* Input Element */}
           {inputElement}
-
-          {/* Property Description */}
           {!R.equals(type, "boolean") && renderDescription(description)}
-
-          {/* Validation Error */}
           {showValidation && renderValidationError(validation.error)}
         </WrapperElement>
       </div>

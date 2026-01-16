@@ -13,14 +13,10 @@ import {
 import { initializePropertyValues } from "../../utils/dataProcessing";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 
-// ============= Helper Functions =============
-
-// Check if widget is selected for preview
 const isWidgetSelectedForPreview = R.curry((selectedWidgetForPreview, widget) =>
   R.equals(selectedWidgetForPreview, R.prop("id", widget)),
 );
 
-// Create widget class name
 const getWidgetClassName = R.curry((selectedWidgetForPreview, widget) =>
   R.join(" ", [
     "version-list-item",
@@ -30,7 +26,6 @@ const getWidgetClassName = R.curry((selectedWidgetForPreview, widget) =>
   ]),
 );
 
-// Calculate new selection value (toggle if same, select if different)
 const calculateNewSelection = R.curry((currentSelection, widgetId) =>
   R.ifElse(
     R.equals(currentSelection),
@@ -39,7 +34,6 @@ const calculateNewSelection = R.curry((currentSelection, widgetId) =>
   )(widgetId),
 );
 
-// Create widget selection handler
 const createWidgetSelectionHandler = R.curry(
   (selectedWidgetForPreview, setSelectedWidgetForPreview, widgetId) =>
     R.pipe(
@@ -48,7 +42,6 @@ const createWidgetSelectionHandler = R.curry(
     )(widgetId),
 );
 
-// Create widget delete handler (opens modal)
 const createWidgetDeleteHandler = R.curry(
   (handleWidgetDeleteClick, widget, e) =>
     R.pipe(
@@ -59,7 +52,6 @@ const createWidgetDeleteHandler = R.curry(
     )(),
 );
 
-// Render widget item for preview (single selection)
 const renderWidgetItem = R.curry(
   (
     selectedWidgetForPreview,
@@ -96,7 +88,6 @@ const renderWidgetItem = R.curry(
   ),
 );
 
-// Render no properties message
 const renderNoProperties = R.always(
   <div className="no-properties">
     <span className="info-icon">ℹ️</span>
@@ -104,7 +95,6 @@ const renderNoProperties = R.always(
   </div>,
 );
 
-// Render property input for a single property
 const renderPropertyInput = R.curry((properties, updateProperty, property) => (
   <DynamicPropertyInput
     key={R.prop("key", property)}
@@ -119,7 +109,6 @@ const renderPropertyInput = R.curry((properties, updateProperty, property) => (
   />
 ));
 
-// Count visible properties in a group (including nested groups)
 const countVisibleGroupProperties = R.curry((visibleKeys, group) => {
   const groupProperties = R.propOr([], "properties", group);
   const filteredProperties = visibleKeys
@@ -134,7 +123,6 @@ const countVisibleGroupProperties = R.curry((visibleKeys, group) => {
   return directCount + nestedCount;
 });
 
-// Recursive component to render nested property groups
 const PropertyGroupAccordion = ({
   group,
   groupPath,
@@ -151,20 +139,16 @@ const PropertyGroupAccordion = ({
   const groupProperties = R.propOr([], "properties", group);
   const nestedGroups = R.propOr([], "property_groups", group);
 
-  // Count only visible properties
   const visibleCount = countVisibleGroupProperties(visibleKeys, group);
 
-  // If no visible properties in this group or any nested groups, don't render
   if (visibleCount === 0) {
     return null;
   }
 
-  // Filter properties by visible keys if provided
   const filteredProperties = visibleKeys
     ? R.filter((prop) => R.includes(R.prop("key", prop), visibleKeys), groupProperties)
     : groupProperties;
 
-  // Parse properties for rendering
   const parsedProperties = R.map(
     R.pipe(
       R.applySpec({
@@ -181,13 +165,11 @@ const PropertyGroupAccordion = ({
     filteredProperties,
   );
 
-  // Filter nested groups that have visible properties
   const visibleNestedGroups = R.filter(
     (nestedGroup) => countVisibleGroupProperties(visibleKeys, nestedGroup) > 0,
     nestedGroups,
   );
 
-  // Check if content has only nested groups (no properties)
   const hasOnlyNestedGroups = R.isEmpty(parsedProperties) && !R.isEmpty(visibleNestedGroups);
   const contentClassName = `property-group-content${hasOnlyNestedGroups ? " groups-only" : ""}`;
 
@@ -204,12 +186,10 @@ const PropertyGroupAccordion = ({
       </button>
       {isExpanded && (
         <div className={contentClassName}>
-          {/* Render direct properties */}
           {R.map(
             (prop) => renderPropertyInput(properties, updateProperty, prop),
             parsedProperties,
           )}
-          {/* Render nested groups that have visible properties */}
           {R.map(
             (nestedGroup) => (
               <PropertyGroupAccordion
@@ -232,7 +212,6 @@ const PropertyGroupAccordion = ({
   );
 };
 
-// Render root-level properties (not in any group)
 const renderRootProperties = R.curry(
   (properties, updateProperty, visibleKeys, rootProps) => {
     if (R.isEmpty(rootProps)) return null;
@@ -276,31 +255,26 @@ const renderRootProperties = R.curry(
   },
 );
 
-// Render all property groups with nested structure
 const renderNestedPropertyGroups = R.curry(
   (properties, updateProperty, expandedGroups, toggleGroup, visibleKeys, definition) => {
     const rootProperties = R.propOr([], "properties", definition);
     const propertyGroups = R.propOr([], "property_groups", definition);
 
-    // Count visible root properties
     const visibleRootProps = visibleKeys
       ? R.filter((prop) => R.includes(R.prop("key", prop), visibleKeys), rootProperties)
       : rootProperties;
 
-    // Count visible properties in all groups
     const visibleGroupsCount = R.pipe(
       R.map(countVisibleGroupProperties(visibleKeys)),
       R.sum,
     )(propertyGroups);
 
-    // Check if there are any visible properties at all
     const totalVisibleCount = R.length(visibleRootProps) + visibleGroupsCount;
 
     if (totalVisibleCount === 0) {
       return renderNoProperties();
     }
 
-    // Filter groups that have visible properties
     const visibleGroups = R.filter(
       (group) => countVisibleGroupProperties(visibleKeys, group) > 0,
       propertyGroups,
@@ -330,7 +304,6 @@ const renderNestedPropertyGroups = R.curry(
   },
 );
 
-// Render loading properties
 const renderLoadingProperties = R.always(
   <div className="property-loading">
     <span className="loading-icon">⏳</span>
@@ -338,7 +311,6 @@ const renderLoadingProperties = R.always(
   </div>,
 );
 
-// Render no widget selected message
 const renderNoWidgetSelected = R.always(
   <div className="no-widget-selected">
     <span className="no-widget-icon">🧩</span>
@@ -346,7 +318,6 @@ const renderNoWidgetSelected = R.always(
   </div>,
 );
 
-// Render dynamic properties section using nested accordions
 const renderDynamicPropertiesSection = R.curry(
   (selectedWidget, widgetDefinition, properties, updateProperty, expandedGroups, toggleGroup, visibleKeys) => (
     <div className="property-section">
@@ -410,7 +381,6 @@ const createWidgetListConditions = R.curry((widgetData, widgetHandlers) => [
   [R.T, R.always(renderWidgetListItems(widgetData, widgetHandlers))],
 ]);
 
-// Render add widget button
 const renderAddWidgetButton = R.curry((modalHandlers) => (
   <div
     className="version-list-item"
@@ -436,7 +406,6 @@ const renderAddWidgetButton = R.curry((modalHandlers) => (
   </div>
 ));
 
-// Render widget list area
 const renderWidgetListArea = R.curryN(
   4,
   (widgetData, widgetHandlers, modalHandlers, listRef) => (
@@ -450,8 +419,6 @@ const renderWidgetListArea = R.curryN(
     </div>
   ),
 );
-
-// ============= Main Component =============
 
 const WidgetPreview = memo(
   ({
@@ -472,24 +439,16 @@ const WidgetPreview = memo(
     setNewWidgetPath,
     handleWidgetDeleteClick,
   }) => {
-    // State for widget definition and dynamic properties
     const [widgetDefinition, setWidgetDefinition] = useState(null);
     const [dynamicProperties, setDynamicProperties] = useState({});
-
-    // State for editorConfig
     const [editorConfigHandler, setEditorConfigHandler] = useState(null);
     const [visiblePropertyKeys, setVisiblePropertyKeys] = useState(null);
-
-    // State for preview
     const [previewData, setPreviewData] = useState(null);
     const [isBuilding, setIsBuilding] = useState(false);
     const [buildError, setBuildError] = useState(null);
     const [packageManager, setPackageManager] = useState("bun");
-
-    // State for accordion expanded groups
     const [expandedGroups, setExpandedGroups] = useState({});
 
-    // Toggle group expansion
     const toggleGroup = useCallback((category) => {
       setExpandedGroups((prev) => ({
         ...prev,
@@ -497,7 +456,6 @@ const WidgetPreview = memo(
       }));
     }, []);
 
-    // Drag and drop functionality - only enabled when not searching
     const widgetsForDragDrop = R.ifElse(
       R.isEmpty,
       R.always(filteredWidgets),
@@ -509,18 +467,15 @@ const WidgetPreview = memo(
         onSort: R.pipe(R.prop("values"), setWidgets),
       });
 
-    // Update reordered widgets when filteredWidgets changes
     useEffect(() => {
       setReorderedWidgets(filteredWidgets);
     }, [filteredWidgets, setReorderedWidgets]);
 
-    // Get selected widget (convert to string for comparison)
     const selectedWidget = R.pipe(
       R.find(R.propEq(String(selectedWidgetForPreview), "id")),
       R.defaultTo(null),
     )(widgets);
 
-    // Clear widget definition state
     const clearWidgetDefinitionState = () => {
       setWidgetDefinition(null);
       setDynamicProperties({});
@@ -528,7 +483,6 @@ const WidgetPreview = memo(
       setVisiblePropertyKeys(null);
     };
 
-    // Load widget definition and editorConfig when widget is selected
     useEffect(() => {
       if (!selectedWidget) {
         clearWidgetDefinitionState();
@@ -539,7 +493,6 @@ const WidgetPreview = memo(
 
       const loadWidgetData = async () => {
         try {
-          // Load widget definition and initial property values in parallel from Rust backend
           const [definition, initialValues, editorConfigResult] = await Promise.all([
             invoke("parse_widget_properties", { widgetPath }),
             initializePropertyValues(widgetPath),
@@ -549,7 +502,6 @@ const WidgetPreview = memo(
           setWidgetDefinition(definition);
           setDynamicProperties(initialValues);
 
-          // Handle editorConfig
           if (editorConfigResult.found && editorConfigResult.content) {
             const handler = createEditorConfigHandler(editorConfigResult.content);
             setEditorConfigHandler(handler);
@@ -567,7 +519,6 @@ const WidgetPreview = memo(
       loadWidgetData();
     }, [selectedWidget]);
 
-    // Update visible property keys when values or editorConfig changes
     useEffect(() => {
       if (!editorConfigHandler || !editorConfigHandler.isAvailable || !widgetDefinition) {
         setVisiblePropertyKeys(null);
@@ -582,15 +533,12 @@ const WidgetPreview = memo(
       setVisiblePropertyKeys(visibleKeys);
     }, [editorConfigHandler, widgetDefinition, dynamicProperties, properties]);
 
-    // Create property update handler for dynamic properties
     const updateDynamicProperty = R.curry((propertyKey, value) =>
       setDynamicProperties(R.assoc(propertyKey, value)),
     );
 
-    // Combine static and dynamic properties for preview
     const combinedProperties = R.mergeRight(properties, dynamicProperties);
 
-    // Handle Run Preview button click
     const handleRunPreview = async () => {
       if (!selectedWidget) return;
 
@@ -626,7 +574,6 @@ const WidgetPreview = memo(
 
     return (
       <div className="base-manager widget-preview">
-        {/* Left Panel - Widget List */}
         <div className="preview-left">
           <SearchBox
             placeholder="Search widgets by caption..."
@@ -654,7 +601,6 @@ const WidgetPreview = memo(
           )}
         </div>
 
-        {/* Middle Panel - Properties */}
         <div className="preview-middle">
           <div className="properties-header">
             <h3>Properties</h3>
@@ -697,7 +643,6 @@ const WidgetPreview = memo(
           )}
         </div>
 
-        {/* Right Panel - Widget Preview */}
         <div className="preview-right">
           {previewData ? (
             <WidgetPreviewFrame

@@ -1,12 +1,8 @@
 import * as R from "ramda";
 import React, { memo, useMemo, useCallback, useState } from "react";
 import {
-  createCSSClass,
   createCSSVariables,
-  styleToCSSString,
-  mergeStyles,
   sanitizeProps,
-  createMemoizer,
   shallowEqual,
 } from "../../utils/functional";
 

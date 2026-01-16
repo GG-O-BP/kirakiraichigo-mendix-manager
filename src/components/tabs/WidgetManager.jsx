@@ -7,8 +7,6 @@ import { renderPanel } from "../common/Panel";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 import { PACKAGE_MANAGERS } from "../../utils/functional";
 
-// ============= Data Processing Functions =============
-
 const createVersionOptions = R.pipe(
   R.map(
     R.pipe(R.prop("version"), (version) => ({
@@ -27,8 +25,6 @@ const formatDate = R.pipe(
     R.always("Date unknown"),
   ),
 );
-
-// ============= Selection State Functions =============
 
 const isAppSelected = R.curry((selectedApps, app) =>
   selectedApps.has(R.prop("path", app)),
@@ -54,8 +50,6 @@ const getWidgetClassName = R.curry((selectedWidgets, widget) =>
   ]),
 );
 
-// ============= Button State Functions =============
-
 const isInstallButtonDisabled = R.curry((isInstalling, selectedWidgets) =>
   R.or(isInstalling, R.equals(0, selectedWidgets.size)),
 );
@@ -67,8 +61,6 @@ const isBuildDeployButtonDisabled = R.curry(
       R.equals(0, selectedApps.size),
     ),
 );
-
-// ============= Event Handlers =============
 
 const createAppClickHandler = R.curry((handleAppClick, app, e) =>
   R.pipe(
@@ -99,9 +91,7 @@ const createWidgetSelectionHandler = R.curry(
               "kirakiraSelectedWidgets",
               JSON.stringify(Array.from(newSet)),
             );
-          } catch (error) {
-            // Handle error silently
-          }
+          } catch (error) {}
 
           return newSet;
         });
@@ -135,8 +125,6 @@ const createAddWidgetHandler = R.curry(
       )(),
 );
 
-// ============= Search Controls =============
-
 const renderSearchControls = R.curry((config) => (
   <div className="search-controls">
     {config.dropdown && (
@@ -155,8 +143,6 @@ const renderSearchControls = R.curry((config) => (
     </div>
   </div>
 ));
-
-// ============= Render Functions =============
 
 const renderAppIcon = R.curry((selectedApps, app) =>
   isAppSelected(selectedApps, app) ? "☑️" : "📁",
@@ -189,8 +175,6 @@ const renderPackageManagerOption = R.curry(
     </label>
   ),
 );
-
-// ============= List Item Renderers =============
 
 const renderAppListItem = R.curry((selectedApps, handleAppClick, app) => (
   <div
@@ -272,8 +256,6 @@ const renderAddWidgetItem = R.curry(
   ),
 );
 
-// ============= Results Renderers =============
-
 const renderSuccessfulWidget = R.curry((result, index) => (
   <div key={index} className="inline-result-item success">
     <span className="result-icon">✅</span>
@@ -337,8 +319,6 @@ const renderInlineResults = R.ifElse(
   R.always(null),
 );
 
-// ============= List Renderers =============
-
 const renderAppsList = R.curry((selectedApps, handleAppClick, apps) =>
   R.ifElse(
     R.isEmpty,
@@ -358,7 +338,6 @@ const renderWidgetsList = R.curry(
     modalHandlers,
     widgetListRef,
   ) => {
-    // Use filtered widgets when searching, reordered widgets when not searching
     const widgetsToShow = R.isEmpty(widgetSearchTerm)
       ? reorderedWidgets
       : filteredWidgets;
@@ -425,8 +404,6 @@ const renderWidgetsList = R.curry(
   },
 );
 
-// ============= Main Component =============
-
 const WidgetManager = memo(
   ({
     versionFilter,
@@ -465,7 +442,6 @@ const WidgetManager = memo(
       setNewWidgetPath,
     ];
 
-    // Drag and drop functionality for widgets - only enabled when not searching
     const widgetsForDragDrop = R.isEmpty(widgetSearchTerm)
       ? filteredWidgets
       : [];
@@ -473,14 +449,12 @@ const WidgetManager = memo(
     const [widgetListRef, reorderedWidgets, setReorderedWidgets] =
       useDragAndDrop(widgetsForDragDrop, {
         onSort: ({ values }) => {
-          // Update the main widgets array with new order
           if (R.isEmpty(widgetSearchTerm)) {
             setWidgets(values);
           }
         },
       });
 
-    // Update reordered widgets when filteredWidgets changes
     useEffect(() => {
       setReorderedWidgets(filteredWidgets);
     }, [filteredWidgets, setReorderedWidgets]);
@@ -526,7 +500,6 @@ const WidgetManager = memo(
       <div className="base-manager widget-manager">
         {R.map(renderPanel, panelConfigs)}
 
-        {/* Package Manager Controls */}
         <div className="package-manager-section">
           <div className="package-manager-group">
             <label className="package-manager-label">Package Manager:</label>
@@ -570,7 +543,6 @@ const WidgetManager = memo(
               : `Build + Deploy (${selectedWidgets.size} widgets → ${selectedApps.size} apps)`}
           </button>
 
-          {/* Inline Results Section */}
           {renderInlineResults({ inlineResults, setInlineResults })}
         </div>
       </div>
