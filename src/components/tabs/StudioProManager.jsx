@@ -1,6 +1,7 @@
 import * as R from "ramda";
 import { memo, useMemo, useState, useEffect } from "react";
 import SearchBox from "../common/SearchBox";
+import { renderPanel } from "../common/Panel";
 import {
   MendixVersionListItem,
   MendixAppListItem,
@@ -475,13 +476,6 @@ const renderSearchControls = R.curry((config) => (
         </div>
       </>
     )}
-  </div>
-));
-
-const renderPanel = R.curry((config) => (
-  <div key={config.key} className={config.className}>
-    {config.searchControls}
-    <div className="list-area">{config.content}</div>
   </div>
 ));
 

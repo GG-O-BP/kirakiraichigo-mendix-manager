@@ -764,15 +764,16 @@ export const updateVersionLoadingStates = R.curry(
     )(statesMap),
 );
 
-// Get loading state for specific version - returns object with isLaunching and isUninstalling
+// Get loading state for specific version - returns object with isLaunching, isUninstalling, isDownloading
 export const getVersionLoadingState = R.curry((statesMap, versionId) => {
   const state = statesMap[versionId];
   if (!state) {
-    return { isLaunching: false, isUninstalling: false };
+    return { isLaunching: false, isUninstalling: false, isDownloading: false };
   }
   return {
     isLaunching: state.operation === "launch" && state.value,
     isUninstalling: state.operation === "uninstall" && state.value,
+    isDownloading: state.operation === "download" && state.value,
   };
 });
 

@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import SearchBox from "../common/SearchBox";
 import DynamicPropertyInput from "../common/DynamicPropertyInput";
 import WidgetPreviewFrame from "../common/WidgetPreviewFrame";
+import { renderLoadingIndicator } from "../common/LoadingIndicator";
 import {
   initializePropertyValues,
   createPropertyChangeHandler,
@@ -30,14 +31,6 @@ const getWidgetClassName = R.curry((selectedWidgetForPreview, widget) =>
       : "",
   ]),
 );
-
-// Render empty state
-const renderEmptyState = R.curry((icon, message) => (
-  <div className="loading-indicator">
-    <span className="loading-icon">{icon}</span>
-    <span>{message}</span>
-  </div>
-));
 
 // Calculate new selection value (toggle if same, select if different)
 const calculateNewSelection = R.curry((currentSelection, widgetId) =>
@@ -410,11 +403,11 @@ const renderWidgetListItems = R.curry((widgetData, widgetHandlers) =>
 const createWidgetListConditions = R.curry((widgetData, widgetHandlers) => [
   [
     isEmptyWithoutSearch,
-    R.always(renderEmptyState("🧩", "No widgets registered")),
+    R.always(renderLoadingIndicator("🧩", "No widgets registered")),
   ],
   [
     isEmptyWithSearch,
-    R.pipe(createSearchNotFoundMessage, (msg) => renderEmptyState("🔍", msg)),
+    R.pipe(createSearchNotFoundMessage, (msg) => renderLoadingIndicator("🔍", msg)),
   ],
   [R.T, R.always(renderWidgetListItems(widgetData, widgetHandlers))],
 ]);

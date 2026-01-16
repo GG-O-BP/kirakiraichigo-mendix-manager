@@ -1,18 +1,13 @@
 import * as R from "ramda";
 import { memo, useMemo } from "react";
 import ListItem from "./ListItem";
+import {
+  createListItem,
+  generateListData,
+} from "../../utils/functional";
 
-// ============= Pure Data Transformations =============
-
-// Create a list item with given index
-export const createListItem = R.curry((index) => ({
-  id: `item-${index}`,
-  label: `Item ${index + 1}`,
-  icon: "🍓",
-}));
-
-// Generate list data with given count
-export const generateListData = R.pipe(R.range(0), R.map(createListItem));
+// Re-export for convenience
+export { createListItem, generateListData };
 
 // Convert to lowercase for comparison
 const toLower = R.toLower;

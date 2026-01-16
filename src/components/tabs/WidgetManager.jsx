@@ -2,11 +2,10 @@ import * as R from "ramda";
 import { memo, useEffect } from "react";
 import Dropdown from "../common/Dropdown";
 import SearchBox from "../common/SearchBox";
+import { renderLoadingIndicator } from "../common/LoadingIndicator";
+import { renderPanel } from "../common/Panel";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
-
-// ============= Constants =============
-
-const PACKAGE_MANAGERS = ["npm", "yarn", "pnpm", "bun"];
+import { PACKAGE_MANAGERS } from "../../utils/functional";
 
 // ============= Data Processing Functions =============
 
@@ -157,21 +156,7 @@ const renderSearchControls = R.curry((config) => (
   </div>
 ));
 
-const renderPanel = R.curry((config) => (
-  <div key={config.key} className={config.className}>
-    {config.searchControls}
-    <div className="list-area">{config.content}</div>
-  </div>
-));
-
 // ============= Render Functions =============
-
-const renderEmptyState = R.curry((icon, message) => (
-  <div className="loading-indicator">
-    <span className="loading-icon">{icon}</span>
-    <span>{message}</span>
-  </div>
-));
 
 const renderAppIcon = R.curry((selectedApps, app) =>
   isAppSelected(selectedApps, app) ? "☑️" : "📁",
@@ -357,7 +342,7 @@ const renderInlineResults = R.ifElse(
 const renderAppsList = R.curry((selectedApps, handleAppClick, apps) =>
   R.ifElse(
     R.isEmpty,
-    () => renderEmptyState("🍓", "No Mendix apps found"),
+    () => renderLoadingIndicator("🍓", "No Mendix apps found"),
     (apps) => R.map(renderAppListItem(selectedApps, handleAppClick), apps),
   )(apps),
 );
@@ -385,7 +370,7 @@ const renderWidgetsList = R.curry(
         () => (
           <div>
             {renderAddWidgetItem(...modalHandlers)}
-            {renderEmptyState("🧩", "No widgets registered")}
+            {renderLoadingIndicator("🧩", "No widgets registered")}
           </div>
         ),
       ],
@@ -394,7 +379,7 @@ const renderWidgetsList = R.curry(
         () => (
           <div>
             {renderAddWidgetItem(...modalHandlers)}
-            {renderEmptyState(
+            {renderLoadingIndicator(
               "🔍",
               `No widgets found matching "${widgetSearchTerm}"`,
             )}

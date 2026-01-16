@@ -492,11 +492,6 @@ function App() {
     setVersionToDownload(null);
   }, []);
 
-  const handleDownloadModalCancel = useCallback(() => {
-    setShowDownloadModal(false);
-    setVersionToDownload(null);
-  }, []);
-
   const loadApps = useCallback(
     wrapAsync(
       handleLoadError("apps"),
@@ -907,6 +902,16 @@ function App() {
         updateVersionLoadingStates(versionId, "uninstall", true, prev),
       );
 
+      // Cleanup helper to reset uninstall state
+      const cleanupUninstallState = () => {
+        setVersionLoadingStates((prev) =>
+          updateVersionLoadingStates(versionId, "uninstall", false, prev),
+        );
+        setShowUninstallModal(false);
+        setVersionToUninstall(null);
+        setRelatedApps([]);
+      };
+
       try {
         // Delete related apps first if requested
         if (deleteApps && relatedAppsList.length > 0) {
@@ -936,12 +941,7 @@ function App() {
               if (deleteApps) {
                 await loadApps();
               }
-              setVersionLoadingStates((prev) =>
-                updateVersionLoadingStates(versionId, "uninstall", false, prev),
-              );
-              setShowUninstallModal(false);
-              setVersionToUninstall(null);
-              setRelatedApps([]);
+              cleanupUninstallState();
             }
           } catch (error) {
             // Handle error silently
@@ -951,24 +951,14 @@ function App() {
         // Fallback timeout after 60 seconds
         setTimeout(() => {
           clearInterval(monitorDeletion);
-          setVersionLoadingStates((prev) =>
-            updateVersionLoadingStates(versionId, "uninstall", false, prev),
-          );
-          setShowUninstallModal(false);
-          setVersionToUninstall(null);
-          setRelatedApps([]);
+          cleanupUninstallState();
         }, 60000);
       } catch (error) {
         const errorMsg = deleteApps
           ? `Failed to uninstall Studio Pro ${version.version} with apps: ${error}`
           : `Failed to uninstall Studio Pro ${version.version}: ${error}`;
         alert(errorMsg);
-        setVersionLoadingStates((prev) =>
-          updateVersionLoadingStates(versionId, "uninstall", false, prev),
-        );
-        setShowUninstallModal(false);
-        setVersionToUninstall(null);
-        setRelatedApps([]);
+        cleanupUninstallState();
       }
     },
     [loadVersions, loadApps],
@@ -1532,14 +1522,13 @@ function App() {
         version={versionToDownload}
         onDownload={handleModalDownload}
         onClose={handleDownloadModalClose}
-        onCancel={handleDownloadModalCancel}
+        onCancel={handleDownloadModalClose}
         isLoading={
           versionToDownload
             ? getVersionLoadingState(
-                versionToDownload.version,
-                "download",
                 versionLoadingStates,
-              )
+                versionToDownload.version,
+              ).isDownloading
             : false
         }
       />
