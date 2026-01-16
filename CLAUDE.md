@@ -90,9 +90,9 @@ All available commands are registered in `src-tauri/src/lib.rs` via `invoke_hand
 ### Frontend-Backend Communication
 
 **Data Synchronization**:
-- Frontend state persisted via `save_app_state` / `load_app_state` commands
+- Frontend state persisted via `save_app_state` / `load_app_state` / `clear_app_state` commands
 - Generic storage via `save_to_storage` / `load_from_storage` with key-value pairs
-- Storage managed through Tauri fs plugin (local app data directory)
+- Storage managed through `@tauri-apps/plugin-fs` (local app data directory)
 
 **Filtering Pipeline**:
 1. Frontend sends filter criteria to Rust commands (`filter_mendix_apps`, `filter_widgets`, etc.)
@@ -132,6 +132,7 @@ Theme system uses Catppuccin palette (`@catppuccin/palette`) with dynamic CSS va
 
 **Widget Properties**:
 - Parsed from `widget.xml` via `parse_widget_properties` command
+- Editor config parsed via `read_editor_config` command
 - Validation via `validate_mendix_widget` command
 - Properties stored in frontend state for editing
 
@@ -163,9 +164,9 @@ Theme system uses Catppuccin palette (`@catppuccin/palette`) with dynamic CSS va
 
 ### Package Manager Support
 - **Development**: Uses Bun (v1.3.6) as the project package manager
-- **Widget builds**: Application supports npm, pnpm, and yarn for widget builds
+- **Widget builds**: Application supports npm, pnpm, yarn, and bun for widget builds
 - Package manager selection stored in state (`packageManager`)
-- Commands executed via `run_package_manager_command` in Rust backend
+- Commands executed via `run_package_manager_command` in Rust backend (uses `@tauri-apps/plugin-shell`)
 
 ## Common Gotchas
 
@@ -174,3 +175,5 @@ Theme system uses Catppuccin palette (`@catppuccin/palette`) with dynamic CSS va
 - **Async invoke**: Always `await` Tauri invoke calls and wrap in try-catch or use `wrapAsync` helper.
 - **LightningCSS**: Vite config uses `lightningcss` as CSS transformer - don't use PostCSS plugins.
 - **Theme CSS variables**: Defined dynamically in `styles/themes/` - use CSS vars like `var(--ctp-mocha-base)`.
+- **React 19**: Frontend uses React 19.x with concurrent features - be aware of breaking changes from React 18.
+- **Tauri plugins**: Uses `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@tauri-apps/plugin-shell` - import from these packages, not from core API.
