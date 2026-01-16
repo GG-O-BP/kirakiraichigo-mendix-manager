@@ -473,15 +473,10 @@ const WidgetPreview = memo(
       setBuildError(null);
 
       try {
-        console.log("[Widget Preview] Building widget:", selectedWidget);
-        console.log("[Widget Preview] Package manager:", packageManager);
-
         const response = await invoke("build_widget_for_preview", {
           widgetPath: selectedWidget.path,
           packageManager: packageManager,
         });
-
-        console.log("[Widget Preview] Build response:", response);
 
         if (response.success) {
           setPreviewData({

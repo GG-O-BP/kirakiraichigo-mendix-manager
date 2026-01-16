@@ -71,11 +71,6 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
           <script>
             (function() {
               try {
-                console.log('[Widget Preview] Initializing preview...');
-                console.log('[Widget Preview] Widget Name:', '${safeWidgetName}');
-                console.log('[Widget Preview] Widget ID:', '${safeWidgetId}');
-                console.log('[Widget Preview] Properties:', ${safeProperties});
-
                 // Make React available globally
                 window.React = React;
                 window.ReactDOM = ReactDOM;
@@ -100,17 +95,9 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                 // Override define to capture the widget module
                 const originalDefine = window.define;
                 window.define = function(deps, factory) {
-                  console.log('[Widget Preview] AMD define called');
-                  console.log('[Widget Preview] Dependencies:', deps);
-                  console.log('[Widget Preview] Factory type:', typeof factory);
-
-                  // If this is an AMD module definition
                   if (typeof factory === 'function') {
                     try {
-                      // Create an exports object to capture named exports
                       const exportsObject = {};
-
-                      // Resolve dependencies
                       const resolvedDeps = deps.map(dep => {
                         if (dep === 'react') return React;
                         if (dep === 'react-dom') return ReactDOM;
@@ -119,25 +106,12 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                         return undefined;
                       });
 
-                      // Call factory with resolved dependencies
                       const result = factory.apply(null, resolvedDeps);
 
-                      // Store the result - prefer return value, fallback to exports object
                       if (result) {
                         WidgetModule = result;
-                        console.log('[Widget Preview] Captured widget module from return value');
                       } else if (Object.keys(exportsObject).length > 0) {
                         WidgetModule = exportsObject;
-                        console.log('[Widget Preview] Captured widget module from exports object');
-                      } else {
-                        console.warn('[Widget Preview] Factory returned no result and exports is empty');
-                      }
-
-                      if (WidgetModule) {
-                        console.log('[Widget Preview] Module type:', typeof WidgetModule);
-                        console.log('[Widget Preview] Module keys:', Object.keys(WidgetModule));
-                        console.log('[Widget Preview] Module.default:', WidgetModule.default);
-                        console.log('[Widget Preview] Full module:', WidgetModule);
                       }
                     } catch (error) {
                       console.error('[Widget Preview] Error in AMD factory:', error);
@@ -168,9 +142,7 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                   readOnly: false,
                   validation: undefined,
                   displayValue: value ? String(value) : '',
-                  setValue: (newValue) => {
-                    console.log('[Mock Attribute] setValue called with:', newValue);
-                  }
+                  setValue: () => {}
                 });
 
                 const createMockExpression = (value) => ({
@@ -182,58 +154,33 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                 const props = ${safeProperties};
                 const widgetProps = {};
 
-                // Convert property values based on type
                 Object.keys(props).forEach(key => {
                   const value = props[key];
-
-                  // Check if it's an attribute-like property (DateTime, String, etc.)
                   if (key.includes('attribute') || key.includes('date') || key.includes('Date')) {
                     widgetProps[key] = createMockAttribute(value);
-                  }
-                  // Check if it's an expression-like property
-                  else if (key.includes('expression') || key.includes('min') || key.includes('max')) {
+                  } else if (key.includes('expression') || key.includes('min') || key.includes('max')) {
                     widgetProps[key] = createMockExpression(value);
-                  }
-                  // Plain value
-                  else {
+                  } else {
                     widgetProps[key] = value;
                   }
                 });
 
-                console.log('[Widget Preview] Mapped props:', widgetProps);
-
                 // Try to find and render the widget
                 let Widget = null;
 
-                // First check if we captured the module from AMD
                 if (WidgetModule) {
-                  console.log('[Widget Preview] Searching for widget component...');
-
-                  // Try different export patterns:
-
-                  // 1. Named export matching widget name (most common for Mendix widgets)
                   if (WidgetModule['${safeWidgetName}']) {
                     Widget = WidgetModule['${safeWidgetName}'];
-                    console.log('[Widget Preview] Found widget as named export: ${safeWidgetName}');
-                  }
-                  // 2. Default export
-                  else if (WidgetModule.default) {
+                  } else if (WidgetModule.default) {
                     Widget = WidgetModule.default;
-                    console.log('[Widget Preview] Found widget as default export');
-                  }
-                  // 3. Module itself is a function
-                  else if (typeof WidgetModule === 'function') {
+                  } else if (typeof WidgetModule === 'function') {
                     Widget = WidgetModule;
-                    console.log('[Widget Preview] Module itself is the widget function');
-                  }
-                  // 4. First function export (fallback)
-                  else {
+                  } else {
                     const exportedFunctions = Object.keys(WidgetModule).filter(k =>
                       typeof WidgetModule[k] === 'function' && k !== '__esModule'
                     );
                     if (exportedFunctions.length > 0) {
                       Widget = WidgetModule[exportedFunctions[0]];
-                      console.log('[Widget Preview] Found widget as first function export:', exportedFunctions[0]);
                     }
                   }
                 }
@@ -241,16 +188,14 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                 // Fallback to global exports
                 if (!Widget && typeof window['${safeWidgetName}'] !== 'undefined') {
                   Widget = window['${safeWidgetName}'];
-                  console.log('[Widget Preview] Found widget at window.${safeWidgetName}');
-                }
-                else if (!Widget && '${safeWidgetId}'.includes('.')) {
+                } else if (!Widget && '${safeWidgetId}'.includes('.')) {
                   const lastPart = '${safeWidgetId}'.split('.').pop();
                   if (typeof window[lastPart] !== 'undefined') {
                     Widget = window[lastPart];
-                    console.log('[Widget Preview] Found widget at window.' + lastPart);
                   }
                 }
-                // Check for namespaced exports (e.g., com.mendix.widgets.WidgetName)
+
+                // Check for namespaced exports
                 if (!Widget && '${safeWidgetId}'.includes('.')) {
                   const parts = '${safeWidgetId}'.split('.');
                   let obj = window;
@@ -260,24 +205,15 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                   }
                   if (obj) {
                     Widget = obj;
-                    console.log('[Widget Preview] Found widget at namespace:', '${safeWidgetId}');
                   }
                 }
 
                 if (!Widget) {
-                  console.error('[Widget Preview] Widget not found.');
-                  console.error('[Widget Preview] WidgetModule:', WidgetModule);
-                  console.error('[Widget Preview] Available window properties:', Object.keys(window).filter(k => !k.startsWith('_')));
-                  throw new Error('Widget "${safeWidgetName}" (${safeWidgetId}) not found. The widget may not have exported correctly.');
+                  throw new Error('Widget "${safeWidgetName}" (${safeWidgetId}) not found.');
                 }
-
-                console.log('[Widget Preview] Found Widget:', Widget);
-                console.log('[Widget Preview] Rendering widget with props:', widgetProps);
 
                 // Render the widget
                 root.render(React.createElement(Widget, widgetProps));
-
-                console.log('[Widget Preview] Widget rendered successfully');
 
               } catch (error) {
                 console.error('[Widget Preview] Error:', error);

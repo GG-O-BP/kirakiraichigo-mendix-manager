@@ -24,27 +24,17 @@ pub async fn build_widget_for_preview(
     widget_path: String,
     package_manager: String,
 ) -> Result<BuildWidgetResponse, String> {
-    println!("[Widget Preview] Building widget at: {}", widget_path);
-    println!(
-        "[Widget Preview] Using package manager: {}",
-        package_manager
-    );
-
     let path = Path::new(&widget_path);
 
     // 1. node_modules가 없으면 install 먼저 실행
     let node_modules = path.join("node_modules");
     if !node_modules.exists() {
-        println!("[Widget Preview] node_modules not found, running install first");
-
         match run_package_manager_command(
             package_manager.clone(),
             "install".to_string(),
             widget_path.clone(),
         ) {
-            Ok(output) => {
-                println!("[Widget Preview] Install output: {}", output);
-            }
+            Ok(_) => {}
             Err(e) => {
                 return Ok(BuildWidgetResponse {
                     success: false,
@@ -59,15 +49,12 @@ pub async fn build_widget_for_preview(
     }
 
     // 2. build 실행
-    println!("[Widget Preview] Running build command");
     match run_package_manager_command(
         package_manager,
         "run build".to_string(),
         widget_path.clone(),
     ) {
-        Ok(output) => {
-            println!("[Widget Preview] Build output: {}", output);
-
+        Ok(_) => {
             // 3. dist 폴더에서 번들 읽기
             match read_widget_bundle(path).await {
                 Ok((bundle, css)) => {
@@ -122,8 +109,6 @@ async fn read_widget_bundle(widget_path: &Path) -> Result<(String, Option<String
     // Recursively search for the main widget JS file
     match find_widget_bundle_recursive(&dist_dir).await {
         Some(bundle_path) => {
-            println!("[Widget Preview] Found bundle at: {:?}", bundle_path);
-
             // Read JS bundle
             let bundle_content = tokio::fs::read_to_string(&bundle_path)
                 .await
@@ -140,16 +125,8 @@ async fn read_widget_bundle(widget_path: &Path) -> Result<(String, Option<String
                 );
 
                 if css_path.exists() {
-                    println!("[Widget Preview] Found CSS at: {:?}", css_path);
-                    match tokio::fs::read_to_string(&css_path).await {
-                        Ok(css) => Some(css),
-                        Err(e) => {
-                            println!("[Widget Preview] Warning: Failed to read CSS: {}", e);
-                            None
-                        }
-                    }
+                    tokio::fs::read_to_string(&css_path).await.ok()
                 } else {
-                    println!("[Widget Preview] No CSS file found at: {:?}", css_path);
                     None
                 }
             } else {
