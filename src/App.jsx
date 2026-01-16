@@ -406,13 +406,19 @@ function App() {
 
   // Save widget order to Rust backend whenever widgets change
   useEffect(() => {
-    if (widgets.length > 0) {
-      const widgetOrder = widgets.map((w) => w.id);
-      saveToStorage(STORAGE_KEYS.WIDGET_ORDER, widgetOrder).catch(
-        console.error,
-      );
-      saveToStorage(STORAGE_KEYS.WIDGETS, widgets).catch(console.error);
-    }
+    const saveWidgetsSequentially = async () => {
+      if (widgets.length > 0) {
+        try {
+          const widgetOrder = widgets.map((w) => w.id);
+          // Save sequentially to avoid race condition
+          await saveToStorage(STORAGE_KEYS.WIDGET_ORDER, widgetOrder);
+          await saveToStorage(STORAGE_KEYS.WIDGETS, widgets);
+        } catch (error) {
+          console.error("Failed to save widgets:", error);
+        }
+      }
+    };
+    saveWidgetsSequentially();
   }, [widgets]);
 
   // Package manager state
@@ -510,8 +516,9 @@ function App() {
 
       if (savedOrder.length > 0) {
         // Sort widgets according to saved order using Ramda
+        // Note: R.propEq arg order changed in Ramda 0.29+ to (val, name)
         const orderedWidgets = R.pipe(
-          R.map((id) => R.find(R.propEq("id", id), savedWidgets)),
+          R.map((id) => R.find(R.propEq(id, "id"), savedWidgets)),
           R.filter(R.identity),
           R.concat(
             R.__,
@@ -1270,7 +1277,7 @@ function App() {
   const handleRemoveWidget = useCallback(
     R.curry((widgetId) => {
       const updatedWidgets = R.filter(
-        R.complement(R.propEq("id", widgetId)),
+        R.complement(R.propEq(widgetId, "id")),
         widgets,
       );
 

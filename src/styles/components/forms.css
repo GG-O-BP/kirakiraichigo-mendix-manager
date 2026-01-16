@@ -105,6 +105,113 @@
     font-weight: 500;
 }
 
+.required-indicator {
+    color: var(--theme-error);
+}
+
+.property-description {
+    margin-top: 2px;
+}
+
+.description-text {
+    font-size: 12px;
+    color: var(--theme-text-muted);
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+.property-error {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.error-icon {
+    font-size: 12px;
+}
+
+.error-text {
+    font-size: 12px;
+    color: var(--theme-error);
+    font-weight: 400;
+}
+
+/* ============= Property Checkbox Components ============= */
+
+.property-checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+}
+
+.property-checkbox {
+    appearance: none;
+    margin: 0;
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(
+        135deg,
+        var(--theme-primary-light),
+        var(--theme-primary)
+    );
+    border: 2px solid var(--theme-primary);
+    position: relative;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px var(--theme-primary-shadow);
+    flex-shrink: 0;
+}
+
+.property-checkbox::before {
+    content: "🍓";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    opacity: 0;
+    transition: all 0.3s ease;
+    filter: brightness(0.8) drop-shadow(0 0 2px var(--theme-primary-shadow));
+}
+
+.property-checkbox:checked {
+    background: linear-gradient(
+        135deg,
+        var(--theme-primary),
+        var(--theme-primary-dark)
+    );
+    box-shadow:
+        0 3px 8px var(--theme-primary-shadow),
+        0 0 0 3px var(--theme-focus-ring);
+    transform: scale(1.1);
+}
+
+.property-checkbox:checked::before {
+    opacity: 1;
+    filter: brightness(1.2);
+    transform: translate(-50%, -50%) scale(1.2);
+}
+
+.property-checkbox:hover {
+    box-shadow: 0 4px 8px var(--theme-primary-shadow);
+    transform: scale(1.05);
+}
+
+.property-checkbox:hover:not(:checked)::before {
+    opacity: 0.3;
+}
+
+.property-checkbox-label {
+    font-size: 12px;
+    color: var(--theme-text-muted);
+    font-weight: 400;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
 .property-input,
 .property-textarea,
 .property-select {

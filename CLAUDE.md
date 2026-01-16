@@ -9,16 +9,16 @@ KiraKira Ichigo ("KiraIchi") is a Tauri-based desktop application for managing M
 ## Build & Development Commands
 
 ### Frontend (React + Vite)
-- `pnpm dev` - Start Vite dev server (port 21420)
-- `pnpm build` - Build frontend for production
-- `pnpm preview` - Preview production build
-- `pnpm test` - Run Vitest tests once
-- `pnpm test:watch` - Run Vitest in watch mode
+- `bun dev` - Start Vite dev server (port 21420)
+- `bun run build` - Build frontend for production
+- `bun run preview` - Preview production build
+- `bun test` - Run Vitest tests once
+- `bun test:watch` - Run Vitest in watch mode
 
 ### Tauri Application
-- `pnpm tauri dev` - Start Tauri app in development mode (auto-runs `pnpm dev`)
-- `pnpm tauri build` - Build production executable (auto-runs `pnpm build`)
-- `pnpm tauri` - Access Tauri CLI directly
+- `bun tauri dev` - Start Tauri app in development mode (auto-runs `bun dev`)
+- `bun tauri build` - Build production executable (auto-runs `bun run build`)
+- `bun tauri` - Access Tauri CLI directly
 
 ### Rust Backend
 - Build: Handled automatically by Tauri commands
@@ -48,6 +48,7 @@ The frontend follows **functional programming** patterns using Ramda.js:
 - State updates via Ramda lenses (e.g., `R.set`, `R.over`, `R.lensPath`)
 - Persistent state saved to Tauri storage via `save_to_storage` command
 - Storage keys defined in `STORAGE_KEYS` constant
+- Drag-and-drop reordering uses `@formkit/drag-and-drop` (widget/app list ordering persisted to storage)
 
 **Data Flow**:
 1. User action triggers event handler
@@ -158,13 +159,13 @@ Theme system uses Catppuccin palette (`@catppuccin/palette`) with dynamic CSS va
 ### Testing
 - Frontend tests use Vitest + @testing-library/react
 - Located alongside components or in `__tests__` directories
-- Run tests before committing: `pnpm test`
+- Run tests before committing: `bun test`
 
 ### Package Manager Support
-- Application supports npm, pnpm, and yarn for widget builds
+- **Development**: Uses Bun (v1.3.6) as the project package manager
+- **Widget builds**: Application supports npm, pnpm, and yarn for widget builds
 - Package manager selection stored in state (`packageManager`)
 - Commands executed via `run_package_manager_command` in Rust backend
-- Current default: pnpm (see `packageManager` value in `pnpm-lock.yaml`)
 
 ## Common Gotchas
 

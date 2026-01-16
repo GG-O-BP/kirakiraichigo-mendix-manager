@@ -438,8 +438,9 @@ export const createTab = R.curry((id, label, component) => ({
 }));
 
 // Find active tab
+// Note: R.propEq arg order changed in Ramda 0.29+ to (val, name)
 export const findActiveTab = R.curry((activeTabId, tabs) =>
-  R.find(R.propEq("id", activeTabId), tabs),
+  R.find(R.propEq(activeTabId, "id"), tabs),
 );
 
 // ============= Event Handlers =============

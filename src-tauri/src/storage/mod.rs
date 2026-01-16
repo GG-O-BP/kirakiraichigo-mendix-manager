@@ -2,6 +2,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
+
+// Global mutex to prevent race conditions during file operations
+static STORAGE_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 // ============================================================================
 // Pure Data Types
@@ -106,6 +111,11 @@ fn load_state_from_file() -> Result<AppState, String> {
 }
 
 fn save_specific_state(key: &str, value: Value) -> Result<(), String> {
+    // Acquire lock to prevent race conditions
+    let _lock = STORAGE_MUTEX
+        .lock()
+        .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
+
     let mut state = load_state_from_file().unwrap_or_default();
 
     match key {

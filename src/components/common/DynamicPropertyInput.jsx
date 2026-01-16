@@ -9,17 +9,19 @@ const getEventChecked = R.path(["target", "checked"]);
 
 // Create change handler for different input types
 const createChangeHandler = R.curry((onChange, type, event) => {
+  const rawValue = getEventValue(event);
+
   const value = R.cond([
     [R.equals("boolean"), R.always(getEventChecked(event))],
     [
       R.equals("integer"),
-      R.pipe(getEventValue, (val) => (val === "" ? "" : parseInt(val, 10))),
+      R.always(rawValue === "" ? "" : parseInt(rawValue, 10)),
     ],
     [
       R.equals("decimal"),
-      R.pipe(getEventValue, (val) => (val === "" ? "" : parseFloat(val))),
+      R.always(rawValue === "" ? "" : parseFloat(rawValue)),
     ],
-    [R.T, R.always(getEventValue(event))],
+    [R.T, R.always(rawValue)],
   ])(type);
 
   return onChange(value);
