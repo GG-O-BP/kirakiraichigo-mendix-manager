@@ -171,10 +171,3 @@ export const filterParsedPropertiesByKeys = R.curry((visibleKeys, parsedProperti
 });
 
 export const widgetDefinitionToDefaultProperties = transformWidgetDefinitionToEditorFormat;
-
-export {
-  parseEditorConfigToExecutableModule as parseEditorConfig,
-  invokeGetPropertiesWithFallback as executeGetProperties,
-  invokeCheckWithFallback as executeCheck,
-  extractAllPropertyKeysFromGroups as extractVisiblePropertyKeys,
-};

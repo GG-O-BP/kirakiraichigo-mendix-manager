@@ -130,8 +130,7 @@ const DownloadModal = memo(
       }
     }, [isOpen]);
 
-    // Enhanced download handler with real progress tracking
-    const handleDownload = R.pipe(() => {
+    const handleDownload = () => {
       if (!version?.version) {
         setError("Invalid version data");
         setCurrentStep(DOWNLOAD_STEPS.ERROR);
@@ -142,25 +141,18 @@ const DownloadModal = memo(
 
       const executeDownload = async () => {
         try {
-          // Step 1: Extract build number
           setCurrentStep(DOWNLOAD_STEPS.EXTRACTING_BUILD);
           await new Promise((resolve) => setTimeout(resolve, 1200));
 
-          // Step 2: Setting up paths
           setCurrentStep(DOWNLOAD_STEPS.SETTING_PATH);
           await new Promise((resolve) => setTimeout(resolve, 800));
 
-          // Step 3: Start downloading
           setCurrentStep(DOWNLOAD_STEPS.DOWNLOADING);
+          await onDownload(version);
 
-          // Call the actual download function
-          const result = await onDownload(version);
-
-          // Step 4: Launching installer
           setCurrentStep(DOWNLOAD_STEPS.LAUNCHING);
           await new Promise((resolve) => setTimeout(resolve, 1500));
 
-          // Step 5: Completed
           setCurrentStep(DOWNLOAD_STEPS.COMPLETED);
         } catch (err) {
           console.error("Download process failed:", err);
@@ -172,21 +164,19 @@ const DownloadModal = memo(
       };
 
       executeDownload();
-    });
+    };
 
-    // Enhanced modal close handler
-    const handleClose = R.pipe(() => {
+    const handleClose = () => {
       if (!isProcessing) {
         onClose();
       }
-    });
+    };
 
-    // Enhanced cancel handler
-    const handleCancel = R.pipe(() => {
+    const handleCancel = () => {
       if (canCancel(currentStep)) {
         onCancel();
       }
-    });
+    };
 
     if (!isOpen) {
       return null;

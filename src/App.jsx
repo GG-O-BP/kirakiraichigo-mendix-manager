@@ -211,24 +211,20 @@ function App() {
       saveToStorage(STORAGE_KEYS.THEME, newTheme).catch(console.error);
       applyTheme(newTheme);
     },
-    [setStateProperty, applyTheme, state.currentTheme],
+    [setStateProperty, applyTheme],
   );
 
   useEffect(() => {
     applyTheme(state.currentTheme);
   }, [applyTheme, state.currentTheme]);
 
-  const createVersionsUpdater = R.curry(
-    (isFirstPage, newVersions, prevVersions) =>
-      R.ifElse(
-        R.always(isFirstPage),
-        R.always(newVersions),
-        R.pipe(R.defaultTo([]), R.concat(R.__, newVersions)),
-      )(prevVersions),
-  );
-
   const fetchVersionsFromDatagrid = useCallback(async (page = 1) => {
     const isFirstPage = page === 1;
+
+    const updateVersions = (newVersions, prevVersions) =>
+      isFirstPage
+        ? newVersions
+        : R.concat(R.defaultTo([], prevVersions), newVersions);
 
     try {
       const processedPage = R.pipe(R.defaultTo(1), R.max(1))(page);
@@ -240,7 +236,7 @@ function App() {
       });
 
       setDownloadableVersions((prevVersions) =>
-        createVersionsUpdater(isFirstPage, versions, prevVersions),
+        updateVersions(versions, prevVersions),
       );
 
       setIsLoadingDownloadableVersions(false);

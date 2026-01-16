@@ -9,17 +9,15 @@ const UNINSTALL_BUTTON_STYLE = {
 
 const BUTTON_GROUP_STYLE = { display: "flex", gap: "8px" };
 
-const toLower = R.toLower;
-
 const extractSearchableText = R.pipe(
   R.props(["label", "version", "name"]),
   R.filter(R.identity),
   R.join(" "),
-  toLower,
+  R.toLower,
 );
 
 export const createSearchFilter = R.curry((searchTerm) =>
-  R.pipe(extractSearchableText, R.includes(toLower(searchTerm))),
+  R.pipe(extractSearchableText, R.includes(R.toLower(searchTerm))),
 );
 
 const composeClassNames = R.pipe(R.filter(R.identity), R.join(" "));
