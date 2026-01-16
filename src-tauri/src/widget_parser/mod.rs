@@ -911,6 +911,169 @@ pub fn group_properties_by_category(properties: Vec<ParsedProperty>) -> Result<V
     Ok(result)
 }
 
+// ============= Editor Config Transformation Functions =============
+
+/// Property format used by the editor config (frontend-friendly format)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EditorProperty {
+    pub key: String,
+    #[serde(rename = "type")]
+    pub property_type: String,
+    pub caption: String,
+    pub description: Option<String>,
+    #[serde(rename = "defaultValue")]
+    pub default_value: Option<String>,
+    pub required: bool,
+    pub options: Vec<String>,
+}
+
+/// Property group format used by the editor config
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EditorPropertyGroup {
+    pub caption: String,
+    pub properties: Vec<EditorProperty>,
+    #[serde(rename = "propertyGroups")]
+    pub property_groups: Vec<EditorPropertyGroup>,
+}
+
+/// Transforms a WidgetProperty to EditorProperty format
+fn transform_property_to_editor_format(prop: &WidgetProperty) -> EditorProperty {
+    EditorProperty {
+        key: prop.key.clone(),
+        property_type: prop.property_type.clone(),
+        caption: prop.caption.clone(),
+        description: if prop.description.is_empty() {
+            None
+        } else {
+            Some(prop.description.clone())
+        },
+        default_value: prop.default_value.clone(),
+        required: prop.required,
+        options: prop.options.clone(),
+    }
+}
+
+/// Recursively transforms a WidgetPropertyGroup to EditorPropertyGroup format
+fn transform_property_group_to_editor_format(group: &WidgetPropertyGroup) -> EditorPropertyGroup {
+    EditorPropertyGroup {
+        caption: group.caption.clone(),
+        properties: group
+            .properties
+            .iter()
+            .map(transform_property_to_editor_format)
+            .collect(),
+        property_groups: group
+            .property_groups
+            .iter()
+            .map(transform_property_group_to_editor_format)
+            .collect(),
+    }
+}
+
+/// Transforms a WidgetDefinition to editor-friendly format (array of property groups)
+fn transform_widget_definition_to_editor_format_internal(
+    definition: &WidgetDefinition,
+) -> Vec<EditorPropertyGroup> {
+    definition
+        .property_groups
+        .iter()
+        .map(transform_property_group_to_editor_format)
+        .collect()
+}
+
+/// Recursively extracts all property keys from editor property groups
+fn extract_keys_from_editor_group(group: &EditorPropertyGroup) -> Vec<String> {
+    let mut keys: Vec<String> = group.properties.iter().map(|p| p.key.clone()).collect();
+
+    for nested_group in &group.property_groups {
+        keys.extend(extract_keys_from_editor_group(nested_group));
+    }
+
+    keys
+}
+
+/// Extracts all property keys from a list of editor property groups
+fn extract_all_property_keys_from_groups_internal(groups: &[EditorPropertyGroup]) -> Vec<String> {
+    let mut all_keys: Vec<String> = Vec::new();
+
+    for group in groups {
+        all_keys.extend(extract_keys_from_editor_group(group));
+    }
+
+    // Remove duplicates while preserving order
+    let mut seen = std::collections::HashSet::new();
+    all_keys.retain(|key| seen.insert(key.clone()));
+
+    all_keys
+}
+
+/// Recursively checks if a property key exists in editor property groups
+fn is_key_in_editor_group(group: &EditorPropertyGroup, key: &str) -> bool {
+    if group.properties.iter().any(|p| p.key == key) {
+        return true;
+    }
+
+    group
+        .property_groups
+        .iter()
+        .any(|g| is_key_in_editor_group(g, key))
+}
+
+/// Checks if a property key exists in any of the editor property groups
+fn is_property_key_in_groups_internal(groups: &[EditorPropertyGroup], key: &str) -> bool {
+    groups.iter().any(|group| is_key_in_editor_group(group, key))
+}
+
+/// Filters parsed properties by visible keys
+fn filter_parsed_properties_by_keys_internal(
+    visible_keys: Option<&[String]>,
+    parsed_properties: Vec<ParsedProperty>,
+) -> Vec<ParsedProperty> {
+    match visible_keys {
+        None => parsed_properties,
+        Some(keys) => parsed_properties
+            .into_iter()
+            .filter(|prop| keys.contains(&prop.key))
+            .collect(),
+    }
+}
+
+// ============= Editor Config Tauri Commands =============
+
+#[tauri::command]
+pub fn transform_widget_definition_to_editor_format(
+    widget_path: String,
+) -> Result<Vec<EditorPropertyGroup>, String> {
+    let definition = parse_widget_xml(&widget_path).map_err(|e| e.to_string())?;
+    Ok(transform_widget_definition_to_editor_format_internal(&definition))
+}
+
+#[tauri::command]
+pub fn extract_all_property_keys_from_groups(
+    groups: Vec<EditorPropertyGroup>,
+) -> Result<Vec<String>, String> {
+    Ok(extract_all_property_keys_from_groups_internal(&groups))
+}
+
+#[tauri::command]
+pub fn filter_parsed_properties_by_keys(
+    visible_keys: Option<Vec<String>>,
+    parsed_properties: Vec<ParsedProperty>,
+) -> Result<Vec<ParsedProperty>, String> {
+    Ok(filter_parsed_properties_by_keys_internal(
+        visible_keys.as_deref(),
+        parsed_properties,
+    ))
+}
+
+#[tauri::command]
+pub fn is_property_key_in_groups(
+    groups: Vec<EditorPropertyGroup>,
+    property_key: String,
+) -> Result<bool, String> {
+    Ok(is_property_key_in_groups_internal(&groups, &property_key))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

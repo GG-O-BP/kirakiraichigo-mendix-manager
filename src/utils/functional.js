@@ -52,10 +52,11 @@ export const createBuildDeployParams = R.curry(
   }),
 );
 
-export const hasBuildFailures = R.pipe(
-  R.propOr([], "failed"),
-  R.complement(R.isEmpty),
-);
+// Check if build result has failures (Rust backend)
+export const hasBuildFailures = async (result) => {
+  const failed = R.propOr([], "failed", result);
+  return invoke("has_build_failures", { failed });
+};
 
 export const createCatastrophicErrorResult = R.curry((error) => ({
   successful: [],
@@ -77,25 +78,18 @@ export const createPropertyChangeHandler = R.curry(
     R.pipe(R.identity, updateFunction(propertyKey)),
 );
 
-// Validation utilities
-export const validateRequired = R.curry((fields, obj) =>
-  R.all((field) => !R.isEmpty(R.prop(field, obj)), fields),
-);
+// Validation utilities (Rust backend)
+export const validateRequired = async (fields, values) =>
+  invoke("validate_required_fields", { requiredFields: fields, values });
 
-export const validateBuildDeploySelections = R.curry(
-  (selectedWidgets, selectedApps) =>
-    R.cond([
-      [
-        () => R.equals(0, selectedWidgets.size),
-        R.always("Please select at least one widget to build"),
-      ],
-      [
-        () => R.equals(0, selectedApps.size),
-        R.always("Please select at least one app to deploy to"),
-      ],
-      [R.T, R.always(null)],
-    ])(),
-);
+// Validate build/deploy selections (Rust backend)
+export const validateBuildDeploySelections = async (selectedWidgets, selectedApps) => {
+  const result = await invoke("validate_build_deploy_selections", {
+    selectedWidgetCount: selectedWidgets.size,
+    selectedAppCount: selectedApps.size,
+  });
+  return result.is_valid ? null : result.error_message;
+};
 
 export const isSetNotEmpty = R.pipe(R.prop("size"), R.gt(R.__, 0));
 

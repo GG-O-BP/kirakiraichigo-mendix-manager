@@ -1,5 +1,6 @@
 import * as R from "ramda";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import ListItem from "./ListItem";
 
 const UNINSTALL_BUTTON_STYLE = {
@@ -9,36 +10,48 @@ const UNINSTALL_BUTTON_STYLE = {
 
 const BUTTON_GROUP_STYLE = { display: "flex", gap: "8px" };
 
-const extractSearchableText = R.pipe(
-  R.props(["label", "version", "name"]),
-  R.filter(R.identity),
-  R.join(" "),
-  R.toLower,
-);
+// Search text extraction (Rust backend)
+export const extractSearchableText = async (label, version, name) =>
+  invoke("extract_searchable_text", { label, version, name });
 
-export const createSearchFilter = R.curry((searchTerm) =>
-  R.pipe(extractSearchableText, R.includes(R.toLower(searchTerm))),
-);
+// Search filter using Rust backend
+export const textMatchesSearch = async (searchableText, searchTerm) =>
+  invoke("text_matches_search", { searchableText, searchTerm });
+
+// Create search filter that works with items (async batch processing)
+export const filterItemsBySearch = async (items, searchTerm) => {
+  if (!searchTerm || searchTerm.trim() === "") {
+    return items;
+  }
+
+  const results = await Promise.all(
+    items.map(async (item) => {
+      const searchableText = await extractSearchableText(
+        item.label || item.caption,
+        item.version,
+        item.name
+      );
+      const matches = await textMatchesSearch(searchableText, searchTerm);
+      return matches ? item : null;
+    })
+  );
+
+  return results.filter(Boolean);
+};
 
 const composeClassNames = R.pipe(R.filter(R.identity), R.join(" "));
 
-const getVersionValidityBadge = R.cond([
-  [R.prop("is_valid"), R.always("✓")],
-  [R.prop("is_lts"), R.always("LTS")],
-  [R.prop("is_mts"), R.always("MTS")],
-  [R.T, R.always(null)],
-]);
+// Version validity badge (Rust backend)
+export const getVersionValidityBadge = async (isValid, isLts, isMts) =>
+  invoke("get_version_validity_badge", { isValid, isLts, isMts });
 
-const formatDateWithFallback = R.curry((fallbackText, dateStr) =>
-  R.ifElse(
-    R.identity,
-    R.pipe(
-      (date) => new Date(date),
-      (date) => date.toLocaleDateString(),
-    ),
-    R.always(fallbackText),
-  )(dateStr),
-);
+// Date formatting (Rust backend)
+export const formatDateWithFallback = async (dateStr, fallback) =>
+  invoke("format_date_with_fallback", { dateStr, fallback });
+
+// Version status text (Rust backend)
+export const getVersionStatusText = async (isLaunching, isUninstalling, installDate) =>
+  invoke("get_version_status_text", { isLaunching, isUninstalling, installDate });
 
 const preventPropagationAndExecute = R.curry((onClick, e) =>
   R.pipe(
@@ -51,15 +64,6 @@ const preventPropagationAndExecute = R.curry((onClick, e) =>
 const renderSupportBadge = R.curry((badge, badgeClass) =>
   badge ? <span className={`version-badge ${badgeClass}`}>{badge}</span> : null,
 );
-
-const getVersionStatusText = R.cond([
-  [R.prop("isLaunching"), R.always("Launching...")],
-  [R.prop("isUninstalling"), R.always("Uninstalling...")],
-  [
-    R.T,
-    R.pipe(R.prop("install_date"), formatDateWithFallback("Installation date unknown")),
-  ],
-]);
 
 const renderLaunchButton = R.curry(
   (onLaunch, version, isLaunching, isUninstalling) => (
@@ -98,6 +102,14 @@ export const MendixVersionListItem = memo(
     isSelected,
     onClick,
   }) => {
+    const [statusText, setStatusText] = useState("Loading...");
+
+    useEffect(() => {
+      getVersionStatusText(isLaunching, isUninstalling, version.install_date)
+        .then(setStatusText)
+        .catch(() => setStatusText("Date unknown"));
+    }, [isLaunching, isUninstalling, version.install_date]);
+
     const className = composeClassNames([
       "version-list-item",
       isSelected && "selected",
@@ -116,9 +128,7 @@ export const MendixVersionListItem = memo(
           <span className="version-icon">🚀</span>
           <div className="version-details">
             <span className="version-number">{version.version}</span>
-            <span className="version-date">
-              {getVersionStatusText({ ...version, isLaunching, isUninstalling })}
-            </span>
+            <span className="version-date">{statusText}</span>
           </div>
         </div>
         <div style={BUTTON_GROUP_STYLE}>
@@ -144,6 +154,14 @@ const renderAppVersionBadge = R.curry((version) =>
 );
 
 export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
+  const [formattedDate, setFormattedDate] = useState("Loading...");
+
+  useEffect(() => {
+    formatDateWithFallback(app.last_modified, "Date unknown")
+      .then(setFormattedDate)
+      .catch(() => setFormattedDate("Date unknown"));
+  }, [app.last_modified]);
+
   const className = composeClassNames([
     "version-list-item",
     isDisabled && "disabled",
@@ -166,7 +184,7 @@ export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
           <span className="version-number">{app.name}</span>
           <span className="version-date">
             {renderAppVersionBadge(app.version)}
-            {formatDateWithFallback("Date unknown", app.last_modified)}
+            {formattedDate}
           </span>
         </div>
       </div>
@@ -224,23 +242,18 @@ export const VersionListItem = memo(
 
 VersionListItem.displayName = "VersionListItem";
 
-const filterItemsBySearchTerm = R.curry((searchTerm, items) =>
-  R.ifElse(
-    () => R.isEmpty(searchTerm),
-    R.identity,
-    R.filter(createSearchFilter(searchTerm)),
-  )(items),
-);
-
 const renderListItemWithHandler = R.curry((onItemClick, item) => (
   <ListItem key={item.id} item={item} onClick={onItemClick} />
 ));
 
 export const ListArea = memo(({ items, searchTerm, onItemClick }) => {
-  const filteredItems = useMemo(
-    () => filterItemsBySearchTerm(searchTerm, items),
-    [items, searchTerm],
-  );
+  const [filteredItems, setFilteredItems] = useState(items);
+
+  useEffect(() => {
+    filterItemsBySearch(items, searchTerm)
+      .then(setFilteredItems)
+      .catch(() => setFilteredItems(items));
+  }, [items, searchTerm]);
 
   return (
     <div className="list-area">

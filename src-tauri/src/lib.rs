@@ -1,10 +1,12 @@
 mod build_deploy;
 mod config;
 mod data_processing;
+mod formatting;
 mod mendix;
 mod package_manager;
 mod storage;
 mod utils;
+mod validation;
 mod web_scraper;
 mod widget_parser;
 mod widget_preview;
@@ -29,12 +31,27 @@ pub use storage::{
     clear_app_state, load_app_state, load_from_storage, save_app_state, save_to_storage,
 };
 pub use widget_parser::{
+    extract_all_property_keys_from_groups, filter_parsed_properties_by_keys,
     filter_properties_by_search, get_default_value_for_type, get_ui_type_mappings,
-    group_properties_by_category, initialize_property_values, map_property_type_to_ui_type,
-    parse_widget_properties, parse_widget_properties_to_parsed, read_editor_config,
-    validate_mendix_widget, validate_property_value,
+    group_properties_by_category, initialize_property_values, is_property_key_in_groups,
+    map_property_type_to_ui_type, parse_widget_properties, parse_widget_properties_to_parsed,
+    read_editor_config, transform_widget_definition_to_editor_format, validate_mendix_widget,
+    validate_property_value,
 };
 pub use widget_preview::build_widget_for_preview;
+
+pub use data_processing::version_utils::{
+    calculate_next_page_number, create_version_options, exclude_installed_versions,
+    filter_by_version_support_type, is_app_version_mismatch, is_version_currently_selected,
+    is_version_in_installed_list,
+};
+
+pub use formatting::{
+    extract_searchable_text, format_date, format_date_with_fallback, get_version_status_text,
+    get_version_validity_badge, text_matches_search,
+};
+
+pub use validation::{has_build_failures, validate_build_deploy_selections, validate_required_fields};
 
 pub use data_processing::{
     mendix_filters::{
@@ -94,7 +111,31 @@ pub fn run() {
             load_from_storage,
             save_app_state,
             load_app_state,
-            clear_app_state
+            clear_app_state,
+            // Validation commands
+            validate_build_deploy_selections,
+            validate_required_fields,
+            has_build_failures,
+            // Version utility commands
+            exclude_installed_versions,
+            filter_by_version_support_type,
+            is_version_in_installed_list,
+            is_app_version_mismatch,
+            is_version_currently_selected,
+            calculate_next_page_number,
+            create_version_options,
+            // Widget transformation commands
+            transform_widget_definition_to_editor_format,
+            extract_all_property_keys_from_groups,
+            filter_parsed_properties_by_keys,
+            is_property_key_in_groups,
+            // Formatting commands
+            format_date_with_fallback,
+            format_date,
+            get_version_validity_badge,
+            get_version_status_text,
+            extract_searchable_text,
+            text_matches_search
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

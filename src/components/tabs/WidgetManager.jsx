@@ -1,5 +1,6 @@
 import * as R from "ramda";
-import { memo, useEffect } from "react";
+import { memo, useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import Dropdown from "../common/Dropdown";
 import SearchBox from "../common/SearchBox";
 import { renderLoadingIndicator } from "../common/LoadingIndicator";
@@ -7,24 +8,13 @@ import { renderPanel } from "../common/Panel";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 import { PACKAGE_MANAGERS } from "../../utils/functional";
 
-const createVersionOptions = R.pipe(
-  R.map(
-    R.pipe(R.prop("version"), (version) => ({
-      value: version,
-      label: `📦 ${version}`,
-    })),
-  ),
-  R.prepend({ value: "all", label: "📦 All Versions" }),
-);
+// Version options creation (Rust backend)
+export const createVersionOptions = async (versions) =>
+  invoke("create_version_options", { versions });
 
-const formatDate = R.pipe(
-  R.prop("last_modified"),
-  R.ifElse(
-    R.identity,
-    (date) => new Date(date).toLocaleDateString(),
-    R.always("Date unknown"),
-  ),
-);
+// Date formatting (Rust backend)
+export const formatDate = async (dateStr) =>
+  invoke("format_date", { dateStr });
 
 const isAppSelected = R.curry((selectedApps, app) =>
   selectedApps.has(R.prop("path", app)),
@@ -167,27 +157,39 @@ const renderPackageManagerOption = R.curry(
   ),
 );
 
-const renderAppListItem = R.curry((selectedApps, handleAppClick, app) => (
-  <div
-    key={R.prop("path", app)}
-    className={getAppClassName(selectedApps, app)}
-    onClick={createAppClickHandler(handleAppClick, app)}
-  >
-    <div className="version-info">
-      <span className="version-icon">{renderAppIcon(selectedApps, app)}</span>
-      <div className="version-details">
-        <span className="version-number">
-          {R.prop("name", app)}
-          {renderVersionBadge(app)}
-        </span>
-        <span className="version-date">{formatDate(app)}</span>
+// App list item component with async date formatting
+const AppListItem = memo(({ app, selectedApps, handleAppClick }) => {
+  const [formattedDate, setFormattedDate] = useState("Loading...");
+
+  useEffect(() => {
+    formatDate(app.last_modified)
+      .then(setFormattedDate)
+      .catch(() => setFormattedDate("Date unknown"));
+  }, [app.last_modified]);
+
+  return (
+    <div
+      className={getAppClassName(selectedApps, app)}
+      onClick={createAppClickHandler(handleAppClick, app)}
+    >
+      <div className="version-info">
+        <span className="version-icon">{renderAppIcon(selectedApps, app)}</span>
+        <div className="version-details">
+          <span className="version-number">
+            {R.prop("name", app)}
+            {renderVersionBadge(app)}
+          </span>
+          <span className="version-date">{formattedDate}</span>
+        </div>
+      </div>
+      <div className="app-actions">
+        <span className="item-sparkle">✨</span>
       </div>
     </div>
-    <div className="app-actions">
-      <span className="item-sparkle">✨</span>
-    </div>
-  </div>
-));
+  );
+});
+
+AppListItem.displayName = "AppListItem";
 
 const renderWidgetListItem = R.curry(
   (selectedWidgets, setSelectedWidgets, handleWidgetDeleteClick, widget) => (
@@ -302,7 +304,17 @@ const renderAppsList = R.curry((selectedApps, handleAppClick, apps) =>
   R.ifElse(
     R.isEmpty,
     () => renderLoadingIndicator("🍓", "No Mendix apps found"),
-    (apps) => R.map(renderAppListItem(selectedApps, handleAppClick), apps),
+    (apps) => R.map(
+      (app) => (
+        <AppListItem
+          key={R.prop("path", app)}
+          app={app}
+          selectedApps={selectedApps}
+          handleAppClick={handleAppClick}
+        />
+      ),
+      apps
+    ),
   )(apps),
 );
 
@@ -413,7 +425,22 @@ const WidgetManager = memo(
     setInlineResults,
     handleWidgetDeleteClick,
   }) => {
-    const versionOptions = createVersionOptions(versions);
+    const [versionOptions, setVersionOptions] = useState([
+      { value: "all", label: "📦 All Versions" }
+    ]);
+
+    // Fetch version options from Rust backend
+    useEffect(() => {
+      if (versions && versions.length > 0) {
+        createVersionOptions(versions)
+          .then(setVersionOptions)
+          .catch(() => {
+            // Fallback to default options
+            setVersionOptions([{ value: "all", label: "📦 All Versions" }]);
+          });
+      }
+    }, [versions]);
+
     const modalHandlers = {
       setShowWidgetModal,
       setShowAddWidgetForm,
