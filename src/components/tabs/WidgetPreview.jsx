@@ -6,10 +6,7 @@ import DynamicPropertyInput from "../common/DynamicPropertyInput";
 import WidgetPreviewFrame from "../common/WidgetPreviewFrame";
 import { renderLoadingIndicator } from "../common/LoadingIndicator";
 import { createPropertyChangeHandler } from "../../utils/functional";
-import {
-  createEditorConfigHandler,
-  filterParsedPropertiesByKeys,
-} from "../../utils/editorConfigParser";
+import { createEditorConfigHandler } from "../../utils/editorConfigParser";
 import { initializePropertyValues } from "../../utils/dataProcessing";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 

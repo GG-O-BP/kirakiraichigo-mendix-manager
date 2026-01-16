@@ -6,14 +6,14 @@ import SearchBox from "../common/SearchBox";
 import { renderLoadingIndicator } from "../common/LoadingIndicator";
 import { renderPanel } from "../common/Panel";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
-import { PACKAGE_MANAGERS } from "../../utils/functional";
+import { PACKAGE_MANAGERS, STORAGE_KEYS, saveToStorage } from "../../utils/functional";
 
-// Version options creation (Rust backend)
-export const createVersionOptions = async (versions) =>
+const DEFAULT_VERSION_FILTER = { value: "all", label: "📦 All Versions" };
+
+export const invokeCreateVersionOptions = async (versions) =>
   invoke("create_version_options", { versions });
 
-// Date formatting (Rust backend)
-export const formatDate = async (dateStr) =>
+export const invokeFormatDate = async (dateStr) =>
   invoke("format_date", { dateStr });
 
 const isAppSelected = R.curry((selectedApps, app) =>
@@ -61,6 +61,21 @@ const createAppClickHandler = R.curry((handleAppClick, app, e) =>
   )(),
 );
 
+const persistWidgetSelection = (widgetSet) =>
+  saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS, Array.from(widgetSet)).catch(
+    console.error,
+  );
+
+const toggleWidgetInSet = (widgetSet, widgetId) => {
+  const newSet = new Set(widgetSet);
+  if (newSet.has(widgetId)) {
+    newSet.delete(widgetId);
+  } else {
+    newSet.add(widgetId);
+  }
+  return newSet;
+};
+
 const createWidgetSelectionHandler = R.curry(
   (setSelectedWidgets, widgetId, e) =>
     R.pipe(
@@ -69,20 +84,8 @@ const createWidgetSelectionHandler = R.curry(
       R.always(widgetId),
       (id) => {
         setSelectedWidgets((prev) => {
-          const newSet = new Set(prev);
-          if (newSet.has(id)) {
-            newSet.delete(id);
-          } else {
-            newSet.add(id);
-          }
-
-          try {
-            localStorage.setItem(
-              "kirakiraSelectedWidgets",
-              JSON.stringify(Array.from(newSet)),
-            );
-          } catch (error) {}
-
+          const newSet = toggleWidgetInSet(prev, id);
+          persistWidgetSelection(newSet);
           return newSet;
         });
       },
@@ -157,12 +160,11 @@ const renderPackageManagerOption = R.curry(
   ),
 );
 
-// App list item component with async date formatting
 const AppListItem = memo(({ app, selectedApps, handleAppClick }) => {
   const [formattedDate, setFormattedDate] = useState("Loading...");
 
   useEffect(() => {
-    formatDate(app.last_modified)
+    invokeFormatDate(app.last_modified)
       .then(setFormattedDate)
       .catch(() => setFormattedDate("Date unknown"));
   }, [app.last_modified]);
@@ -425,19 +427,13 @@ const WidgetManager = memo(
     setInlineResults,
     handleWidgetDeleteClick,
   }) => {
-    const [versionOptions, setVersionOptions] = useState([
-      { value: "all", label: "📦 All Versions" }
-    ]);
+    const [versionOptions, setVersionOptions] = useState([DEFAULT_VERSION_FILTER]);
 
-    // Fetch version options from Rust backend
     useEffect(() => {
       if (versions && versions.length > 0) {
-        createVersionOptions(versions)
+        invokeCreateVersionOptions(versions)
           .then(setVersionOptions)
-          .catch(() => {
-            // Fallback to default options
-            setVersionOptions([{ value: "all", label: "📦 All Versions" }]);
-          });
+          .catch(() => setVersionOptions([DEFAULT_VERSION_FILTER]));
       }
     }, [versions]);
 

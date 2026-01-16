@@ -20,17 +20,17 @@ import {
   wrapAsync,
   arrayToSet,
   createWidget,
-  validateRequired,
+  invokeValidateRequired,
   updateProp,
   updateVersionLoadingStates,
   getVersionLoadingState,
-  validateBuildDeploySelections,
+  invokeValidateBuildDeploySelections,
   createBuildDeployParams,
   createCatastrophicErrorResult,
-  hasBuildFailures,
+  invokeHasBuildFailures,
   createWidgetFilter,
   createAppFilter,
-  isSetNotEmpty,
+  hasItems,
 } from "./utils/functional";
 
 import { filterMendixApps, filterWidgets } from "./utils/dataProcessing";
@@ -604,7 +604,7 @@ function App() {
   );
 
   const handleInstall = useCallback(async () => {
-    if (!isSetNotEmpty(selectedWidgets)) {
+    if (!hasItems(selectedWidgets)) {
       alert("Please select at least one widget to install");
       return;
     }
@@ -644,7 +644,7 @@ function App() {
   }, [selectedWidgets, widgets, packageManager]);
 
   const handleBuildDeploy = useCallback(async () => {
-    const validationError = validateBuildDeploySelections(
+    const validationError = invokeValidateBuildDeploySelections(
       selectedWidgets,
       selectedApps,
     );
@@ -685,7 +685,7 @@ function App() {
       R.tap((results) => setInlineResults(results)),
       R.tap(() => setIsBuilding(false)),
       R.when(
-        hasBuildFailures,
+        invokeHasBuildFailures,
         R.tap(() => setShowResultModal(true)),
       ),
     );
@@ -1095,7 +1095,7 @@ function App() {
 
   const handleAddWidget = useCallback(() => {
     if (
-      validateRequired(["caption", "path"], {
+      invokeValidateRequired(["caption", "path"], {
         caption: newWidgetCaption,
         path: newWidgetPath,
       })

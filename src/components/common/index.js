@@ -5,12 +5,12 @@ export { default as PropertyInput } from './PropertyInput';
 export { default as TabButton } from './TabButton';
 export { default as ConfirmModal } from './ConfirmModal';
 export {
-  extractSearchableText,
-  textMatchesSearch,
-  filterItemsBySearch,
-  getVersionValidityBadge,
-  formatDateWithFallback,
-  getVersionStatusText,
+  invokeExtractSearchableText,
+  invokeTextMatchesSearch,
+  filterItemsBySearchTerm,
+  invokeGetVersionValidityBadge,
+  invokeFormatDateWithFallback,
+  invokeGetVersionStatusText,
   MendixVersionListItem,
   MendixAppListItem,
   VersionListItem,

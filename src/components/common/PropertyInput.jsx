@@ -1,18 +1,20 @@
 import * as R from "ramda";
 import { memo } from "react";
 
-const extractEventValue = R.path(["target", "value"]);
+const extractInputValue = R.path(["target", "value"]);
 
-const handleInputChange = R.curry((onChange, event) =>
-  R.pipe(extractEventValue, onChange)(event),
+const createInputChangeHandler = R.curry((onChange, event) =>
+  R.pipe(extractInputValue, onChange)(event),
 );
+
+const TEXTAREA_ROWS = 4;
 
 const renderTextInput = R.curry((value, onChange, disabled) => (
   <input
     type="text"
     className="property-input"
     value={value}
-    onChange={handleInputChange(onChange)}
+    onChange={createInputChangeHandler(onChange)}
     disabled={disabled}
   />
 ));
@@ -20,9 +22,9 @@ const renderTextInput = R.curry((value, onChange, disabled) => (
 const renderTextarea = R.curry((value, onChange, disabled) => (
   <textarea
     className="property-textarea"
-    rows="4"
+    rows={TEXTAREA_ROWS}
     value={value}
-    onChange={handleInputChange(onChange)}
+    onChange={createInputChangeHandler(onChange)}
     disabled={disabled}
   />
 ));
@@ -37,24 +39,26 @@ const renderSelect = R.curry((value, onChange, options, disabled) => (
   <select
     className="property-select"
     value={value}
-    onChange={handleInputChange(onChange)}
+    onChange={createInputChangeHandler(onChange)}
     disabled={disabled}
   >
     {R.map(renderSelectOption, options)}
   </select>
 ));
 
-const propertyTypeRenderers = {
+const PROPERTY_TYPE_RENDERERS = {
   text: renderTextInput,
   textarea: renderTextarea,
   select: renderSelect,
 };
 
-const getRendererForType = R.propOr(R.always(null), R.__, propertyTypeRenderers);
+const getRendererByType = (type) =>
+  R.propOr(R.always(null), type, PROPERTY_TYPE_RENDERERS);
 
 const renderInputByType = R.curry((type, value, onChange, options, disabled) => {
-  const renderer = getRendererForType(type);
-  return type === "select"
+  const renderer = getRendererByType(type);
+  const isSelectType = type === "select";
+  return isSelectType
     ? renderer(value, onChange, options, disabled)
     : renderer(value, onChange, disabled);
 });
