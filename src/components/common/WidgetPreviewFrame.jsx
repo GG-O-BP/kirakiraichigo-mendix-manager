@@ -28,18 +28,15 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
             * {
               box-sizing: border-box;
             }
-            body {
+            html, body, #widget-root {
               margin: 0;
-              padding: 16px;
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-              background: #f5f5f5;
+              padding: 0;
+              width: 100%;
+              height: 100%;
             }
-            .preview-container {
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
               background: white;
-              border-radius: 8px;
-              padding: 24px;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-              min-height: 200px;
             }
             .preview-error {
               color: #d32f2f;
@@ -60,10 +57,8 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
           </style>
         </head>
         <body>
-          <div class="preview-container">
-            <div id="widget-root">
-              <div class="preview-loading">Loading widget...</div>
-            </div>
+          <div id="widget-root">
+            <div class="preview-loading">Loading widget...</div>
           </div>
 
           <!-- React Runtime from CDN -->
