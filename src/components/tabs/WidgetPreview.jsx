@@ -8,7 +8,7 @@ import WidgetPreviewFrame from "../common/WidgetPreviewFrame";
 import { renderLoadingIndicator } from "../common/LoadingIndicator";
 import { createPropertyUpdater } from "../../utils/functional";
 import { createEditorConfigHandler } from "../../utils/editorConfigParser";
-import { initializePropertyValues } from "../../utils/dataProcessing";
+import { initializePropertyValues, countAllWidgetGroupsVisibleProperties } from "../../utils/dataProcessing";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 
 const ADD_WIDGET_BUTTON_STYLE = {
@@ -45,20 +45,6 @@ const renderPropertyInputField = R.curry((properties, updateProperty, property) 
   />
 ));
 
-const countVisiblePropertiesInGroup = R.curry((visibleKeys, group) => {
-  const groupProperties = R.propOr([], "properties", group);
-  const filteredProperties = visibleKeys
-    ? R.filter((prop) => R.includes(R.prop("key", prop), visibleKeys), groupProperties)
-    : groupProperties;
-  const directCount = R.length(filteredProperties);
-  const nestedCount = R.pipe(
-    R.propOr([], "property_groups"),
-    R.map(countVisiblePropertiesInGroup(visibleKeys)),
-    R.sum,
-  )(group);
-  return directCount + nestedCount;
-});
-
 const PropertyGroupAccordion = ({
   group,
   groupPath,
@@ -68,6 +54,7 @@ const PropertyGroupAccordion = ({
   expandedGroups,
   toggleGroup,
   visibleKeys,
+  groupCounts,
 }) => {
   const caption = R.prop("caption", group);
   const groupId = groupPath ? `${groupPath}.${caption}` : caption;
@@ -75,7 +62,8 @@ const PropertyGroupAccordion = ({
   const groupProperties = R.propOr([], "properties", group);
   const nestedGroups = R.propOr([], "property_groups", group);
 
-  const visibleCount = countVisiblePropertiesInGroup(visibleKeys, group);
+  // Use pre-calculated count from groupCounts
+  const visibleCount = R.propOr(0, groupId, groupCounts);
 
   if (visibleCount === 0) {
     return null;
@@ -101,10 +89,12 @@ const PropertyGroupAccordion = ({
     filteredProperties,
   );
 
-  const visibleNestedGroups = R.filter(
-    (nestedGroup) => countVisiblePropertiesInGroup(visibleKeys, nestedGroup) > 0,
-    nestedGroups,
-  );
+  // Filter nested groups using pre-calculated counts
+  const visibleNestedGroups = R.filter((nestedGroup) => {
+    const nestedCaption = R.prop("caption", nestedGroup);
+    const nestedGroupId = `${groupId}.${nestedCaption}`;
+    return R.propOr(0, nestedGroupId, groupCounts) > 0;
+  }, nestedGroups);
 
   const hasOnlyNestedGroups = R.isEmpty(parsedProperties) && !R.isEmpty(visibleNestedGroups);
   const contentClassName = `property-group-content${hasOnlyNestedGroups ? " groups-only" : ""}`;
@@ -138,6 +128,7 @@ const PropertyGroupAccordion = ({
                 expandedGroups={expandedGroups}
                 toggleGroup={toggleGroup}
                 visibleKeys={visibleKeys}
+                groupCounts={groupCounts}
               />
             ),
             visibleNestedGroups,
@@ -192,7 +183,7 @@ const renderRootPropertyGroup = R.curry(
 );
 
 const renderWidgetPropertyGroups = R.curry(
-  (properties, updateProperty, expandedGroups, toggleGroup, visibleKeys, definition) => {
+  (properties, updateProperty, expandedGroups, toggleGroup, visibleKeys, groupCounts, definition) => {
     const rootProperties = R.propOr([], "properties", definition);
     const propertyGroups = R.propOr([], "property_groups", definition);
 
@@ -200,10 +191,11 @@ const renderWidgetPropertyGroups = R.curry(
       ? R.filter((prop) => R.includes(R.prop("key", prop), visibleKeys), rootProperties)
       : rootProperties;
 
+    // Sum all group counts from pre-calculated groupCounts
     const visibleGroupsCount = R.pipe(
-      R.map(countVisiblePropertiesInGroup(visibleKeys)),
+      R.values,
       R.sum,
-    )(propertyGroups);
+    )(groupCounts);
 
     const totalVisibleCount = R.length(visibleRootProps) + visibleGroupsCount;
 
@@ -211,10 +203,11 @@ const renderWidgetPropertyGroups = R.curry(
       return renderNoConfigurableProperties();
     }
 
-    const visibleGroups = R.filter(
-      (group) => countVisiblePropertiesInGroup(visibleKeys, group) > 0,
-      propertyGroups,
-    );
+    // Filter groups using pre-calculated counts (only top-level groups)
+    const visibleGroups = R.filter((group) => {
+      const caption = R.prop("caption", group);
+      return R.propOr(0, caption, groupCounts) > 0;
+    }, propertyGroups);
 
     return (
       <>
@@ -231,6 +224,7 @@ const renderWidgetPropertyGroups = R.curry(
               expandedGroups={expandedGroups}
               toggleGroup={toggleGroup}
               visibleKeys={visibleKeys}
+              groupCounts={groupCounts}
             />
           ),
           visibleGroups,
@@ -255,14 +249,14 @@ const renderNoWidgetSelectedState = R.always(
 );
 
 const renderPropertiesPanel = R.curry(
-  (selectedWidget, widgetDefinition, properties, updateProperty, expandedGroups, toggleGroup, visibleKeys) => (
+  (selectedWidget, widgetDefinition, properties, updateProperty, expandedGroups, toggleGroup, visibleKeys, groupCounts) => (
     <div className="property-section">
       {R.ifElse(
         R.identity,
         R.always(
           R.ifElse(
             R.identity,
-            renderWidgetPropertyGroups(properties, updateProperty, expandedGroups, toggleGroup, visibleKeys),
+            renderWidgetPropertyGroups(properties, updateProperty, expandedGroups, toggleGroup, visibleKeys, groupCounts),
             renderPropertiesLoadingState,
           )(widgetDefinition),
         ),
@@ -381,6 +375,7 @@ const WidgetPreview = memo(
     const [buildError, setBuildError] = useState(null);
     const [packageManager, setPackageManager] = useState("bun");
     const [expandedGroups, setExpandedGroups] = useState({});
+    const [groupCounts, setGroupCounts] = useState({});
 
     const toggleGroup = useCallback((category) => {
       setExpandedGroups((prev) => ({
@@ -414,6 +409,7 @@ const WidgetPreview = memo(
       setDynamicProperties({});
       setEditorConfigHandler(null);
       setVisiblePropertyKeys(null);
+      setGroupCounts({});
     };
 
     useEffect(() => {
@@ -465,6 +461,40 @@ const WidgetPreview = memo(
       );
       setVisiblePropertyKeys(visibleKeys);
     }, [editorConfigHandler, widgetDefinition, dynamicProperties, properties]);
+
+    // Calculate group counts when widgetDefinition or visiblePropertyKeys change
+    useEffect(() => {
+      if (!widgetDefinition) {
+        setGroupCounts({});
+        return;
+      }
+
+      const propertyGroups = R.propOr([], "property_groups", widgetDefinition);
+      if (R.isEmpty(propertyGroups)) {
+        setGroupCounts({});
+        return;
+      }
+
+      const calculateCounts = async () => {
+        try {
+          const results = await countAllWidgetGroupsVisibleProperties(
+            propertyGroups,
+            visiblePropertyKeys,
+          );
+          // Convert array of { group_path, count } to object { [group_path]: count }
+          const countsMap = R.pipe(
+            R.map((item) => [item.group_path, item.count]),
+            R.fromPairs,
+          )(results);
+          setGroupCounts(countsMap);
+        } catch (error) {
+          console.error("Failed to calculate group counts:", error);
+          setGroupCounts({});
+        }
+      };
+
+      calculateCounts();
+    }, [widgetDefinition, visiblePropertyKeys]);
 
     const updateDynamicProperty = R.curry((propertyKey, value) =>
       setDynamicProperties(R.assoc(propertyKey, value)),
@@ -573,6 +603,7 @@ const WidgetPreview = memo(
             expandedGroups,
             toggleGroup,
             visiblePropertyKeys,
+            groupCounts,
           )}
         </div>
 

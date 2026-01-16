@@ -3,6 +3,7 @@ import { memo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { saveToStorage, STORAGE_KEYS } from "../../utils/functional";
+import { extractFolderNameFromPath } from "../../utils/dataProcessing";
 
 const DISABLED_BUTTON_STYLE = {
   opacity: 0.5,
@@ -98,8 +99,7 @@ const handleFolderBrowse = R.curry(async (props) => {
       setNewWidgetPath(folderPath);
 
       if (R.isEmpty(newWidgetCaption.trim())) {
-        const folderName =
-          folderPath.split(/[\\/]/).filter(Boolean).pop() || "";
+        const folderName = await extractFolderNameFromPath(folderPath);
         setNewWidgetCaption(folderName);
       }
     }

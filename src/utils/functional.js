@@ -31,21 +31,6 @@ export const createWidget = R.curry((caption, path) => ({
   path,
 }));
 
-const filterBySetMembership = R.curry((set, prop, items) =>
-  R.filter(
-    R.pipe(R.prop(prop), (value) => set.has(value)),
-    items,
-  ),
-);
-
-export const createWidgetFilter = R.curry((selectedWidgets) =>
-  filterBySetMembership(selectedWidgets, "id"),
-);
-
-export const createAppFilter = R.curry((selectedApps) =>
-  filterBySetMembership(selectedApps, "path"),
-);
-
 export const invokeHasBuildFailures = async (result) => {
   const failed = R.propOr([], "failed", result);
   return invoke("has_build_failures", { failed });

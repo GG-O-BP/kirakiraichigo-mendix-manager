@@ -1074,6 +1074,196 @@ pub fn is_property_key_in_groups(
     Ok(is_property_key_in_groups_internal(&groups, &property_key))
 }
 
+// ============= Property Count Functions =============
+
+/// Recursively counts visible properties in an EditorPropertyGroup
+fn count_visible_properties_in_group_internal(
+    group: &EditorPropertyGroup,
+    visible_keys: Option<&[String]>,
+) -> usize {
+    // Count properties in this group
+    let direct_count = match visible_keys {
+        Some(keys) => group
+            .properties
+            .iter()
+            .filter(|p| keys.contains(&p.key))
+            .count(),
+        None => group.properties.len(),
+    };
+
+    // Recursively count properties in nested groups
+    let nested_count: usize = group
+        .property_groups
+        .iter()
+        .map(|nested| count_visible_properties_in_group_internal(nested, visible_keys))
+        .sum();
+
+    direct_count + nested_count
+}
+
+#[tauri::command]
+pub fn count_visible_properties_in_group(
+    group: EditorPropertyGroup,
+    visible_keys: Option<Vec<String>>,
+) -> Result<usize, String> {
+    Ok(count_visible_properties_in_group_internal(
+        &group,
+        visible_keys.as_deref(),
+    ))
+}
+
+/// Counts visible properties in a WidgetPropertyGroup (original XML parsed format)
+fn count_visible_properties_in_widget_group_internal(
+    group: &WidgetPropertyGroup,
+    visible_keys: Option<&[String]>,
+) -> usize {
+    // Count properties in this group
+    let direct_count = match visible_keys {
+        Some(keys) => group
+            .properties
+            .iter()
+            .filter(|p| keys.contains(&p.key))
+            .count(),
+        None => group.properties.len(),
+    };
+
+    // Recursively count properties in nested groups
+    let nested_count: usize = group
+        .property_groups
+        .iter()
+        .map(|nested| count_visible_properties_in_widget_group_internal(nested, visible_keys))
+        .sum();
+
+    direct_count + nested_count
+}
+
+#[tauri::command]
+pub fn count_visible_properties_in_widget_group(
+    group: WidgetPropertyGroup,
+    visible_keys: Option<Vec<String>>,
+) -> Result<usize, String> {
+    Ok(count_visible_properties_in_widget_group_internal(
+        &group,
+        visible_keys.as_deref(),
+    ))
+}
+
+// ============= Batch Property Count Functions =============
+
+/// Result type for batch counting - maps group path to count
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GroupCountResult {
+    pub group_path: String,
+    pub count: usize,
+}
+
+/// Recursively counts all groups and builds a map of group_path -> count
+fn count_all_groups_recursive(
+    group: &EditorPropertyGroup,
+    parent_path: &str,
+    visible_keys: Option<&[String]>,
+    results: &mut Vec<GroupCountResult>,
+) {
+    let caption = &group.caption;
+    let group_path = if parent_path.is_empty() {
+        caption.clone()
+    } else {
+        format!("{}.{}", parent_path, caption)
+    };
+
+    // Count for this group
+    let count = count_visible_properties_in_group_internal(group, visible_keys);
+    results.push(GroupCountResult {
+        group_path: group_path.clone(),
+        count,
+    });
+
+    // Recurse into nested groups
+    for nested in &group.property_groups {
+        count_all_groups_recursive(nested, &group_path, visible_keys, results);
+    }
+}
+
+/// Counts visible properties for all groups in a widget definition
+/// Returns a list of (group_path, count) pairs
+fn count_all_groups_in_definition_internal(
+    property_groups: &[EditorPropertyGroup],
+    visible_keys: Option<&[String]>,
+) -> Vec<GroupCountResult> {
+    let mut results = Vec::new();
+
+    for group in property_groups {
+        count_all_groups_recursive(group, "", visible_keys, &mut results);
+    }
+
+    results
+}
+
+#[tauri::command]
+pub fn count_all_groups_visible_properties(
+    property_groups: Vec<EditorPropertyGroup>,
+    visible_keys: Option<Vec<String>>,
+) -> Result<Vec<GroupCountResult>, String> {
+    Ok(count_all_groups_in_definition_internal(
+        &property_groups,
+        visible_keys.as_deref(),
+    ))
+}
+
+// ============= Batch Property Count for WidgetPropertyGroup =============
+
+/// Recursively counts all groups and builds a map of group_path -> count (for WidgetPropertyGroup)
+fn count_all_widget_groups_recursive(
+    group: &WidgetPropertyGroup,
+    parent_path: &str,
+    visible_keys: Option<&[String]>,
+    results: &mut Vec<GroupCountResult>,
+) {
+    let caption = &group.caption;
+    let group_path = if parent_path.is_empty() {
+        caption.clone()
+    } else {
+        format!("{}.{}", parent_path, caption)
+    };
+
+    // Count for this group
+    let count = count_visible_properties_in_widget_group_internal(group, visible_keys);
+    results.push(GroupCountResult {
+        group_path: group_path.clone(),
+        count,
+    });
+
+    // Recurse into nested groups
+    for nested in &group.property_groups {
+        count_all_widget_groups_recursive(nested, &group_path, visible_keys, results);
+    }
+}
+
+/// Counts visible properties for all groups in a widget definition (for WidgetPropertyGroup)
+fn count_all_widget_groups_in_definition_internal(
+    property_groups: &[WidgetPropertyGroup],
+    visible_keys: Option<&[String]>,
+) -> Vec<GroupCountResult> {
+    let mut results = Vec::new();
+
+    for group in property_groups {
+        count_all_widget_groups_recursive(group, "", visible_keys, &mut results);
+    }
+
+    results
+}
+
+#[tauri::command]
+pub fn count_all_widget_groups_visible_properties(
+    property_groups: Vec<WidgetPropertyGroup>,
+    visible_keys: Option<Vec<String>>,
+) -> Result<Vec<GroupCountResult>, String> {
+    Ok(count_all_widget_groups_in_definition_internal(
+        &property_groups,
+        visible_keys.as_deref(),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1117,5 +1307,69 @@ mod tests {
         let alignment_prop = &result.properties[2];
         assert_eq!(alignment_prop.options.len(), 3);
         assert!(alignment_prop.options.contains(&"left".to_string()));
+    }
+
+    fn create_test_editor_property(key: &str) -> EditorProperty {
+        EditorProperty {
+            key: key.to_string(),
+            property_type: "string".to_string(),
+            caption: format!("Caption for {}", key),
+            description: None,
+            default_value: None,
+            required: false,
+            options: vec![],
+        }
+    }
+
+    fn create_test_editor_group(caption: &str, props: Vec<&str>, nested: Vec<EditorPropertyGroup>) -> EditorPropertyGroup {
+        EditorPropertyGroup {
+            caption: caption.to_string(),
+            properties: props.into_iter().map(create_test_editor_property).collect(),
+            property_groups: nested,
+        }
+    }
+
+    #[test]
+    fn test_count_visible_properties_no_filter() {
+        let group = create_test_editor_group("General", vec!["prop1", "prop2", "prop3"], vec![]);
+        let count = count_visible_properties_in_group_internal(&group, None);
+        assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn test_count_visible_properties_with_filter() {
+        let group = create_test_editor_group("General", vec!["prop1", "prop2", "prop3"], vec![]);
+        let visible = vec!["prop1".to_string(), "prop3".to_string()];
+        let count = count_visible_properties_in_group_internal(&group, Some(&visible));
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn test_count_visible_properties_nested() {
+        let nested = create_test_editor_group("Nested", vec!["nested1", "nested2"], vec![]);
+        let group = create_test_editor_group("Parent", vec!["prop1"], vec![nested]);
+
+        let count = count_visible_properties_in_group_internal(&group, None);
+        assert_eq!(count, 3); // 1 from parent + 2 from nested
+    }
+
+    #[test]
+    fn test_count_visible_properties_nested_with_filter() {
+        let nested = create_test_editor_group("Nested", vec!["nested1", "nested2"], vec![]);
+        let group = create_test_editor_group("Parent", vec!["prop1", "prop2"], vec![nested]);
+
+        let visible = vec!["prop1".to_string(), "nested2".to_string()];
+        let count = count_visible_properties_in_group_internal(&group, Some(&visible));
+        assert_eq!(count, 2); // prop1 + nested2
+    }
+
+    #[test]
+    fn test_count_visible_properties_deeply_nested() {
+        let deep = create_test_editor_group("Deep", vec!["deep1"], vec![]);
+        let nested = create_test_editor_group("Nested", vec!["nested1"], vec![deep]);
+        let group = create_test_editor_group("Parent", vec!["prop1"], vec![nested]);
+
+        let count = count_visible_properties_in_group_internal(&group, None);
+        assert_eq!(count, 3); // 1 from each level
     }
 }

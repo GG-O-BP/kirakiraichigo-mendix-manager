@@ -27,8 +27,6 @@ import {
   invokeValidateBuildDeploySelections,
   createCatastrophicErrorResult,
   invokeHasBuildFailures,
-  createWidgetFilter,
-  createAppFilter,
   hasItems,
 } from "./utils/functional";
 
@@ -36,6 +34,10 @@ import {
   filterMendixApps,
   filterWidgets,
   filterMendixVersions,
+  sortWidgetsByOrder,
+  removeWidgetById,
+  filterWidgetsBySelectedIds,
+  filterAppsBySelectedPaths,
 } from "./utils/dataProcessing";
 
 import { TabButton, ConfirmModal } from "./components/common";
@@ -516,15 +518,7 @@ function App() {
       const savedOrder = await loadFromStorage(STORAGE_KEYS.WIDGET_ORDER, []);
 
       if (savedOrder.length > 0) {
-        const orderedWidgets = R.pipe(
-          R.map((id) => R.find(R.propEq(id, "id"), savedWidgets)),
-          R.filter(R.identity),
-          R.concat(
-            R.__,
-            R.filter((w) => !savedOrder.includes(w.id), savedWidgets),
-          ),
-        )(savedOrder);
-
+        const orderedWidgets = await sortWidgetsByOrder(savedWidgets, savedOrder);
         setWidgets(orderedWidgets);
       } else {
         setWidgets(savedWidgets);
@@ -692,8 +686,8 @@ function App() {
 
     setIsInstalling(true);
 
-    const widgetFilter = createWidgetFilter(selectedWidgets);
-    const widgetsList = widgetFilter(widgets);
+    const selectedIds = Array.from(selectedWidgets);
+    const widgetsList = await filterWidgetsBySelectedIds(widgets, selectedIds);
 
     const createInstallOperation = R.curry((widget) =>
       R.tryCatch(
@@ -744,11 +738,11 @@ function App() {
 
     initializeBuildState();
 
-    const widgetFilter = createWidgetFilter(selectedWidgets);
-    const appFilter = createAppFilter(selectedApps);
+    const selectedWidgetIds = Array.from(selectedWidgets);
+    const selectedAppPaths = Array.from(selectedApps);
 
-    const widgetsList = widgetFilter(widgets);
-    const appsList = appFilter(apps);
+    const widgetsList = await filterWidgetsBySelectedIds(widgets, selectedWidgetIds);
+    const appsList = await filterAppsBySelectedPaths(apps, selectedAppPaths);
 
     const executeBuildDeploy = R.tryCatch(
       async () =>
@@ -834,31 +828,30 @@ function App() {
     setWidgetToDelete(widget);
   }, []);
 
-  const handleConfirmWidgetDelete = useCallback(() => {
+  const handleConfirmWidgetDelete = useCallback(async () => {
     if (widgetToDelete) {
-      setWidgets((prevWidgets) => {
-        const newWidgets = R.filter(
-          R.pipe(R.prop("id"), R.complement(R.equals(widgetToDelete.id))),
-          prevWidgets,
-        );
+      try {
+        const newWidgets = await removeWidgetById(widgets, widgetToDelete.id);
+        setWidgets(newWidgets);
         saveToStorage(STORAGE_KEYS.WIDGETS, newWidgets).catch(console.error);
-        return newWidgets;
-      });
 
-      setSelectedWidgets((prevSelected) => {
-        const newSet = new Set(prevSelected);
-        newSet.delete(widgetToDelete.id);
-        const newArray = Array.from(newSet);
-        saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS, newArray).catch(
-          console.error,
-        );
-        return newSet;
-      });
+        setSelectedWidgets((prevSelected) => {
+          const newSet = new Set(prevSelected);
+          newSet.delete(widgetToDelete.id);
+          const newArray = Array.from(newSet);
+          saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS, newArray).catch(
+            console.error,
+          );
+          return newSet;
+        });
 
-      setShowWidgetDeleteModal(false);
-      setWidgetToDelete(null);
+        setShowWidgetDeleteModal(false);
+        setWidgetToDelete(null);
+      } catch (error) {
+        console.error("Failed to delete widget:", error);
+      }
     }
-  }, [widgetToDelete]);
+  }, [widgetToDelete, widgets]);
 
   const handleCancelWidgetDelete = useCallback(() => {
     setShowWidgetDeleteModal(false);
