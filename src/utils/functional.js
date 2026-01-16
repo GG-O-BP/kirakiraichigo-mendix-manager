@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 export const STORAGE_KEYS = {
   SELECTED_APPS: "selectedApps",
-  SELECTED_WIDGETS: "kirakiraSelectedWidgets",
+  SELECTED_WIDGETS: "selectedWidgets",
   WIDGETS: "kirakiraWidgets",
   WIDGET_ORDER: "widgetOrder",
   PACKAGE_MANAGER: "packageManagerConfig",
@@ -31,13 +31,6 @@ export const createWidget = R.curry((caption, path) => ({
   path,
 }));
 
-const transformWidgetToBuildRequest = R.applySpec({
-  widget_path: R.prop("path"),
-  caption: R.prop("caption"),
-});
-
-const transformWidgetsToBuildRequests = R.map(transformWidgetToBuildRequest);
-
 const filterBySetMembership = R.curry((set, prop, items) =>
   R.filter(
     R.pipe(R.prop(prop), (value) => set.has(value)),
@@ -51,18 +44,6 @@ export const createWidgetFilter = R.curry((selectedWidgets) =>
 
 export const createAppFilter = R.curry((selectedApps) =>
   filterBySetMembership(selectedApps, "path"),
-);
-
-const extractAppPaths = R.map(R.prop("path"));
-const extractAppNames = R.map(R.prop("name"));
-
-export const createBuildDeployParams = R.curry(
-  (widgets, apps, packageManager) => ({
-    widgets: transformWidgetsToBuildRequests(widgets),
-    appPaths: extractAppPaths(apps),
-    appNames: extractAppNames(apps),
-    packageManager,
-  }),
 );
 
 export const invokeHasBuildFailures = async (result) => {
@@ -80,13 +61,12 @@ export const createCatastrophicErrorResult = R.curry((error) => ({
   ],
 }));
 
-export const updateProp = R.curry((prop, value, obj) =>
-  set(R.lensProp(prop), value, obj),
+export const setProperty = R.curry((propertyName, value, obj) =>
+  R.set(R.lensProp(propertyName), value, obj),
 );
 
-export const createPropertyChangeHandler = R.curry(
-  (propertyKey, updateFunction) =>
-    R.pipe(R.identity, updateFunction(propertyKey)),
+export const createPropertyUpdater = R.curry(
+  (propertyKey, updateFunction) => updateFunction(propertyKey),
 );
 
 export const invokeValidateRequired = async (fields, values) =>
