@@ -185,7 +185,7 @@
     border: 1px solid var(--theme-border);
     border-radius: var(--border-radius-lg);
     padding: var(--space-lg);
-    overflow-y: auto;
+    overflow: hidden;
 }
 
 .preview-right {

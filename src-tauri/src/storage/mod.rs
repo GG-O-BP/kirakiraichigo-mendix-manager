@@ -2,6 +2,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
+
+// Global mutex to prevent race conditions during file operations
+static STORAGE_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 // ============================================================================
 // Pure Data Types
@@ -16,6 +21,8 @@ pub struct AppState {
     pub widget_properties: Option<Value>,
     pub theme: Option<String>,
     pub last_tab: Option<String>,
+    pub selected_widgets: Option<Value>,
+    pub widget_order: Option<Value>,
 }
 
 impl Default for AppState {
@@ -28,6 +35,8 @@ impl Default for AppState {
             widget_properties: None,
             theme: Some("light".to_string()),
             last_tab: Some("widgetManager".to_string()),
+            selected_widgets: None,
+            widget_order: None,
         }
     }
 }
@@ -102,6 +111,11 @@ fn load_state_from_file() -> Result<AppState, String> {
 }
 
 fn save_specific_state(key: &str, value: Value) -> Result<(), String> {
+    // Acquire lock to prevent race conditions
+    let _lock = STORAGE_MUTEX
+        .lock()
+        .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
+
     let mut state = load_state_from_file().unwrap_or_default();
 
     match key {
@@ -120,6 +134,8 @@ fn save_specific_state(key: &str, value: Value) -> Result<(), String> {
                 state.last_tab = Some(s.to_string());
             }
         }
+        "selectedWidgets" => state.selected_widgets = Some(value),
+        "widgetOrder" => state.widget_order = Some(value),
         _ => return Err(format!("Unknown storage key: {}", key)),
     }
 
@@ -137,6 +153,8 @@ fn load_specific_state(key: &str, default_value: Value) -> Result<Value, String>
         "widgetProperties" => state.widget_properties,
         "theme" => state.theme.map(|s| Value::String(s)),
         "lastTab" => state.last_tab.map(|s| Value::String(s)),
+        "selectedWidgets" => state.selected_widgets,
+        "widgetOrder" => state.widget_order,
         _ => return Err(format!("Unknown storage key: {}", key)),
     };
 

@@ -100,7 +100,11 @@
 /* ============= Form Elements ============= */
 .property-label {
     display: block;
-    margin-bottom: var(--space-lg);
+    margin-bottom: var(--space-sm);
+}
+
+.property-group-content > :last-child .property-label {
+    margin-bottom: 0;
 }
 
 .label-text {
@@ -112,7 +116,7 @@
     letter-spacing: -0.01em;
 }
 
-.property-input {
+.modal-content .property-input {
     width: 100%;
     padding: var(--space-md) var(--space-md);
     border: 1.5px solid var(--theme-border);
@@ -128,19 +132,19 @@
     appearance: none;
 }
 
-.property-input:focus {
+.modal-content .property-input:focus {
     border-color: var(--theme-primary);
     background: var(--theme-surface);
     box-shadow: 0 0 0 3px var(--theme-focus-ring);
     transform: translateY(-1px);
 }
 
-.property-input:hover:not(:focus) {
+.modal-content .property-input:hover:not(:focus) {
     border-color: var(--theme-primary-light);
     box-shadow: 0 1px 3px var(--theme-shadow-color);
 }
 
-.property-input::placeholder {
+.modal-content .property-input::placeholder {
     color: var(--theme-text-muted);
     opacity: 1;
 }
@@ -237,6 +241,36 @@
     border-color: var(--theme-border);
     color: var(--theme-text-muted);
     box-shadow: none;
+}
+
+/* ============= Confirm With Apps Button (Destructive Action) ============= */
+.confirm-with-apps-button {
+    background: var(--theme-error);
+    border: 1.5px solid var(--theme-error);
+    color: #ffffff;
+    box-shadow: 0 4px 6px var(--theme-error-bg);
+}
+
+.confirm-with-apps-button:hover:not(:disabled) {
+    background: var(--theme-error);
+    border-color: var(--theme-error);
+    filter: brightness(0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 8px var(--theme-error-bg);
+}
+
+.confirm-with-apps-button:active:not(:disabled) {
+    transform: translateY(0);
+    filter: brightness(0.85);
+    box-shadow: 0 2px 4px var(--theme-error-bg);
+}
+
+.confirm-with-apps-button:disabled {
+    background: var(--theme-surface-tertiary);
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+    box-shadow: none;
+    filter: none;
 }
 
 /* ============= Browse Button ============= */

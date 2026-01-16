@@ -1,10 +1,31 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
-const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
+const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) => {
   const iframeRef = useRef(null);
+  const iframeReadyRef = useRef(false);
+  const bundleRef = useRef(null);
 
+  // Send properties update to iframe via postMessage
+  const sendPropertiesToIframe = useCallback((props) => {
+    if (!iframeRef.current || !iframeReadyRef.current) return;
+
+    const iframe = iframeRef.current;
+    iframe.contentWindow?.postMessage(
+      { type: "UPDATE_PROPERTIES", properties: props },
+      "*"
+    );
+  }, []);
+
+  // Initialize iframe with bundle (only when bundle changes)
   useEffect(() => {
     if (!iframeRef.current || !bundle) return;
+
+    // Skip if bundle hasn't changed
+    if (bundleRef.current === bundle) {
+      return;
+    }
+    bundleRef.current = bundle;
+    iframeReadyRef.current = false;
 
     const iframe = iframeRef.current;
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -14,6 +35,7 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
     const safeWidgetId = (widgetId || "").replace(/'/g, "\\'");
     const safeProperties = JSON.stringify(properties || {});
     const safeBundle = bundle;
+    const safeCss = css || "";
 
     // Create preview HTML with React runtime and widget bundle
     const html = `
@@ -27,18 +49,15 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
             * {
               box-sizing: border-box;
             }
-            body {
+            html, body, #widget-root {
               margin: 0;
-              padding: 16px;
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-              background: #f5f5f5;
+              padding: 0;
+              width: 100%;
+              height: 100%;
             }
-            .preview-container {
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
               background: white;
-              border-radius: 8px;
-              padding: 24px;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-              min-height: 200px;
             }
             .preview-error {
               color: #d32f2f;
@@ -53,12 +72,14 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
               color: #666;
             }
           </style>
+          <!-- Widget CSS -->
+          <style>
+            ${safeCss}
+          </style>
         </head>
         <body>
-          <div class="preview-container">
-            <div id="widget-root">
-              <div class="preview-loading">Loading widget...</div>
-            </div>
+          <div id="widget-root">
+            <div class="preview-loading">Loading widget...</div>
           </div>
 
           <!-- React Runtime from CDN -->
@@ -71,19 +92,22 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
           <script>
             (function() {
               try {
-                console.log('[Widget Preview] Initializing preview...');
-                console.log('[Widget Preview] Widget Name:', '${safeWidgetName}');
-                console.log('[Widget Preview] Widget ID:', '${safeWidgetId}');
-                console.log('[Widget Preview] Properties:', ${safeProperties});
-
                 // Make React available globally
                 window.React = React;
                 window.ReactDOM = ReactDOM;
+
+                // Create JSX runtime shim for React 18
+                const jsxRuntime = {
+                  jsx: React.createElement,
+                  jsxs: React.createElement,
+                  Fragment: React.Fragment,
+                };
 
                 // Configure RequireJS to handle React modules
                 if (typeof define !== 'undefined' && define.amd) {
                   define('react', [], function() { return React; });
                   define('react-dom', [], function() { return ReactDOM; });
+                  define('react/jsx-runtime', [], function() { return jsxRuntime; });
                 }
 
                 // Store the widget module
@@ -92,43 +116,23 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
                 // Override define to capture the widget module
                 const originalDefine = window.define;
                 window.define = function(deps, factory) {
-                  console.log('[Widget Preview] AMD define called');
-                  console.log('[Widget Preview] Dependencies:', deps);
-                  console.log('[Widget Preview] Factory type:', typeof factory);
-
-                  // If this is an AMD module definition
                   if (typeof factory === 'function') {
                     try {
-                      // Create an exports object to capture named exports
                       const exportsObject = {};
-
-                      // Resolve dependencies
                       const resolvedDeps = deps.map(dep => {
                         if (dep === 'react') return React;
                         if (dep === 'react-dom') return ReactDOM;
+                        if (dep === 'react/jsx-runtime') return jsxRuntime;
                         if (dep === 'exports') return exportsObject;
                         return undefined;
                       });
 
-                      // Call factory with resolved dependencies
                       const result = factory.apply(null, resolvedDeps);
 
-                      // Store the result - prefer return value, fallback to exports object
                       if (result) {
                         WidgetModule = result;
-                        console.log('[Widget Preview] Captured widget module from return value');
                       } else if (Object.keys(exportsObject).length > 0) {
                         WidgetModule = exportsObject;
-                        console.log('[Widget Preview] Captured widget module from exports object');
-                      } else {
-                        console.warn('[Widget Preview] Factory returned no result and exports is empty');
-                      }
-
-                      if (WidgetModule) {
-                        console.log('[Widget Preview] Module type:', typeof WidgetModule);
-                        console.log('[Widget Preview] Module keys:', Object.keys(WidgetModule));
-                        console.log('[Widget Preview] Module.default:', WidgetModule.default);
-                        console.log('[Widget Preview] Full module:', WidgetModule);
                       }
                     } catch (error) {
                       console.error('[Widget Preview] Error in AMD factory:', error);
@@ -152,6 +156,9 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
                 // Create React root
                 const root = ReactDOM.createRoot(container);
 
+                // Store root globally for re-renders
+                window.__widgetRoot = root;
+
                 // Mock Mendix context and APIs
                 const createMockAttribute = (value) => ({
                   value: value,
@@ -159,9 +166,7 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
                   readOnly: false,
                   validation: undefined,
                   displayValue: value ? String(value) : '',
-                  setValue: (newValue) => {
-                    console.log('[Mock Attribute] setValue called with:', newValue);
-                  }
+                  setValue: () => {}
                 });
 
                 const createMockExpression = (value) => ({
@@ -169,62 +174,41 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
                   status: 'available'
                 });
 
-                // Map properties to widget format
-                const props = ${safeProperties};
-                const widgetProps = {};
+                // Function to map properties to widget format
+                const mapPropsToWidgetFormat = (props) => {
+                  const widgetProps = {};
+                  Object.keys(props).forEach(key => {
+                    const value = props[key];
+                    if (key.includes('attribute') || key.includes('date') || key.includes('Date')) {
+                      widgetProps[key] = createMockAttribute(value);
+                    } else if (key.includes('expression') || key.includes('min') || key.includes('max')) {
+                      widgetProps[key] = createMockExpression(value);
+                    } else {
+                      widgetProps[key] = value;
+                    }
+                  });
+                  return widgetProps;
+                };
 
-                // Convert property values based on type
-                Object.keys(props).forEach(key => {
-                  const value = props[key];
+                // Store the mapping function globally
+                window.__mapPropsToWidgetFormat = mapPropsToWidgetFormat;
 
-                  // Check if it's an attribute-like property (DateTime, String, etc.)
-                  if (key.includes('attribute') || key.includes('date') || key.includes('Date')) {
-                    widgetProps[key] = createMockAttribute(value);
-                  }
-                  // Check if it's an expression-like property
-                  else if (key.includes('expression') || key.includes('min') || key.includes('max')) {
-                    widgetProps[key] = createMockExpression(value);
-                  }
-                  // Plain value
-                  else {
-                    widgetProps[key] = value;
-                  }
-                });
-
-                console.log('[Widget Preview] Mapped props:', widgetProps);
-
-                // Try to find and render the widget
+                // Try to find the widget
                 let Widget = null;
 
-                // First check if we captured the module from AMD
                 if (WidgetModule) {
-                  console.log('[Widget Preview] Searching for widget component...');
-
-                  // Try different export patterns:
-
-                  // 1. Named export matching widget name (most common for Mendix widgets)
                   if (WidgetModule['${safeWidgetName}']) {
                     Widget = WidgetModule['${safeWidgetName}'];
-                    console.log('[Widget Preview] Found widget as named export: ${safeWidgetName}');
-                  }
-                  // 2. Default export
-                  else if (WidgetModule.default) {
+                  } else if (WidgetModule.default) {
                     Widget = WidgetModule.default;
-                    console.log('[Widget Preview] Found widget as default export');
-                  }
-                  // 3. Module itself is a function
-                  else if (typeof WidgetModule === 'function') {
+                  } else if (typeof WidgetModule === 'function') {
                     Widget = WidgetModule;
-                    console.log('[Widget Preview] Module itself is the widget function');
-                  }
-                  // 4. First function export (fallback)
-                  else {
+                  } else {
                     const exportedFunctions = Object.keys(WidgetModule).filter(k =>
                       typeof WidgetModule[k] === 'function' && k !== '__esModule'
                     );
                     if (exportedFunctions.length > 0) {
                       Widget = WidgetModule[exportedFunctions[0]];
-                      console.log('[Widget Preview] Found widget as first function export:', exportedFunctions[0]);
                     }
                   }
                 }
@@ -232,16 +216,14 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
                 // Fallback to global exports
                 if (!Widget && typeof window['${safeWidgetName}'] !== 'undefined') {
                   Widget = window['${safeWidgetName}'];
-                  console.log('[Widget Preview] Found widget at window.${safeWidgetName}');
-                }
-                else if (!Widget && '${safeWidgetId}'.includes('.')) {
+                } else if (!Widget && '${safeWidgetId}'.includes('.')) {
                   const lastPart = '${safeWidgetId}'.split('.').pop();
                   if (typeof window[lastPart] !== 'undefined') {
                     Widget = window[lastPart];
-                    console.log('[Widget Preview] Found widget at window.' + lastPart);
                   }
                 }
-                // Check for namespaced exports (e.g., com.mendix.widgets.WidgetName)
+
+                // Check for namespaced exports
                 if (!Widget && '${safeWidgetId}'.includes('.')) {
                   const parts = '${safeWidgetId}'.split('.');
                   let obj = window;
@@ -251,24 +233,37 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
                   }
                   if (obj) {
                     Widget = obj;
-                    console.log('[Widget Preview] Found widget at namespace:', '${safeWidgetId}');
                   }
                 }
 
                 if (!Widget) {
-                  console.error('[Widget Preview] Widget not found.');
-                  console.error('[Widget Preview] WidgetModule:', WidgetModule);
-                  console.error('[Widget Preview] Available window properties:', Object.keys(window).filter(k => !k.startsWith('_')));
-                  throw new Error('Widget "${safeWidgetName}" (${safeWidgetId}) not found. The widget may not have exported correctly.');
+                  throw new Error('Widget "${safeWidgetName}" (${safeWidgetId}) not found.');
                 }
 
-                console.log('[Widget Preview] Found Widget:', Widget);
-                console.log('[Widget Preview] Rendering widget with props:', widgetProps);
+                // Store Widget globally for re-renders
+                window.__WidgetComponent = Widget;
 
-                // Render the widget
+                // Initial render with properties
+                const initialProps = ${safeProperties};
+                const widgetProps = mapPropsToWidgetFormat(initialProps);
                 root.render(React.createElement(Widget, widgetProps));
 
-                console.log('[Widget Preview] Widget rendered successfully');
+                // Listen for property updates from parent
+                window.addEventListener('message', (event) => {
+                  if (event.data && event.data.type === 'UPDATE_PROPERTIES') {
+                    const newProps = event.data.properties;
+                    const mappedProps = window.__mapPropsToWidgetFormat(newProps);
+                    const WidgetComp = window.__WidgetComponent;
+                    const reactRoot = window.__widgetRoot;
+
+                    if (WidgetComp && reactRoot) {
+                      reactRoot.render(React.createElement(WidgetComp, mappedProps));
+                    }
+                  }
+                });
+
+                // Notify parent that iframe is ready
+                window.parent.postMessage({ type: 'IFRAME_READY' }, '*');
 
               } catch (error) {
                 console.error('[Widget Preview] Error:', error);
@@ -295,7 +290,28 @@ const WidgetPreviewFrame = ({ bundle, widgetName, widgetId, properties }) => {
     iframeDoc.open();
     iframeDoc.write(html);
     iframeDoc.close();
-  }, [bundle, widgetName, widgetId, properties]);
+  }, [bundle, css, widgetName, widgetId]);
+
+  // Listen for iframe ready message
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data && event.data.type === "IFRAME_READY") {
+        iframeReadyRef.current = true;
+        // Send current properties when iframe is ready
+        sendPropertiesToIframe(properties);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [properties, sendPropertiesToIframe]);
+
+  // Send property updates to iframe when properties change (without rebuilding)
+  useEffect(() => {
+    if (iframeReadyRef.current && properties) {
+      sendPropertiesToIframe(properties);
+    }
+  }, [properties, sendPropertiesToIframe]);
 
   return (
     <iframe

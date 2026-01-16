@@ -1,15 +1,17 @@
 import * as R from "ramda";
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import SearchBox from "../common/SearchBox";
 import DynamicPropertyInput from "../common/DynamicPropertyInput";
 import WidgetPreviewFrame from "../common/WidgetPreviewFrame";
 import {
-  parseWidgetProperties,
   initializePropertyValues,
   createPropertyChangeHandler,
-  groupPropertiesByCategory,
 } from "../../utils/functional";
+import {
+  createEditorConfigHandler,
+  filterParsedPropertiesByKeys,
+} from "../../utils/editorConfigParser";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 
 // ============= Helper Functions =============
@@ -126,25 +128,215 @@ const renderPropertyInput = R.curry((properties, updateProperty, property) => (
   />
 ));
 
-// Render property group
-const renderPropertyGroup = R.curry((properties, updateProperty, group) => (
-  <div key={R.prop("category", group)} className="property-group">
-    <h5 className="property-group-title">📋 {R.prop("category", group)}</h5>
-    {R.pipe(
-      R.prop("properties"),
-      R.map(renderPropertyInput(properties, updateProperty)),
-    )(group)}
-  </div>
-));
+// Count visible properties in a group (including nested groups)
+const countVisibleGroupProperties = R.curry((visibleKeys, group) => {
+  const groupProperties = R.propOr([], "properties", group);
+  const filteredProperties = visibleKeys
+    ? R.filter((prop) => R.includes(R.prop("key", prop), visibleKeys), groupProperties)
+    : groupProperties;
+  const directCount = R.length(filteredProperties);
+  const nestedCount = R.pipe(
+    R.propOr([], "property_groups"),
+    R.map(countVisibleGroupProperties(visibleKeys)),
+    R.sum,
+  )(group);
+  return directCount + nestedCount;
+});
 
-// Render grouped properties
-const renderGroupedProperties = R.curry(
-  (properties, updateProperty, groupedProperties) =>
-    R.ifElse(
-      R.isEmpty,
-      renderNoProperties,
-      R.map(renderPropertyGroup(properties, updateProperty)),
-    )(groupedProperties),
+// Recursive component to render nested property groups
+const PropertyGroupAccordion = ({
+  group,
+  groupPath,
+  depth,
+  properties,
+  updateProperty,
+  expandedGroups,
+  toggleGroup,
+  visibleKeys,
+}) => {
+  const caption = R.prop("caption", group);
+  const groupId = groupPath ? `${groupPath}.${caption}` : caption;
+  const isExpanded = R.propOr(true, groupId, expandedGroups);
+  const groupProperties = R.propOr([], "properties", group);
+  const nestedGroups = R.propOr([], "property_groups", group);
+
+  // Count only visible properties
+  const visibleCount = countVisibleGroupProperties(visibleKeys, group);
+
+  // If no visible properties in this group or any nested groups, don't render
+  if (visibleCount === 0) {
+    return null;
+  }
+
+  // Filter properties by visible keys if provided
+  const filteredProperties = visibleKeys
+    ? R.filter((prop) => R.includes(R.prop("key", prop), visibleKeys), groupProperties)
+    : groupProperties;
+
+  // Parse properties for rendering
+  const parsedProperties = R.map(
+    R.pipe(
+      R.applySpec({
+        key: R.prop("key"),
+        type: R.prop("property_type"),
+        caption: R.prop("caption"),
+        description: R.prop("description"),
+        required: R.prop("required"),
+        defaultValue: R.prop("default_value"),
+        options: R.prop("options"),
+      }),
+      R.reject(R.isNil),
+    ),
+    filteredProperties,
+  );
+
+  // Filter nested groups that have visible properties
+  const visibleNestedGroups = R.filter(
+    (nestedGroup) => countVisibleGroupProperties(visibleKeys, nestedGroup) > 0,
+    nestedGroups,
+  );
+
+  // Check if content has only nested groups (no properties)
+  const hasOnlyNestedGroups = R.isEmpty(parsedProperties) && !R.isEmpty(visibleNestedGroups);
+  const contentClassName = `property-group-content${hasOnlyNestedGroups ? " groups-only" : ""}`;
+
+  return (
+    <div className={`property-group depth-${depth} ${isExpanded ? "expanded" : "collapsed"}`}>
+      <button
+        type="button"
+        className="property-group-header"
+        onClick={() => toggleGroup(groupId)}
+      >
+        <span className="property-group-icon">{isExpanded ? "▼" : "▶"}</span>
+        <span className="property-group-title">{caption}</span>
+        <span className="property-group-count">{visibleCount}</span>
+      </button>
+      {isExpanded && (
+        <div className={contentClassName}>
+          {/* Render direct properties */}
+          {R.map(
+            (prop) => renderPropertyInput(properties, updateProperty, prop),
+            parsedProperties,
+          )}
+          {/* Render nested groups that have visible properties */}
+          {R.map(
+            (nestedGroup) => (
+              <PropertyGroupAccordion
+                key={R.prop("caption", nestedGroup)}
+                group={nestedGroup}
+                groupPath={groupId}
+                depth={depth + 1}
+                properties={properties}
+                updateProperty={updateProperty}
+                expandedGroups={expandedGroups}
+                toggleGroup={toggleGroup}
+                visibleKeys={visibleKeys}
+              />
+            ),
+            visibleNestedGroups,
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Render root-level properties (not in any group)
+const renderRootProperties = R.curry(
+  (properties, updateProperty, visibleKeys, rootProps) => {
+    if (R.isEmpty(rootProps)) return null;
+
+    const filteredProps = visibleKeys
+      ? R.filter((prop) => R.includes(R.prop("key", prop), visibleKeys), rootProps)
+      : rootProps;
+
+    if (R.isEmpty(filteredProps)) return null;
+
+    const parsedProperties = R.map(
+      R.pipe(
+        R.applySpec({
+          key: R.prop("key"),
+          type: R.prop("property_type"),
+          caption: R.prop("caption"),
+          description: R.prop("description"),
+          required: R.prop("required"),
+          defaultValue: R.prop("default_value"),
+          options: R.prop("options"),
+        }),
+        R.reject(R.isNil),
+      ),
+      filteredProps,
+    );
+
+    return (
+      <div className="property-group depth-0 expanded root-properties">
+        <div className="property-group-header-static">
+          <span className="property-group-title">General</span>
+          <span className="property-group-count">{R.length(parsedProperties)}</span>
+        </div>
+        <div className="property-group-content">
+          {R.map(
+            (prop) => renderPropertyInput(properties, updateProperty, prop),
+            parsedProperties,
+          )}
+        </div>
+      </div>
+    );
+  },
+);
+
+// Render all property groups with nested structure
+const renderNestedPropertyGroups = R.curry(
+  (properties, updateProperty, expandedGroups, toggleGroup, visibleKeys, definition) => {
+    const rootProperties = R.propOr([], "properties", definition);
+    const propertyGroups = R.propOr([], "property_groups", definition);
+
+    // Count visible root properties
+    const visibleRootProps = visibleKeys
+      ? R.filter((prop) => R.includes(R.prop("key", prop), visibleKeys), rootProperties)
+      : rootProperties;
+
+    // Count visible properties in all groups
+    const visibleGroupsCount = R.pipe(
+      R.map(countVisibleGroupProperties(visibleKeys)),
+      R.sum,
+    )(propertyGroups);
+
+    // Check if there are any visible properties at all
+    const totalVisibleCount = R.length(visibleRootProps) + visibleGroupsCount;
+
+    if (totalVisibleCount === 0) {
+      return renderNoProperties();
+    }
+
+    // Filter groups that have visible properties
+    const visibleGroups = R.filter(
+      (group) => countVisibleGroupProperties(visibleKeys, group) > 0,
+      propertyGroups,
+    );
+
+    return (
+      <>
+        {renderRootProperties(properties, updateProperty, visibleKeys, rootProperties)}
+        {R.map(
+          (group) => (
+            <PropertyGroupAccordion
+              key={R.prop("caption", group)}
+              group={group}
+              groupPath=""
+              depth={0}
+              properties={properties}
+              updateProperty={updateProperty}
+              expandedGroups={expandedGroups}
+              toggleGroup={toggleGroup}
+              visibleKeys={visibleKeys}
+            />
+          ),
+          visibleGroups,
+        )}
+      </>
+    );
+  },
 );
 
 // Render loading properties
@@ -163,26 +355,16 @@ const renderNoWidgetSelected = R.always(
   </div>,
 );
 
-// Render properties for selected widget with definition
-const renderWidgetProperties = R.curry(
-  (properties, updateProperty, definition) =>
-    R.pipe(
-      parseWidgetProperties,
-      groupPropertiesByCategory,
-      renderGroupedProperties(properties, updateProperty),
-    )(definition),
-);
-
-// Render dynamic properties section
+// Render dynamic properties section using nested accordions
 const renderDynamicPropertiesSection = R.curry(
-  (selectedWidget, widgetDefinition, properties, updateProperty) => (
+  (selectedWidget, widgetDefinition, properties, updateProperty, expandedGroups, toggleGroup, visibleKeys) => (
     <div className="property-section">
       {R.ifElse(
         R.identity,
         R.always(
           R.ifElse(
             R.identity,
-            renderWidgetProperties(properties, updateProperty),
+            renderNestedPropertyGroups(properties, updateProperty, expandedGroups, toggleGroup, visibleKeys),
             renderLoadingProperties,
           )(widgetDefinition),
         ),
@@ -303,11 +485,26 @@ const WidgetPreview = memo(
     const [widgetDefinition, setWidgetDefinition] = useState(null);
     const [dynamicProperties, setDynamicProperties] = useState({});
 
+    // State for editorConfig
+    const [editorConfigHandler, setEditorConfigHandler] = useState(null);
+    const [visiblePropertyKeys, setVisiblePropertyKeys] = useState(null);
+
     // State for preview
     const [previewData, setPreviewData] = useState(null);
     const [isBuilding, setIsBuilding] = useState(false);
     const [buildError, setBuildError] = useState(null);
     const [packageManager, setPackageManager] = useState("bun");
+
+    // State for accordion expanded groups
+    const [expandedGroups, setExpandedGroups] = useState({});
+
+    // Toggle group expansion
+    const toggleGroup = useCallback((category) => {
+      setExpandedGroups((prev) => ({
+        ...prev,
+        [category]: !R.propOr(true, category, prev),
+      }));
+    }, []);
 
     // Drag and drop functionality - only enabled when not searching
     const widgetsForDragDrop = R.ifElse(
@@ -360,7 +557,27 @@ const WidgetPreview = memo(
       R.pipe(
         R.tap(() => setWidgetDefinition(null)),
         R.tap(() => setDynamicProperties({})),
+        R.tap(() => setEditorConfigHandler(null)),
+        R.tap(() => setVisiblePropertyKeys(null)),
       )();
+
+    // Load editorConfig for widget
+    const loadEditorConfig = async (widgetPath) => {
+      try {
+        const result = await invoke("read_editor_config", { widgetPath });
+        if (result.found && result.content) {
+          const handler = createEditorConfigHandler(result.content);
+          setEditorConfigHandler(handler);
+          return handler;
+        }
+        setEditorConfigHandler(null);
+        return null;
+      } catch (error) {
+        console.error("Failed to load editorConfig:", error);
+        setEditorConfigHandler(null);
+        return null;
+      }
+    };
 
     // Load widget properties
     const loadWidgetProperties = R.curry(
@@ -382,21 +599,42 @@ const WidgetPreview = memo(
           ),
     );
 
-    // Load widget definition when widget is selected
+    // Load widget definition and editorConfig when widget is selected
     useEffect(() => {
-      R.cond([
-        [R.isNil, clearWidgetDefinitionState],
-        [
-          R.T,
-          (widget) =>
-            loadWidgetProperties(
-              widget,
-              setWidgetDefinition,
-              setDynamicProperties,
-            ),
-        ],
-      ])(selectedWidget);
+      if (!selectedWidget) {
+        clearWidgetDefinitionState();
+        return;
+      }
+
+      const loadWidgetData = async () => {
+        // Load widget properties
+        loadWidgetProperties(
+          selectedWidget,
+          setWidgetDefinition,
+          setDynamicProperties,
+        );
+
+        // Load editorConfig
+        await loadEditorConfig(R.prop("path", selectedWidget));
+      };
+
+      loadWidgetData();
     }, [selectedWidget]);
+
+    // Update visible property keys when values or editorConfig changes
+    useEffect(() => {
+      if (!editorConfigHandler || !editorConfigHandler.isAvailable || !widgetDefinition) {
+        setVisiblePropertyKeys(null);
+        return;
+      }
+
+      const combinedValues = R.mergeRight(properties, dynamicProperties);
+      const visibleKeys = editorConfigHandler.getVisiblePropertyKeys(
+        combinedValues,
+        widgetDefinition,
+      );
+      setVisiblePropertyKeys(visibleKeys);
+    }, [editorConfigHandler, widgetDefinition, dynamicProperties, properties]);
 
     // Create property update handler for dynamic properties
     const updateDynamicProperty = R.curry((propertyKey, value) =>
@@ -414,22 +652,17 @@ const WidgetPreview = memo(
       setBuildError(null);
 
       try {
-        console.log("[Widget Preview] Building widget:", selectedWidget);
-        console.log("[Widget Preview] Package manager:", packageManager);
-
         const response = await invoke("build_widget_for_preview", {
           widgetPath: selectedWidget.path,
           packageManager: packageManager,
         });
 
-        console.log("[Widget Preview] Build response:", response);
-
         if (response.success) {
           setPreviewData({
             bundle: response.bundle_content,
+            css: response.css_content,
             widgetName: response.widget_name,
             widgetId: response.widget_id,
-            properties: combinedProperties,
           });
           setBuildError(null);
         } else {
@@ -478,7 +711,7 @@ const WidgetPreview = memo(
         {/* Middle Panel - Properties */}
         <div className="preview-middle">
           <div className="properties-header">
-            <h3>🍓 Properties</h3>
+            <h3>Properties</h3>
             <div className="preview-controls">
               <select
                 value={packageManager}
@@ -512,24 +745,25 @@ const WidgetPreview = memo(
             widgetDefinition,
             combinedProperties,
             updateDynamicProperty,
+            expandedGroups,
+            toggleGroup,
+            visiblePropertyKeys,
           )}
         </div>
 
         {/* Right Panel - Widget Preview */}
         <div className="preview-right">
-          <div className="properties-header">
-            <h3>✨ Widget Preview</h3>
-          </div>
           {previewData ? (
             <WidgetPreviewFrame
               bundle={previewData.bundle}
+              css={previewData.css}
               widgetName={previewData.widgetName}
               widgetId={previewData.widgetId}
-              properties={previewData.properties}
+              properties={combinedProperties}
             />
           ) : (
             <div className="preview-instructions">
-              <span className="preview-emoji">🍓✨</span>
+              <span className="preview-emoji">🍓</span>
               <p className="preview-message">
                 Pick a widget, click Run Preview,
                 <br />

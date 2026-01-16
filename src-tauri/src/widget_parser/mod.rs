@@ -21,6 +21,8 @@ pub struct WidgetProperty {
 pub struct WidgetPropertyGroup {
     pub caption: String,
     pub properties: Vec<WidgetProperty>,
+    #[serde(default)]
+    pub property_groups: Vec<WidgetPropertyGroup>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,7 +55,7 @@ impl std::error::Error for ParseError {}
 struct ParseContext {
     depth: usize,
     in_properties: bool,
-    in_property_group: bool,
+    property_group_depth: usize, // Track nesting level of property groups
     current_element: String,
     text_buffer: String,
 }
@@ -66,14 +68,14 @@ struct ParseState {
     properties: Vec<WidgetProperty>,
     property_groups: Vec<WidgetPropertyGroup>,
     current_property: Option<WidgetProperty>,
-    current_group: Option<WidgetPropertyGroup>,
+    group_stack: Vec<WidgetPropertyGroup>, // Stack for nested groups
 }
 
 fn create_initial_context() -> ParseContext {
     ParseContext {
         depth: 0,
         in_properties: false,
-        in_property_group: false,
+        property_group_depth: 0,
         current_element: String::new(),
         text_buffer: String::new(),
     }
@@ -87,7 +89,7 @@ fn create_initial_state() -> ParseState {
         properties: Vec::new(),
         property_groups: Vec::new(),
         current_property: None,
-        current_group: None,
+        group_stack: Vec::new(),
     }
 }
 
@@ -171,14 +173,28 @@ fn set_in_properties(state: ParseState, value: bool) -> ParseState {
     }
 }
 
-fn set_in_property_group(state: ParseState, value: bool) -> ParseState {
+fn increment_property_group_depth(state: ParseState) -> ParseState {
     ParseState {
         context: ParseContext {
-            in_property_group: value,
+            property_group_depth: state.context.property_group_depth + 1,
             ..state.context
         },
         ..state
     }
+}
+
+fn decrement_property_group_depth(state: ParseState) -> ParseState {
+    ParseState {
+        context: ParseContext {
+            property_group_depth: state.context.property_group_depth.saturating_sub(1),
+            ..state.context
+        },
+        ..state
+    }
+}
+
+fn is_in_property_group(state: &ParseState) -> bool {
+    state.context.property_group_depth > 0
 }
 
 fn set_current_element(state: ParseState, element: String) -> ParseState {
@@ -209,11 +225,9 @@ fn set_current_property(state: ParseState, property: WidgetProperty) -> ParseSta
     }
 }
 
-fn set_current_group(state: ParseState, group: WidgetPropertyGroup) -> ParseState {
-    ParseState {
-        current_group: Some(group),
-        ..state
-    }
+fn push_group_to_stack(mut state: ParseState, group: WidgetPropertyGroup) -> ParseState {
+    state.group_stack.push(group);
+    state
 }
 
 fn add_option_to_current_property(mut state: ParseState, option: String) -> ParseState {
@@ -260,7 +274,7 @@ fn update_widget_description(state: ParseState) -> ParseState {
 
 fn finalize_current_property(mut state: ParseState) -> ParseState {
     if let Some(property) = state.current_property.take() {
-        if state.context.in_property_group {
+        if is_in_property_group(&state) {
             finalize_property_to_group(state, property)
         } else {
             finalize_property_to_root(state, property)
@@ -271,9 +285,9 @@ fn finalize_current_property(mut state: ParseState) -> ParseState {
 }
 
 fn finalize_property_to_group(mut state: ParseState, property: WidgetProperty) -> ParseState {
-    if let Some(mut group) = state.current_group.take() {
+    // Add property to the current group (top of stack)
+    if let Some(group) = state.group_stack.last_mut() {
         group.properties.push(property);
-        state.current_group = Some(group);
     }
     state.current_property = None;
     state
@@ -286,10 +300,16 @@ fn finalize_property_to_root(mut state: ParseState, property: WidgetProperty) ->
 }
 
 fn finalize_current_group(mut state: ParseState) -> ParseState {
-    if let Some(group) = state.current_group.take() {
-        state.property_groups.push(group);
+    // Pop the current group from stack
+    if let Some(completed_group) = state.group_stack.pop() {
+        // If there's a parent group, add as nested group
+        if let Some(parent_group) = state.group_stack.last_mut() {
+            parent_group.property_groups.push(completed_group);
+        } else {
+            // No parent, add to root property_groups
+            state.property_groups.push(completed_group);
+        }
     }
-    state.current_group = None;
     state
 }
 
@@ -311,8 +331,9 @@ fn process_start_event(
             let group = WidgetPropertyGroup {
                 caption: group_caption,
                 properties: Vec::new(),
+                property_groups: Vec::new(),
             };
-            set_current_group(set_in_property_group(incremented_state, true), group)
+            push_group_to_stack(increment_property_group_depth(incremented_state), group)
         }
         b"property" => {
             if incremented_state.context.in_properties {
@@ -339,7 +360,7 @@ fn process_end_event(state: ParseState, name: &[u8]) -> ParseState {
 
     match name {
         b"properties" => set_in_properties(decremented_state, false),
-        b"propertyGroup" => finalize_current_group(set_in_property_group(decremented_state, false)),
+        b"propertyGroup" => finalize_current_group(decrement_property_group_depth(decremented_state)),
         b"property" => finalize_current_property(decremented_state),
         _ => set_current_element(decremented_state, String::new()),
     }
@@ -513,6 +534,59 @@ pub fn parse_widget_properties(widget_path: String) -> Result<WidgetDefinition, 
 #[tauri::command]
 pub fn validate_mendix_widget(widget_path: String) -> Result<bool, String> {
     validate_mendix_package_xml(&widget_path).map_err(|e| e.to_string())
+}
+
+// EditorConfig response type
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EditorConfigResult {
+    pub found: bool,
+    pub content: Option<String>,
+    pub file_path: Option<String>,
+}
+
+// Pure file filtering function for editorConfig
+fn is_editor_config_file(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name.ends_with(".editorConfig.js") || name.ends_with(".editorConfig.ts"))
+        .unwrap_or(false)
+}
+
+// Find editorConfig file in widget src directory
+fn find_editor_config_file(widget_path: &str) -> Option<String> {
+    let src_path = Path::new(widget_path).join("src");
+
+    if !src_path.exists() {
+        return None;
+    }
+
+    let entries = read_directory_entries(&src_path).ok()?;
+    entries
+        .into_iter()
+        .map(|entry| entry.path())
+        .find(|path| is_editor_config_file(path))
+        .map(|path| path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn read_editor_config(widget_path: String) -> Result<EditorConfigResult, String> {
+    match find_editor_config_file(&widget_path) {
+        Some(config_path) => {
+            match read_file_content(&config_path) {
+                Ok(content) => Ok(EditorConfigResult {
+                    found: true,
+                    content: Some(content),
+                    file_path: Some(config_path),
+                }),
+                Err(e) => Err(format!("Failed to read editorConfig: {}", e)),
+            }
+        }
+        None => Ok(EditorConfigResult {
+            found: false,
+            content: None,
+            file_path: None,
+        }),
+    }
 }
 
 #[cfg(test)]

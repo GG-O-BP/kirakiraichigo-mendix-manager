@@ -210,7 +210,8 @@ export const FunctionalDropdown = createPureComponent(
     );
 
     const selectedOption = useMemo(
-      () => R.find(R.propEq("value", value), options),
+      // Note: R.propEq arg order changed in Ramda 0.29+ to (val, name)
+      () => R.find(R.propEq(value, "value"), options),
       [options, value],
     );
 

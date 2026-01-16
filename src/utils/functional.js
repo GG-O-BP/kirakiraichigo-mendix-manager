@@ -438,8 +438,9 @@ export const createTab = R.curry((id, label, component) => ({
 }));
 
 // Find active tab
+// Note: R.propEq arg order changed in Ramda 0.29+ to (val, name)
 export const findActiveTab = R.curry((activeTabId, tabs) =>
-  R.find(R.propEq("id", activeTabId), tabs),
+  R.find(R.propEq(activeTabId, "id"), tabs),
 );
 
 // ============= Event Handlers =============
@@ -487,15 +488,43 @@ export const validateSetNotEmpty = R.curry((message, set) =>
 
 // ============= Widget Property Operations =============
 
+// Recursively extract all properties from a property group with full category path
+const extractPropertiesFromGroup = (categoryPath, group) => {
+  const groupCaption = R.prop("caption", group);
+  const fullPath = categoryPath
+    ? (groupCaption ? `${categoryPath} > ${groupCaption}` : categoryPath)
+    : (groupCaption || "General");
+
+  const directProperties = R.pipe(
+    R.propOr([], "properties"),
+    R.map(R.assoc("category", fullPath)),
+  )(group);
+
+  const nestedGroups = R.propOr([], "property_groups", group);
+  const nestedProperties = R.chain(
+    (nestedGroup) => extractPropertiesFromGroup(fullPath, nestedGroup),
+    nestedGroups,
+  );
+
+  return R.concat(directProperties, nestedProperties);
+};
+
 // Parse widget properties from XML definition
 export const parseWidgetProperties = R.curry((widgetDefinition) => {
-  const allProperties = R.concat(
-    R.prop("properties", widgetDefinition),
-    R.pipe(
-      R.prop("property_groups"),
-      R.chain(R.prop("properties")),
-    )(widgetDefinition),
+  // Get root-level properties (with "General" category)
+  const rootProperties = R.pipe(
+    R.propOr([], "properties"),
+    R.map(R.assoc("category", "General")),
+  )(widgetDefinition);
+
+  // Get all properties from property groups with their full category paths
+  const propertyGroups = R.propOr([], "property_groups", widgetDefinition);
+  const groupProperties = R.chain(
+    (group) => extractPropertiesFromGroup("", group),
+    propertyGroups,
   );
+
+  const allProperties = R.concat(rootProperties, groupProperties);
 
   return R.map(
     R.pipe(

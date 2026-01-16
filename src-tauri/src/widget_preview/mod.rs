@@ -13,6 +13,7 @@ pub struct BuildWidgetRequest {
 pub struct BuildWidgetResponse {
     pub success: bool,
     pub bundle_content: Option<String>,
+    pub css_content: Option<String>,
     pub widget_name: Option<String>,
     pub widget_id: Option<String>,
     pub error: Option<String>,
@@ -23,31 +24,22 @@ pub async fn build_widget_for_preview(
     widget_path: String,
     package_manager: String,
 ) -> Result<BuildWidgetResponse, String> {
-    println!("[Widget Preview] Building widget at: {}", widget_path);
-    println!(
-        "[Widget Preview] Using package manager: {}",
-        package_manager
-    );
-
     let path = Path::new(&widget_path);
 
     // 1. node_modules가 없으면 install 먼저 실행
     let node_modules = path.join("node_modules");
     if !node_modules.exists() {
-        println!("[Widget Preview] node_modules not found, running install first");
-
         match run_package_manager_command(
             package_manager.clone(),
             "install".to_string(),
             widget_path.clone(),
         ) {
-            Ok(output) => {
-                println!("[Widget Preview] Install output: {}", output);
-            }
+            Ok(_) => {}
             Err(e) => {
                 return Ok(BuildWidgetResponse {
                     success: false,
                     bundle_content: None,
+                    css_content: None,
                     widget_name: None,
                     widget_id: None,
                     error: Some(format!("Failed to install dependencies: {}", e)),
@@ -57,23 +49,21 @@ pub async fn build_widget_for_preview(
     }
 
     // 2. build 실행
-    println!("[Widget Preview] Running build command");
     match run_package_manager_command(
         package_manager,
         "run build".to_string(),
         widget_path.clone(),
     ) {
-        Ok(output) => {
-            println!("[Widget Preview] Build output: {}", output);
-
+        Ok(_) => {
             // 3. dist 폴더에서 번들 읽기
             match read_widget_bundle(path).await {
-                Ok(bundle) => {
+                Ok((bundle, css)) => {
                     // 4. 위젯 메타데이터 파싱
                     match parse_widget_metadata(path) {
                         Ok(metadata) => Ok(BuildWidgetResponse {
                             success: true,
                             bundle_content: Some(bundle),
+                            css_content: css,
                             widget_name: Some(metadata.name),
                             widget_id: Some(metadata.id),
                             error: None,
@@ -81,6 +71,7 @@ pub async fn build_widget_for_preview(
                         Err(e) => Ok(BuildWidgetResponse {
                             success: true,
                             bundle_content: Some(bundle),
+                            css_content: css,
                             widget_name: None,
                             widget_id: None,
                             error: Some(format!("Warning: Failed to parse metadata: {}", e)),
@@ -90,6 +81,7 @@ pub async fn build_widget_for_preview(
                 Err(e) => Ok(BuildWidgetResponse {
                     success: false,
                     bundle_content: None,
+                    css_content: None,
                     widget_name: None,
                     widget_id: None,
                     error: Some(format!("Build succeeded but failed to read bundle: {}", e)),
@@ -99,6 +91,7 @@ pub async fn build_widget_for_preview(
         Err(e) => Ok(BuildWidgetResponse {
             success: false,
             bundle_content: None,
+            css_content: None,
             widget_name: None,
             widget_id: None,
             error: Some(format!("Build failed: {}", e)),
@@ -106,7 +99,7 @@ pub async fn build_widget_for_preview(
     }
 }
 
-async fn read_widget_bundle(widget_path: &Path) -> Result<String, String> {
+async fn read_widget_bundle(widget_path: &Path) -> Result<(String, Option<String>), String> {
     let dist_dir = widget_path.join("dist");
 
     if !dist_dir.exists() {
@@ -116,10 +109,31 @@ async fn read_widget_bundle(widget_path: &Path) -> Result<String, String> {
     // Recursively search for the main widget JS file
     match find_widget_bundle_recursive(&dist_dir).await {
         Some(bundle_path) => {
-            println!("[Widget Preview] Found bundle at: {:?}", bundle_path);
-            tokio::fs::read_to_string(&bundle_path)
+            // Read JS bundle
+            let bundle_content = tokio::fs::read_to_string(&bundle_path)
                 .await
-                .map_err(|e| format!("Failed to read bundle file: {}", e))
+                .map_err(|e| format!("Failed to read bundle file: {}", e))?;
+
+            // Try to find and read CSS file in the same directory
+            let css_content = if let Some(parent) = bundle_path.parent() {
+                let css_path = parent.join(
+                    bundle_path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .map(|name| format!("{}.css", name))
+                        .unwrap_or_default()
+                );
+
+                if css_path.exists() {
+                    tokio::fs::read_to_string(&css_path).await.ok()
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            Ok((bundle_content, css_content))
         }
         None => Err(format!(
             "No widget bundle (.js) file found in dist directory. Searched in: {:?}",

@@ -127,12 +127,13 @@ const createAddWidgetHandler = R.curry(
     setNewWidgetCaption,
     setNewWidgetPath,
   ) =>
-    R.pipe(
-      R.tap(() => setShowWidgetModal(true)),
-      R.tap(() => setShowAddWidgetForm(false)),
-      R.tap(() => setNewWidgetCaption("")),
-      R.tap(() => setNewWidgetPath("")),
-    )(),
+    () =>
+      R.pipe(
+        R.tap(() => setShowWidgetModal(true)),
+        R.tap(() => setShowAddWidgetForm(false)),
+        R.tap(() => setNewWidgetCaption("")),
+        R.tap(() => setNewWidgetPath("")),
+      )(),
 );
 
 // ============= Search Controls =============

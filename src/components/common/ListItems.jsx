@@ -187,17 +187,12 @@ export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
       <div className="version-info">
         <span className="version-icon">📁</span>
         <div className="version-details">
-          <span className="version-number">
-            {app.name}
-            {renderVersionBadgeSpan(app.version)}
-          </span>
+          <span className="version-number">{app.name}</span>
           <span className="version-date">
+            {renderVersionBadgeSpan(app.version)}
             {formatDate("Date unknown", app.last_modified)}
           </span>
         </div>
-      </div>
-      <div className="app-actions">
-        <span className="item-sparkle">✨</span>
       </div>
     </div>
   );
