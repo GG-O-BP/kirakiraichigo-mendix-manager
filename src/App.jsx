@@ -15,7 +15,6 @@ import { flavors } from "@catppuccin/palette";
 import {
   STORAGE_KEYS,
   ITEMS_PER_PAGE,
-  generateListData,
   loadFromStorage,
   saveToStorage,
   wrapAsync,
@@ -116,7 +115,7 @@ function App() {
 
   const updateState = useCallback((updater) => setState(updater), []);
   const setStateProperty = useCallback(
-    (lens, value) => updateState(setStateProp(lens, value)),
+    (lens, value) => updateState((prevState) => R.set(lens, value, prevState)),
     [updateState],
   );
 
@@ -699,8 +698,6 @@ function App() {
     finalizeResults(results);
   }, [selectedWidgets, selectedApps, widgets, apps, packageManager]);
 
-  const listData = useMemo(() => generateListData(20), []);
-
   const updateProperty = useCallback(
     R.curry((key, value) => setProperties(updateProp(key, value))),
     [],
@@ -871,8 +868,6 @@ function App() {
     });
   }, []);
 
-  const handleItemClick = useCallback((item) => {}, []);
-
   const studioProManagerKeys = [
     "searchTerm",
     "setSearchTerm",
@@ -881,11 +876,9 @@ function App() {
     "selectedVersion",
     "handleVersionClick",
     "apps",
-    "listData",
     "versionLoadingStates",
     "handleLaunchStudioPro",
     "handleUninstallClick",
-    "handleItemClick",
     "fetchVersionsFromDatagrid",
     "downloadableVersions",
     "isLoadingDownloadableVersions",
@@ -937,8 +930,6 @@ function App() {
   const widgetPreviewKeys = [
     "widgetPreviewSearch",
     "setWidgetPreviewSearch",
-    "listData",
-    "handleItemClick",
     "properties",
     "updateProperty",
     "widgets",
@@ -972,11 +963,9 @@ function App() {
     selectedVersion,
     handleVersionClick,
     apps,
-    listData,
     versionLoadingStates,
     handleLaunchStudioPro,
     handleUninstallClick,
-    handleItemClick,
     fetchVersionsFromDatagrid,
     downloadableVersions,
     isLoadingDownloadableVersions,
@@ -1036,12 +1025,10 @@ function App() {
       selectedVersion,
       handleVersionClick,
       apps,
-      listData,
       isLaunching,
       isUninstalling,
       handleLaunchStudioPro,
       handleUninstallClick,
-      handleItemClick,
       fetchVersionsFromDatagrid,
       downloadableVersions,
       isLoadingDownloadableVersions,

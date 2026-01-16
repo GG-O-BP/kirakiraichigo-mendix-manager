@@ -63,46 +63,11 @@ const STEP_INFO = {
 const getStepInfo = (step) =>
   STEP_INFO[step] || STEP_INFO[DOWNLOAD_STEPS.CONFIRM];
 
-const isStepActive = R.curry((currentStep, step) =>
-  R.equals(currentStep, step),
-);
-
-const isStepCompleted = R.curry((currentStep, step) => {
-  const stepOrder = Object.values(DOWNLOAD_STEPS);
-  const currentIndex = stepOrder.indexOf(currentStep);
-  const stepIndex = stepOrder.indexOf(step);
-  return currentIndex > stepIndex && currentStep !== DOWNLOAD_STEPS.ERROR;
-});
-
 const canCancel = (step) =>
   R.includes(step, [DOWNLOAD_STEPS.CONFIRM, DOWNLOAD_STEPS.ERROR]);
 
 const shouldShowProgress = (step) =>
   !R.includes(step, [DOWNLOAD_STEPS.CONFIRM, DOWNLOAD_STEPS.ERROR]);
-
-// Removed - using direct inline implementation
-
-// Enhanced step indicator renderer
-const renderStepIndicator = R.curry((currentStep, step, info) => {
-  const isActive = isStepActive(currentStep, step);
-  const isCompleted = isStepCompleted(currentStep, step);
-  const className = R.pipe(
-    R.always(["step-indicator"]),
-    R.when(() => isActive, R.append("active")),
-    R.when(() => isCompleted, R.append("completed")),
-    R.join(" "),
-  )();
-
-  return (
-    <div key={step} className={className}>
-      <div className="step-icon">{isCompleted ? "✓" : info.icon}</div>
-      <div className="step-content">
-        <div className="step-title">{info.title}</div>
-        {isActive && <div className="step-description">{info.description}</div>}
-      </div>
-    </div>
-  );
-});
 
 // Enhanced error message renderer
 const renderErrorMessage = R.curry((error) => (

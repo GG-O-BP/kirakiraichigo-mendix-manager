@@ -1,12 +1,6 @@
 import * as R from "ramda";
 import { memo, useMemo } from "react";
 import ListItem from "./ListItem";
-import {
-  createListItem,
-  generateListData,
-} from "../../utils/functional";
-
-export { createListItem, generateListData };
 
 const UNINSTALL_BUTTON_STYLE = {
   background: "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",

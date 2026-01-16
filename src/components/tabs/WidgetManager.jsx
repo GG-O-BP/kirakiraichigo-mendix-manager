@@ -109,21 +109,12 @@ const createWidgetDeleteHandler = R.curry(
     )(),
 );
 
-const createAddWidgetHandler = R.curry(
-  (
-    setShowWidgetModal,
-    setShowAddWidgetForm,
-    setNewWidgetCaption,
-    setNewWidgetPath,
-  ) =>
-    () =>
-      R.pipe(
-        R.tap(() => setShowWidgetModal(true)),
-        R.tap(() => setShowAddWidgetForm(false)),
-        R.tap(() => setNewWidgetCaption("")),
-        R.tap(() => setNewWidgetPath("")),
-      )(),
-);
+const createAddWidgetClickHandler = (modalHandlers) => () => {
+  modalHandlers.setShowWidgetModal(true);
+  modalHandlers.setShowAddWidgetForm(false);
+  modalHandlers.setNewWidgetCaption("");
+  modalHandlers.setNewWidgetPath("");
+};
 
 const renderSearchControls = R.curry((config) => (
   <div className="search-controls">
@@ -229,31 +220,19 @@ const renderWidgetListItem = R.curry(
   ),
 );
 
-const renderAddWidgetItem = R.curry(
-  (
-    setShowWidgetModal,
-    setShowAddWidgetForm,
-    setNewWidgetCaption,
-    setNewWidgetPath,
-  ) => (
-    <div
-      className="version-list-item add-widget-item"
-      onClick={createAddWidgetHandler(
-        setShowWidgetModal,
-        setShowAddWidgetForm,
-        setNewWidgetCaption,
-        setNewWidgetPath,
-      )}
-    >
-      <div className="version-info">
-        <span className="version-icon">➕</span>
-        <div className="version-details">
-          <span className="version-number">Add New Widget</span>
-          <span className="version-date">Click to add a widget</span>
-        </div>
+const renderAddWidgetItem = (modalHandlers) => (
+  <div
+    className="version-list-item add-widget-item"
+    onClick={createAddWidgetClickHandler(modalHandlers)}
+  >
+    <div className="version-info">
+      <span className="version-icon">➕</span>
+      <div className="version-details">
+        <span className="version-number">Add New Widget</span>
+        <span className="version-date">Click to add a widget</span>
       </div>
     </div>
-  ),
+  </div>
 );
 
 const renderSuccessfulWidget = R.curry((result, index) => (
@@ -348,7 +327,7 @@ const renderWidgetsList = R.curry(
         () => R.isEmpty(widgetsToShow) && R.isEmpty(widgetSearchTerm),
         () => (
           <div>
-            {renderAddWidgetItem(...modalHandlers)}
+            {renderAddWidgetItem(modalHandlers)}
             {renderLoadingIndicator("🧩", "No widgets registered")}
           </div>
         ),
@@ -357,7 +336,7 @@ const renderWidgetsList = R.curry(
         () => R.isEmpty(widgetsToShow) && !R.isEmpty(widgetSearchTerm),
         () => (
           <div>
-            {renderAddWidgetItem(...modalHandlers)}
+            {renderAddWidgetItem(modalHandlers)}
             {renderLoadingIndicator(
               "🔍",
               `No widgets found matching "${widgetSearchTerm}"`,
@@ -369,7 +348,7 @@ const renderWidgetsList = R.curry(
         R.T,
         () => (
           <div>
-            {renderAddWidgetItem(...modalHandlers)}
+            {renderAddWidgetItem(modalHandlers)}
             {shouldEnableDragDrop ? (
               <div ref={widgetListRef} className="draggable-widget-list">
                 {R.map(
@@ -435,12 +414,12 @@ const WidgetManager = memo(
     handleWidgetDeleteClick,
   }) => {
     const versionOptions = createVersionOptions(versions);
-    const modalHandlers = [
+    const modalHandlers = {
       setShowWidgetModal,
       setShowAddWidgetForm,
       setNewWidgetCaption,
       setNewWidgetPath,
-    ];
+    };
 
     const widgetsForDragDrop = R.isEmpty(widgetSearchTerm)
       ? filteredWidgets
