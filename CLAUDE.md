@@ -46,6 +46,7 @@ The frontend follows **functional programming** patterns using Ramda.js with Rea
 
 **Context API** (`src/contexts/`):
 - `AppContext` - Apps state: filteredApps, selectedApps, handleAppClick, versionFilter
+- `VersionsContext` - Version state: versions, downloadableVersions, versionLoadingStates, handleLaunchStudioPro, handleUninstallStudioPro
 - `WidgetCollectionContext` - Widget CRUD: widgets, selectedWidgets, filteredWidgets, handleAddWidget
 - `WidgetPreviewContext` - Preview state: selectedWidgetForPreview, properties, updateProperty
 - `WidgetFormContext` - Widget form inputs: newWidgetCaption, newWidgetPath
@@ -85,10 +86,11 @@ The frontend follows **functional programming** patterns using Ramda.js with Rea
 - `useResultModal` - Build result display
 
 **Data Flow**:
-1. App.jsx initializes hooks and wraps app with Context providers
-2. Tab components consume context via `useAppContext()`, `useWidgetCollectionContext()`, `useWidgetPreviewContext()`, etc.
-3. Handlers invoke Rust backend via Tauri `invoke()`
-4. State updates propagate through context
+1. App.jsx initializes hooks via `useAppInitialization()` and `useContextValues()`
+2. App.jsx wraps the app with Context providers (ModalProvider → VersionsProvider → AppProvider → etc.)
+3. Tab components and modal components consume context directly via hooks like `useVersionsContext()`, `useAppContext()`, `useModalContext()`
+4. Handlers invoke Rust backend via Tauri `invoke()`
+5. State updates propagate through context - no prop drilling needed
 
 **Tab Component Structure** (`src/components/tabs/`):
 
@@ -116,8 +118,8 @@ tabs/
 
 **Other Component Directories**:
 - `src/components/modals/` - Modal dialogs with domain separation
-  - `domain/` - Domain-specific modal groups (StudioProModals, AppDeleteModals, WidgetModals, BuildResultModals)
-  - `AppModals.jsx` - Composition component combining all domain modals
+  - `domain/` - Domain-specific modal groups that consume context directly (StudioProModals, AppDeleteModals, WidgetModals, BuildResultModals)
+  - `AppModals.jsx` - Composition component combining all domain modals (no props - children consume context)
 - `src/components/common/` - Reusable UI components (FilterCheckbox, LoadMoreIndicator, PackageManagerSelector, etc.)
 
 ### Backend Architecture (Rust + Tauri)

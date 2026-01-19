@@ -1,42 +1,61 @@
 import { ConfirmModal } from "../../common";
 import WidgetModal from "../WidgetModal";
+import {
+  useModalContext,
+  useWidgetCollectionContext,
+  useWidgetFormContext,
+} from "../../../contexts";
 
 /**
  * WidgetModals - Domain component for widget-related modals
  * Handles widget add/manage and widget delete confirmation dialogs
+ * Consumes context directly instead of receiving props
  */
-function WidgetModals({
-  widgetModal,
-  widgetDeleteModal,
-  newWidgetCaption,
-  setNewWidgetCaption,
-  newWidgetPath,
-  setNewWidgetPath,
-  setWidgets,
-  handleAddWidget,
-  handleWidgetDelete,
-}) {
+function WidgetModals() {
+  const {
+    showWidgetModal,
+    showAddWidgetForm,
+    setShowWidgetModal,
+    setShowAddWidgetForm,
+    showWidgetDeleteModal,
+    widgetToDelete,
+    closeWidgetDeleteModal,
+  } = useModalContext();
+
+  const {
+    setWidgets,
+    handleAddWidget,
+    handleWidgetDelete,
+  } = useWidgetCollectionContext();
+
+  const {
+    newWidgetCaption,
+    setNewWidgetCaption,
+    newWidgetPath,
+    setNewWidgetPath,
+  } = useWidgetFormContext();
+
   const handleConfirmAddWidget = () => {
     handleAddWidget(() => {
-      widgetModal.setShowAddForm(false);
-      widgetModal.setShowModal(false);
+      setShowAddWidgetForm(false);
+      setShowWidgetModal(false);
     });
   };
 
   const handleConfirmWidgetDelete = async () => {
-    const success = await handleWidgetDelete(widgetDeleteModal.widgetToDelete);
+    const success = await handleWidgetDelete(widgetToDelete);
     if (success) {
-      widgetDeleteModal.close();
+      closeWidgetDeleteModal();
     }
   };
 
   return (
     <>
       <WidgetModal
-        showWidgetModal={widgetModal.showModal}
-        showAddWidgetForm={widgetModal.showAddForm}
-        setShowWidgetModal={widgetModal.setShowModal}
-        setShowAddWidgetForm={widgetModal.setShowAddForm}
+        showWidgetModal={showWidgetModal}
+        showAddWidgetForm={showAddWidgetForm}
+        setShowWidgetModal={setShowWidgetModal}
+        setShowAddWidgetForm={setShowAddWidgetForm}
         newWidgetCaption={newWidgetCaption}
         setNewWidgetCaption={setNewWidgetCaption}
         newWidgetPath={newWidgetPath}
@@ -45,15 +64,15 @@ function WidgetModals({
       />
 
       <ConfirmModal
-        isOpen={widgetDeleteModal.showModal}
+        isOpen={showWidgetDeleteModal}
         title="🍓 Remove Widget from List?"
         message={
-          widgetDeleteModal.widgetToDelete
-            ? `Should I remove "${widgetDeleteModal.widgetToDelete.caption}" from your widget list? 🎀\n\nDon't worry! This only removes it from my list - your files will stay safe and sound! 🌟`
+          widgetToDelete
+            ? `Should I remove "${widgetToDelete.caption}" from your widget list? 🎀\n\nDon't worry! This only removes it from my list - your files will stay safe and sound! 🌟`
             : ""
         }
         onConfirm={handleConfirmWidgetDelete}
-        onCancel={widgetDeleteModal.close}
+        onCancel={closeWidgetDeleteModal}
         isLoading={false}
         relatedApps={[]}
       />

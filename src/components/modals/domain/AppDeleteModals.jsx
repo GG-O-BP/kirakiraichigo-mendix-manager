@@ -1,41 +1,51 @@
 import { ConfirmModal } from "../../common";
+import {
+  useModalContext,
+  useAppContext,
+  useBuildDeployContext,
+} from "../../../contexts";
 
 /**
  * AppDeleteModals - Domain component for app deletion modal
  * Handles the confirmation dialog for deleting Mendix apps
+ * Consumes context directly instead of receiving props
  */
-function AppDeleteModals({
-  appDeleteModal,
-  handleDeleteApp,
-  isUninstalling,
-  setIsUninstalling,
-}) {
+function AppDeleteModals() {
+  const {
+    showAppDeleteModal,
+    appToDelete,
+    closeAppDeleteModal,
+  } = useModalContext();
+
+  const { handleDeleteApp } = useAppContext();
+  const { isUninstalling, setIsUninstalling } = useBuildDeployContext();
+
   const handleConfirmAppDelete = async () => {
-    if (appDeleteModal.appToDelete) {
+    if (appToDelete) {
       setIsUninstalling(true);
       try {
-        await handleDeleteApp(appDeleteModal.appToDelete.path);
+        await handleDeleteApp(appToDelete.path);
         setIsUninstalling(false);
-        appDeleteModal.close();
+        closeAppDeleteModal();
       } catch (error) {
         alert(`Failed to delete app: ${error}`);
         setIsUninstalling(false);
-        appDeleteModal.close();
+        closeAppDeleteModal();
       }
     }
   };
 
   return (
     <ConfirmModal
-      isOpen={appDeleteModal.showModal}
+      isOpen={showAppDeleteModal}
       title="🍓 Delete This App?"
       message={
-        appDeleteModal.appToDelete
-          ? `Do you really want to delete ${appDeleteModal.appToDelete.name}? 🥺\n\nI can't undo this once it's done! Are you absolutely sure? 💕`
+        appToDelete
+          ? `Do you really want to delete ${appToDelete.name}? 🥺\n\nI can't undo this once it's done! Are you absolutely sure? 💕`
           : ""
       }
       onConfirm={handleConfirmAppDelete}
-      onCancel={appDeleteModal.close}
+      onCancel={closeAppDeleteModal}
       isLoading={isUninstalling}
       relatedApps={[]}
     />

@@ -1,4 +1,3 @@
-import * as R from "ramda";
 import { memo } from "react";
 import {
   useAppContext,
@@ -6,17 +5,19 @@ import {
   useWidgetFormContext,
   useBuildDeployContext,
   useModalContext,
+  useVersionsContext,
 } from "../../../contexts";
 import AppsSelectionPanel from "./AppsSelectionPanel";
 import WidgetsSelectionPanel from "./WidgetsSelectionPanel";
 import BuildDeploySection from "./BuildDeploySection";
 
-const WidgetManager = memo(({ versions }) => {
+const WidgetManager = memo(() => {
   const appContext = useAppContext();
   const widgetCollectionContext = useWidgetCollectionContext();
   const widgetFormContext = useWidgetFormContext();
   const buildDeployContext = useBuildDeployContext();
   const modalContext = useModalContext();
+  const { versions } = useVersionsContext();
 
   const {
     filteredApps,

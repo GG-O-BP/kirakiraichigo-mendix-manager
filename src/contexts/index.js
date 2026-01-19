@@ -13,3 +13,4 @@ export {
   useBuildDeployContext,
 } from "./BuildDeployContext";
 export { ModalProvider, useModalContext } from "./ModalContext";
+export { VersionsProvider, useVersionsContext } from "./VersionsContext";

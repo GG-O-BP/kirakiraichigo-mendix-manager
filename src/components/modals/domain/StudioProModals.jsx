@@ -2,25 +2,42 @@ import { invoke } from "@tauri-apps/api/core";
 import { ConfirmModal } from "../../common";
 import DownloadModal from "../DownloadModal";
 import { getVersionLoadingState } from "../../../utils";
+import {
+  useModalContext,
+  useVersionsContext,
+  useAppContext,
+} from "../../../contexts";
 
 /**
  * StudioProModals - Domain component for Studio Pro version modals
  * Handles uninstall confirmation and download modals
+ * Consumes context directly instead of receiving props
  */
-function StudioProModals({
-  uninstallModal,
-  downloadModal,
-  versionLoadingStates,
-  handleUninstallStudioPro,
-  handleModalDownload,
-  loadApps,
-}) {
+function StudioProModals() {
+  const {
+    showUninstallModal,
+    versionToUninstall,
+    relatedApps,
+    closeUninstallModal,
+    showDownloadModal,
+    versionToDownload,
+    closeDownloadModal,
+  } = useModalContext();
+
+  const {
+    versionLoadingStates,
+    handleUninstallStudioPro,
+    handleModalDownload,
+  } = useVersionsContext();
+
+  const { loadApps } = useAppContext();
+
   const handleConfirmUninstall = async (deleteApps = false) => {
-    if (uninstallModal.versionToUninstall) {
+    if (versionToUninstall) {
       await handleUninstallStudioPro(
-        uninstallModal.versionToUninstall,
+        versionToUninstall,
         deleteApps,
-        uninstallModal.relatedApps,
+        relatedApps,
         {
           onDeleteApp: async (appPath) => {
             await invoke("delete_mendix_app", { appPath });
@@ -29,7 +46,7 @@ function StudioProModals({
             if (deleteApps) {
               loadApps();
             }
-            uninstallModal.close();
+            closeUninstallModal();
           },
         },
       );
@@ -39,42 +56,42 @@ function StudioProModals({
   return (
     <>
       <ConfirmModal
-        isOpen={uninstallModal.showModal}
+        isOpen={showUninstallModal}
         title="🍓 Say Goodbye to Studio Pro?"
         message={
-          uninstallModal.versionToUninstall
-            ? `Are you really really sure you want to uninstall Studio Pro ${uninstallModal.versionToUninstall.version}? ✨\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay? 💝`
+          versionToUninstall
+            ? `Are you really really sure you want to uninstall Studio Pro ${versionToUninstall.version}? ✨\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay? 💝`
             : ""
         }
         onConfirm={() => handleConfirmUninstall(false)}
         onConfirmWithApps={
-          uninstallModal.relatedApps.length > 0
+          relatedApps.length > 0
             ? () => handleConfirmUninstall(true)
             : null
         }
-        onCancel={uninstallModal.close}
+        onCancel={closeUninstallModal}
         isLoading={
-          uninstallModal.versionToUninstall
+          versionToUninstall
             ? getVersionLoadingState(
                 versionLoadingStates,
-                uninstallModal.versionToUninstall.version,
+                versionToUninstall.version,
               ).isUninstalling
             : false
         }
-        relatedApps={uninstallModal.relatedApps}
+        relatedApps={relatedApps}
       />
 
       <DownloadModal
-        isOpen={downloadModal.showModal}
-        version={downloadModal.versionToDownload}
+        isOpen={showDownloadModal}
+        version={versionToDownload}
         onDownload={handleModalDownload}
-        onClose={downloadModal.close}
-        onCancel={downloadModal.close}
+        onClose={closeDownloadModal}
+        onCancel={closeDownloadModal}
         isLoading={
-          downloadModal.versionToDownload
+          versionToDownload
             ? getVersionLoadingState(
                 versionLoadingStates,
-                downloadModal.versionToDownload.version,
+                versionToDownload.version,
               ).isDownloading
             : false
         }

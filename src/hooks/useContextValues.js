@@ -7,6 +7,7 @@ export function useContextValues({
   widgetPreviewHook,
   buildDeploy,
   modals,
+  versions,
 }) {
   const appContextValue = useMemo(
     () => ({
@@ -136,6 +137,33 @@ export function useContextValues({
     [modals],
   );
 
+  const versionsContextValue = useMemo(
+    () => ({
+      searchTerm: versions.searchTerm,
+      setSearchTerm: versions.setSearchTerm,
+      versions: versions.versions,
+      filteredVersions: versions.filteredVersions,
+      selectedVersion: versions.selectedVersion,
+      handleVersionClick: versions.handleVersionClick,
+      versionLoadingStates: versions.versionLoadingStates,
+      handleLaunchStudioPro: versions.handleLaunchStudioPro,
+      handleUninstallStudioPro: versions.handleUninstallStudioPro,
+      fetchVersionsFromDatagrid: versions.fetchVersionsFromDatagrid,
+      downloadableVersions: versions.downloadableVersions,
+      isLoadingDownloadableVersions: versions.isLoadingDownloadableVersions,
+      handleModalDownload: versions.handleModalDownload,
+      showOnlyDownloadableVersions: versions.showOnlyDownloadableVersions,
+      setShowOnlyDownloadableVersions: versions.setShowOnlyDownloadableVersions,
+      showLTSOnly: versions.showLTSOnly,
+      setShowLTSOnly: versions.setShowLTSOnly,
+      showMTSOnly: versions.showMTSOnly,
+      setShowMTSOnly: versions.setShowMTSOnly,
+      showBetaOnly: versions.showBetaOnly,
+      setShowBetaOnly: versions.setShowBetaOnly,
+    }),
+    [versions],
+  );
+
   return {
     appContextValue,
     widgetCollectionContextValue,
@@ -143,5 +171,6 @@ export function useContextValues({
     widgetFormContextValue,
     buildDeployContextValue,
     modalContextValue,
+    versionsContextValue,
   };
 }
