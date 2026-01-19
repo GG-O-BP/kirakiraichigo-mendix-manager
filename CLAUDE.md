@@ -41,8 +41,15 @@ The frontend follows **functional programming** patterns using Ramda.js with Rea
 - `widgetHelpers.js` - createWidget, invokeHasBuildFailures, createCatastrophicErrorResult
 - `async.js` - wrapAsync helper for error handling
 - `setUtils.js` - arrayToSet, hasItems, setProperty
-- `dataProcessing.js` - Rust invoke wrappers for filtering/sorting
+- `dataProcessing.js` - Re-exports from data-processing/ (backward compatible)
 - `editorConfigParser.js` - Widget editor config parsing
+
+**Data Processing Sub-Modules** (`src/utils/data-processing/`):
+- `versionFiltering.js` - filterMendixVersions
+- `appFiltering.js` - filterMendixApps, filterAndSortAppsWithPriority, filterAppsBySelectedPaths
+- `widgetFiltering.js` - filterWidgets, filterWidgetsBySelectedIds, sortWidgetsByOrder, removeWidgetById
+- `propertyCalculation.js` - initializePropertyValues, count* functions
+- `pathUtils.js` - extractFolderNameFromPath
 
 **Context API** (`src/contexts/`):
 - `AppContext` - Apps state: filteredApps, selectedApps, handleAppClick, versionFilter
@@ -51,7 +58,13 @@ The frontend follows **functional programming** patterns using Ramda.js with Rea
 - `WidgetPreviewContext` - Preview state: selectedWidgetForPreview, properties, updateProperty
 - `WidgetFormContext` - Widget form inputs: newWidgetCaption, newWidgetPath
 - `BuildDeployContext` - Build/deploy state: packageManager, isBuilding, handleInstall/handleBuildDeploy
-- `ModalContext` - Modal states: all modal visibility and handlers
+- `ModalContext` - Combined modal states (backward compatible)
+
+**Domain-Specific Modal Contexts** (`src/contexts/modals/`):
+- `StudioProModalContext` - Uninstall and download modals
+- `AppModalContext` - App delete modal
+- `WidgetModalContext` - Widget add/manage and delete modals
+- `BuildModalContext` - Build result modal
 
 **Hooks** (`src/hooks/`):
 - `useCollection` - Generic collection hook for selection, filtering, persistence (used by useApps, useWidgets)
@@ -76,6 +89,12 @@ The frontend follows **functional programming** patterns using Ramda.js with Rea
 - `useWidgetDataLoader` - Widget definition, properties, and editor config loading
 - `usePropertyVisibility` - Visible property keys and group counts calculation
 - `usePropertyGroupUI` - Group expansion/collapse UI state
+
+**Build/Deploy Sub-Hooks** (`src/hooks/build-deploy/`) - For granular control:
+- `useBuildDeployState` - Loading states and results management
+- `usePackageManagerPersistence` - Package manager preference persistence
+- `useInstallOperation` - Install handler with dependency injection
+- `useBuildDeployOperation` - Build/deploy handler with dependency injection
 
 **Modal Hooks** (separated for single responsibility):
 - `useUninstallModal` - Studio Pro uninstall confirmation
@@ -107,12 +126,14 @@ tabs/
 │   ├── WidgetManager.jsx         # Main orchestrator (~60 lines)
 │   ├── AppsSelectionPanel.jsx
 │   ├── WidgetsSelectionPanel.jsx
-│   └── BuildDeploySection.jsx
+│   ├── BuildDeploySection.jsx
+│   └── InlineResults.jsx         # Build results display component
 └── widget-preview/
     ├── WidgetPreview.jsx         # Main orchestrator (~80 lines)
     ├── WidgetSelectionPanel.jsx
     ├── PropertiesPanel.jsx
     ├── PreviewPanel.jsx
+    ├── PreviewBuildControls.jsx  # Package manager + Run Preview button
     └── PropertyGroupAccordion.jsx
 ```
 
@@ -204,7 +225,7 @@ import * as R from "ramda";
 - Use `wrapAsync` helper to safely handle async operations with error logging
 
 ### Hook Composition Pattern
-When creating complex hooks, follow the composition pattern used by `useVersions` and `useWidgetProperties`:
+When creating complex hooks, follow the composition pattern used by `useVersions`, `useWidgetProperties`, and `useBuildDeploy`:
 ```javascript
 // Composition hook combines sub-hooks while maintaining backward compatibility
 export function useVersions() {
@@ -214,10 +235,21 @@ export function useVersions() {
 
   return { ...filters, ...installed, ...operations };
 }
+
+// useBuildDeploy example - state + persistence + operations
+export function useBuildDeploy(options = {}) {
+  const state = useBuildDeployState();
+  const persistence = usePackageManagerPersistence();
+  const install = useInstallOperation({ packageManager: persistence.packageManager, ... });
+  const buildDeploy = useBuildDeployOperation({ ... });
+
+  return { ...persistence, ...state, ...install, ...buildDeploy };
+}
 ```
 - Sub-hooks should have single responsibility (pure state, data loading, or operations)
 - Use dependency injection via parameters for callbacks (e.g., `{ onLoadVersions }`)
 - Composition hooks flatten returns for backward compatibility
+- Handler wrapping (binding selections to handlers) happens in `useAppInitialization`, not in context value creation
 
 ### Rust Development
 - All commands must be async (`async fn`) and return `Result<T, String>`

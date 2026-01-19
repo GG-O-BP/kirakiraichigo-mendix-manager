@@ -2,6 +2,7 @@ import * as R from "ramda";
 import { memo } from "react";
 import DynamicPropertyInput from "../../common/DynamicPropertyInput";
 import PropertyGroupAccordion from "./PropertyGroupAccordion";
+import PreviewBuildControls from "./PreviewBuildControls";
 
 const renderPropertyInputField = R.curry((properties, updateProperty, property) => (
   <DynamicPropertyInput
@@ -29,21 +30,21 @@ const parsePropertySpec = R.pipe(
 
 const renderNoConfigurableProperties = () => (
   <div className="no-properties">
-    <span className="info-icon">ℹ️</span>
+    <span className="info-icon">{"\u2139\ufe0f"}</span>
     <p>No configurable properties found</p>
   </div>
 );
 
 const renderPropertiesLoadingState = () => (
   <div className="property-loading">
-    <span className="loading-icon">⏳</span>
+    <span className="loading-icon">{"\u23f3"}</span>
     <p>Loading widget properties...</p>
   </div>
 );
 
 const renderNoWidgetSelectedState = () => (
   <div className="no-widget-selected">
-    <span className="no-widget-icon">🧩</span>
+    <span className="no-widget-icon">{"\ud83e\udde9"}</span>
     <p>Select a widget to view its properties</p>
   </div>
 );
@@ -154,34 +155,15 @@ const PropertiesPanel = memo(({
   <div className="preview-middle">
     <div className="properties-header">
       <h3>Properties</h3>
-      <div className="preview-controls">
-        <select
-          value={packageManager}
-          onChange={(e) => setPackageManager(e.target.value)}
-          disabled={isBuilding}
-          className="package-manager-select"
-        >
-          <option value="npm">npm</option>
-          <option value="yarn">yarn</option>
-          <option value="pnpm">pnpm</option>
-          <option value="bun">bun</option>
-        </select>
-        <button
-          className="run-preview-button"
-          onClick={() => handleRunPreview(selectedWidget)}
-          disabled={!selectedWidget || isBuilding}
-        >
-          <span className="button-icon">{isBuilding ? "⏳" : "▶️"}</span>
-          {isBuilding ? "Building..." : "Run Preview"}
-        </button>
-      </div>
+      <PreviewBuildControls
+        selectedWidget={selectedWidget}
+        packageManager={packageManager}
+        setPackageManager={setPackageManager}
+        isBuilding={isBuilding}
+        buildError={buildError}
+        handleRunPreview={handleRunPreview}
+      />
     </div>
-    {buildError && (
-      <div className="build-error">
-        <span className="error-icon">❌</span>
-        <p>{buildError}</p>
-      </div>
-    )}
     <div className="property-section">
       {selectedWidget ? (
         widgetDefinition ? (

@@ -15,6 +15,10 @@ import {
   BuildDeployProvider,
   ModalProvider,
   VersionsProvider,
+  StudioProModalProvider,
+  AppModalProvider,
+  WidgetModalProvider,
+  BuildModalProvider,
 } from "./contexts";
 
 const TAB_CONFIGURATIONS = [
@@ -35,6 +39,10 @@ function App() {
     buildDeployContextValue,
     modalContextValue,
     versionsContextValue,
+    studioProModalContextValue,
+    appModalContextValue,
+    widgetModalContextValue,
+    buildModalContextValue,
   } = useContextValues({ appsHook, widgetsHook, widgetPreviewHook, buildDeploy, modals, versions });
 
   const [activeTab, setActiveTab] = useState("studio-pro");
@@ -76,33 +84,41 @@ function App() {
 
   return (
     <ModalProvider value={modalContextValue}>
-      <VersionsProvider value={versionsContextValue}>
-        <AppProvider value={appContextValue}>
-          <WidgetCollectionProvider value={widgetCollectionContextValue}>
-            <WidgetPreviewProvider value={widgetPreviewContextValue}>
-              <WidgetFormProvider value={widgetFormContextValue}>
-                <BuildDeployProvider value={buildDeployContextValue}>
-                  <main className="app-container">
-                    <AppHeader
-                      currentTheme={theme.currentTheme}
-                      currentLogo={theme.currentLogo}
-                      handleThemeChange={theme.handleThemeChange}
-                    />
+      <StudioProModalProvider value={studioProModalContextValue}>
+        <AppModalProvider value={appModalContextValue}>
+          <WidgetModalProvider value={widgetModalContextValue}>
+            <BuildModalProvider value={buildModalContextValue}>
+              <VersionsProvider value={versionsContextValue}>
+                <AppProvider value={appContextValue}>
+                  <WidgetCollectionProvider value={widgetCollectionContextValue}>
+                    <WidgetPreviewProvider value={widgetPreviewContextValue}>
+                      <WidgetFormProvider value={widgetFormContextValue}>
+                        <BuildDeployProvider value={buildDeployContextValue}>
+                          <main className="app-container">
+                            <AppHeader
+                              currentTheme={theme.currentTheme}
+                              currentLogo={theme.currentLogo}
+                              handleThemeChange={theme.handleThemeChange}
+                            />
 
-                    <div className="tabs">
-                      {R.map(renderTabButton(activeTab, setActiveTab), tabs)}
-                    </div>
+                            <div className="tabs">
+                              {R.map(renderTabButton(activeTab, setActiveTab), tabs)}
+                            </div>
 
-                    <div className="tab-content">{activeTabContent}</div>
+                            <div className="tab-content">{activeTabContent}</div>
 
-                    <AppModals />
-                  </main>
-                </BuildDeployProvider>
-              </WidgetFormProvider>
-            </WidgetPreviewProvider>
-          </WidgetCollectionProvider>
-        </AppProvider>
-      </VersionsProvider>
+                            <AppModals />
+                          </main>
+                        </BuildDeployProvider>
+                      </WidgetFormProvider>
+                    </WidgetPreviewProvider>
+                  </WidgetCollectionProvider>
+                </AppProvider>
+              </VersionsProvider>
+            </BuildModalProvider>
+          </WidgetModalProvider>
+        </AppModalProvider>
+      </StudioProModalProvider>
     </ModalProvider>
   );
 }

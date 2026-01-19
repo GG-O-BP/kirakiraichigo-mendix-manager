@@ -1,6 +1,6 @@
 import { ConfirmModal } from "../../common";
 import {
-  useModalContext,
+  useAppModalContext,
   useAppContext,
   useBuildDeployContext,
 } from "../../../contexts";
@@ -8,14 +8,14 @@ import {
 /**
  * AppDeleteModals - Domain component for app deletion modal
  * Handles the confirmation dialog for deleting Mendix apps
- * Consumes context directly instead of receiving props
+ * Consumes domain-specific AppModalContext
  */
 function AppDeleteModals() {
   const {
     showAppDeleteModal,
     appToDelete,
     closeAppDeleteModal,
-  } = useModalContext();
+  } = useAppModalContext();
 
   const { handleDeleteApp } = useAppContext();
   const { isUninstalling, setIsUninstalling } = useBuildDeployContext();
@@ -38,10 +38,10 @@ function AppDeleteModals() {
   return (
     <ConfirmModal
       isOpen={showAppDeleteModal}
-      title="🍓 Delete This App?"
+      title="\ud83c\udf53 Delete This App?"
       message={
         appToDelete
-          ? `Do you really want to delete ${appToDelete.name}? 🥺\n\nI can't undo this once it's done! Are you absolutely sure? 💕`
+          ? `Do you really want to delete ${appToDelete.name}? \ud83e\udd7a\n\nI can't undo this once it's done! Are you absolutely sure? \ud83d\udc95`
           : ""
       }
       onConfirm={handleConfirmAppDelete}

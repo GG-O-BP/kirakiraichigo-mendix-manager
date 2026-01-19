@@ -78,18 +78,9 @@ export function useContextValues({
       setPackageManager: buildDeploy.setPackageManager,
       isInstalling: buildDeploy.isInstalling,
       isBuilding: buildDeploy.isBuilding,
-      handleInstall: () =>
-        buildDeploy.handleInstall({
-          selectedWidgets: widgetsHook.selectedWidgets,
-          widgets: widgetsHook.widgets,
-        }),
-      handleBuildDeploy: () =>
-        buildDeploy.handleBuildDeploy({
-          selectedWidgets: widgetsHook.selectedWidgets,
-          selectedApps: appsHook.selectedApps,
-          widgets: widgetsHook.widgets,
-          apps: appsHook.apps,
-        }),
+      // Handlers are already wrapped in useAppInitialization
+      handleInstall: buildDeploy.handleInstall,
+      handleBuildDeploy: buildDeploy.handleBuildDeploy,
       buildResults: buildDeploy.buildResults,
       setBuildResults: buildDeploy.setBuildResults,
       inlineResults: buildDeploy.inlineResults,
@@ -97,16 +88,11 @@ export function useContextValues({
       isUninstalling: buildDeploy.isUninstalling,
       setIsUninstalling: buildDeploy.setIsUninstalling,
     }),
-    [
-      buildDeploy,
-      widgetsHook.selectedWidgets,
-      widgetsHook.widgets,
-      appsHook.selectedApps,
-      appsHook.apps,
-    ],
+    [buildDeploy],
   );
 
-  const modalContextValue = useMemo(
+  // Domain-specific modal context values
+  const studioProModalContextValue = useMemo(
     () => ({
       showUninstallModal: modals.uninstall.showModal,
       versionToUninstall: modals.uninstall.versionToUninstall,
@@ -114,10 +100,26 @@ export function useContextValues({
       setRelatedApps: modals.uninstall.setRelatedApps,
       openUninstallModal: modals.uninstall.open,
       closeUninstallModal: modals.uninstall.close,
+      showDownloadModal: modals.download.showModal,
+      versionToDownload: modals.download.versionToDownload,
+      openDownloadModal: modals.download.open,
+      closeDownloadModal: modals.download.close,
+    }),
+    [modals.uninstall, modals.download],
+  );
+
+  const appModalContextValue = useMemo(
+    () => ({
       showAppDeleteModal: modals.appDelete.showModal,
       appToDelete: modals.appDelete.appToDelete,
       openAppDeleteModal: modals.appDelete.open,
       closeAppDeleteModal: modals.appDelete.close,
+    }),
+    [modals.appDelete],
+  );
+
+  const widgetModalContextValue = useMemo(
+    () => ({
       showWidgetModal: modals.widget.showModal,
       showAddWidgetForm: modals.widget.showAddForm,
       setShowWidgetModal: modals.widget.setShowModal,
@@ -127,14 +129,27 @@ export function useContextValues({
       openWidgetDeleteModal: modals.widgetDelete.open,
       closeWidgetDeleteModal: modals.widgetDelete.close,
       handleWidgetDeleteClick: modals.widgetDelete.open,
-      showDownloadModal: modals.download.showModal,
-      versionToDownload: modals.download.versionToDownload,
-      openDownloadModal: modals.download.open,
-      closeDownloadModal: modals.download.close,
+    }),
+    [modals.widget, modals.widgetDelete],
+  );
+
+  const buildModalContextValue = useMemo(
+    () => ({
       showResultModal: modals.result.showModal,
       setShowResultModal: modals.result.setShowModal,
     }),
-    [modals],
+    [modals.result],
+  );
+
+  // Combined modal context for backward compatibility
+  const modalContextValue = useMemo(
+    () => ({
+      ...studioProModalContextValue,
+      ...appModalContextValue,
+      ...widgetModalContextValue,
+      ...buildModalContextValue,
+    }),
+    [studioProModalContextValue, appModalContextValue, widgetModalContextValue, buildModalContextValue],
   );
 
   const versionsContextValue = useMemo(
@@ -172,5 +187,10 @@ export function useContextValues({
     buildDeployContextValue,
     modalContextValue,
     versionsContextValue,
+    // Domain-specific modal context values
+    studioProModalContextValue,
+    appModalContextValue,
+    widgetModalContextValue,
+    buildModalContextValue,
   };
 }

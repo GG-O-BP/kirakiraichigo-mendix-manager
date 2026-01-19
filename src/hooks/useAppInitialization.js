@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import * as R from "ramda";
 
 import { useTheme } from "./useTheme";
@@ -32,6 +32,33 @@ export function useAppInitialization() {
     onShowResultModal: resultModal.setShowModal,
   });
 
+  // Create wrapped handlers that include the current selection state
+  const wrappedHandleInstall = useCallback(
+    () =>
+      buildDeploy.handleInstall({
+        selectedWidgets: widgetsHook.selectedWidgets,
+        widgets: widgetsHook.widgets,
+      }),
+    [buildDeploy.handleInstall, widgetsHook.selectedWidgets, widgetsHook.widgets],
+  );
+
+  const wrappedHandleBuildDeploy = useCallback(
+    () =>
+      buildDeploy.handleBuildDeploy({
+        selectedWidgets: widgetsHook.selectedWidgets,
+        selectedApps: appsHook.selectedApps,
+        widgets: widgetsHook.widgets,
+        apps: appsHook.apps,
+      }),
+    [
+      buildDeploy.handleBuildDeploy,
+      widgetsHook.selectedWidgets,
+      appsHook.selectedApps,
+      widgetsHook.widgets,
+      appsHook.apps,
+    ],
+  );
+
   useEffect(() => {
     R.juxt([
       versions.loadVersions,
@@ -46,7 +73,12 @@ export function useAppInitialization() {
     appsHook,
     widgetsHook,
     widgetPreviewHook,
-    buildDeploy,
+    buildDeploy: {
+      ...buildDeploy,
+      // Replace with wrapped handlers
+      handleInstall: wrappedHandleInstall,
+      handleBuildDeploy: wrappedHandleBuildDeploy,
+    },
     modals: {
       uninstall: uninstallModal,
       appDelete: appDeleteModal,

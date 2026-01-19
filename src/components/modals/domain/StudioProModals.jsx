@@ -3,7 +3,7 @@ import { ConfirmModal } from "../../common";
 import DownloadModal from "../DownloadModal";
 import { getVersionLoadingState } from "../../../utils";
 import {
-  useModalContext,
+  useStudioProModalContext,
   useVersionsContext,
   useAppContext,
 } from "../../../contexts";
@@ -11,7 +11,7 @@ import {
 /**
  * StudioProModals - Domain component for Studio Pro version modals
  * Handles uninstall confirmation and download modals
- * Consumes context directly instead of receiving props
+ * Consumes domain-specific StudioProModalContext
  */
 function StudioProModals() {
   const {
@@ -22,7 +22,7 @@ function StudioProModals() {
     showDownloadModal,
     versionToDownload,
     closeDownloadModal,
-  } = useModalContext();
+  } = useStudioProModalContext();
 
   const {
     versionLoadingStates,
@@ -57,10 +57,10 @@ function StudioProModals() {
     <>
       <ConfirmModal
         isOpen={showUninstallModal}
-        title="🍓 Say Goodbye to Studio Pro?"
+        title="\ud83c\udf53 Say Goodbye to Studio Pro?"
         message={
           versionToUninstall
-            ? `Are you really really sure you want to uninstall Studio Pro ${versionToUninstall.version}? ✨\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay? 💝`
+            ? `Are you really really sure you want to uninstall Studio Pro ${versionToUninstall.version}? \u2728\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay? \ud83d\udc9d`
             : ""
         }
         onConfirm={() => handleConfirmUninstall(false)}

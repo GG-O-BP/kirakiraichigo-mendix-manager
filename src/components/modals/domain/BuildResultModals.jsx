@@ -1,13 +1,13 @@
 import BuildResultModal from "../BuildResultModal";
-import { useModalContext, useBuildDeployContext } from "../../../contexts";
+import { useBuildModalContext, useBuildDeployContext } from "../../../contexts";
 
 /**
  * BuildResultModals - Domain component for build result modal
  * Handles the display of build/deploy results
- * Consumes context directly instead of receiving props
+ * Consumes domain-specific BuildModalContext
  */
 function BuildResultModals() {
-  const { showResultModal, setShowResultModal } = useModalContext();
+  const { showResultModal, setShowResultModal } = useBuildModalContext();
   const { buildResults, setBuildResults } = useBuildDeployContext();
 
   return (

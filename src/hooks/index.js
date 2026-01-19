@@ -38,3 +38,11 @@ export {
   usePropertyVisibility,
   usePropertyGroupUI,
 } from "./widget-properties";
+
+// Build/deploy sub-hooks (for granular use)
+export {
+  useBuildDeployState,
+  usePackageManagerPersistence,
+  useInstallOperation,
+  useBuildDeployOperation,
+} from "./build-deploy";

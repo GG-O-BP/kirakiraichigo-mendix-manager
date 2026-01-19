@@ -14,3 +14,15 @@ export {
 } from "./BuildDeployContext";
 export { ModalProvider, useModalContext } from "./ModalContext";
 export { VersionsProvider, useVersionsContext } from "./VersionsContext";
+
+// Domain-specific modal contexts
+export {
+  StudioProModalProvider,
+  useStudioProModalContext,
+  AppModalProvider,
+  useAppModalContext,
+  WidgetModalProvider,
+  useWidgetModalContext,
+  BuildModalProvider,
+  useBuildModalContext,
+} from "./modals";

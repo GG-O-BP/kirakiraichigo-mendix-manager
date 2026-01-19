@@ -1,19 +1,29 @@
-// Re-export all data processing utilities for backward compatibility
-// New code should import from individual modules in data-processing/
+// Version filtering
+export { filterMendixVersions } from "./versionFiltering";
 
+// App filtering
 export {
-  filterMendixVersions,
   filterMendixApps,
   filterAndSortAppsWithPriority,
   filterAppsBySelectedPaths,
+} from "./appFiltering";
+
+// Widget filtering
+export {
   filterWidgets,
   filterWidgetsBySelectedIds,
   sortWidgetsByOrder,
   removeWidgetById,
+} from "./widgetFiltering";
+
+// Property calculation
+export {
   initializePropertyValues,
   countVisiblePropertiesInGroup,
   countVisiblePropertiesInWidgetGroup,
   countAllGroupsVisibleProperties,
   countAllWidgetGroupsVisibleProperties,
-  extractFolderNameFromPath,
-} from "./data-processing";
+} from "./propertyCalculation";
+
+// Path utilities
+export { extractFolderNameFromPath } from "./pathUtils";
