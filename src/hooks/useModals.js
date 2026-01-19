@@ -1,3 +1,4 @@
+import * as R from "ramda";
 import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { wrapAsync } from "../utils/functional";
@@ -32,9 +33,8 @@ export function useModals() {
     wrapAsync(
       (error) => alert(`Failed to get related apps: ${error}`),
       async (version) => {
-        const relatedApps = await invoke("get_apps_by_version", {
-          version: version.version,
-        });
+        const versionId = R.prop("version", version);
+        const relatedApps = await invoke("get_apps_by_version", { version: versionId });
         setShowUninstallModal(true);
         setVersionToUninstall(version);
         setRelatedApps(relatedApps);
@@ -43,48 +43,74 @@ export function useModals() {
     [],
   );
 
-  const closeUninstallModal = useCallback(() => {
-    setShowUninstallModal(false);
-    setVersionToUninstall(null);
-    setRelatedApps([]);
-  }, []);
+  const closeUninstallModal = useCallback(
+    R.pipe(
+      R.tap(() => setShowUninstallModal(false)),
+      R.tap(() => setVersionToUninstall(null)),
+      R.tap(() => setRelatedApps([])),
+    ),
+    [],
+  );
 
   // App Delete Modal handlers
-  const openAppDeleteModal = useCallback((app) => {
-    setShowAppDeleteModal(true);
-    setAppToDelete(app);
-  }, []);
+  const openAppDeleteModal = useCallback(
+    R.pipe(
+      R.tap(() => setShowAppDeleteModal(true)),
+      R.tap(setAppToDelete),
+    ),
+    [],
+  );
 
-  const closeAppDeleteModal = useCallback(() => {
-    setShowAppDeleteModal(false);
-    setAppToDelete(null);
-  }, []);
+  const closeAppDeleteModal = useCallback(
+    R.pipe(
+      R.tap(() => setShowAppDeleteModal(false)),
+      R.tap(() => setAppToDelete(null)),
+    ),
+    [],
+  );
 
   // Widget Delete Modal handlers
-  const openWidgetDeleteModal = useCallback((widget) => {
-    setShowWidgetDeleteModal(true);
-    setWidgetToDelete(widget);
-  }, []);
+  const openWidgetDeleteModal = useCallback(
+    R.pipe(
+      R.tap(() => setShowWidgetDeleteModal(true)),
+      R.tap(setWidgetToDelete),
+    ),
+    [],
+  );
 
-  const closeWidgetDeleteModal = useCallback(() => {
-    setShowWidgetDeleteModal(false);
-    setWidgetToDelete(null);
-  }, []);
+  const closeWidgetDeleteModal = useCallback(
+    R.pipe(
+      R.tap(() => setShowWidgetDeleteModal(false)),
+      R.tap(() => setWidgetToDelete(null)),
+    ),
+    [],
+  );
 
   // Download Modal handlers
-  const openDownloadModal = useCallback((version) => {
-    if (!version || !version.version) {
-      alert("Invalid version data");
-      return;
-    }
-    setVersionToDownload(version);
-    setShowDownloadModal(true);
-  }, []);
+  const isValidVersion = R.both(
+    R.complement(R.isNil),
+    R.pipe(R.prop("version"), R.complement(R.isNil)),
+  );
 
-  const closeDownloadModal = useCallback(() => {
-    setShowDownloadModal(false);
-    setVersionToDownload(null);
-  }, []);
+  const openDownloadModal = useCallback(
+    R.ifElse(
+      isValidVersion,
+      R.pipe(
+        R.tap(setVersionToDownload),
+        R.tap(() => setShowDownloadModal(true)),
+      ),
+      () => alert("Invalid version data"),
+    ),
+    [],
+  );
+
+  const closeDownloadModal = useCallback(
+    R.pipe(
+      R.tap(() => setShowDownloadModal(false)),
+      R.tap(() => setVersionToDownload(null)),
+    ),
+    [],
+  );
 
   return {
     // Uninstall Modal

@@ -7,7 +7,6 @@ import {
   arrayToSet,
   createWidget,
   invokeValidateRequired,
-  setProperty,
 } from "../utils/functional";
 import { filterWidgets, sortWidgetsByOrder, removeWidgetById } from "../utils/dataProcessing";
 
@@ -15,93 +14,87 @@ export function useWidgets() {
   const [widgets, setWidgets] = useState([]);
   const [filteredWidgets, setFilteredWidgets] = useState([]);
   const [widgetSearchTerm, setWidgetSearchTerm] = useState("");
-  const [widgetPreviewSearch, setWidgetPreviewSearch] = useState("");
   const [selectedWidgets, setSelectedWidgets] = useState(new Set());
-  const [selectedWidgetForPreview, setSelectedWidgetForPreview] = useState(null);
   const [newWidgetCaption, setNewWidgetCaption] = useState("");
   const [newWidgetPath, setNewWidgetPath] = useState("");
-  const [properties, setProperties] = useState({});
 
   const loadWidgets = useCallback(async () => {
     try {
       const savedWidgets = await loadFromStorage(STORAGE_KEYS.WIDGETS, []);
       const savedOrder = await loadFromStorage(STORAGE_KEYS.WIDGET_ORDER, []);
 
-      if (savedOrder.length > 0) {
-        const orderedWidgets = await sortWidgetsByOrder(savedWidgets, savedOrder);
-        setWidgets(orderedWidgets);
-      } else {
-        setWidgets(savedWidgets);
-      }
+      const processWidgets = R.ifElse(
+        R.complement(R.isEmpty),
+        () => sortWidgetsByOrder(savedWidgets, savedOrder),
+        R.always(Promise.resolve(savedWidgets)),
+      );
+
+      const orderedWidgets = await processWidgets(savedOrder);
+      setWidgets(orderedWidgets);
     } catch (error) {
       console.error("Failed to load widgets:", error);
       setWidgets([]);
     }
   }, []);
 
-  const updateProperty = useCallback(
-    R.curry((key, value) => setProperties(setProperty(key, value))),
-    [],
-  );
-
   const handleAddWidget = useCallback(
     (onSuccess) => {
-      if (
-        invokeValidateRequired(["caption", "path"], {
-          caption: newWidgetCaption,
-          path: newWidgetPath,
-        })
-      ) {
+      const isValid = invokeValidateRequired(["caption", "path"], {
+        caption: newWidgetCaption,
+        path: newWidgetPath,
+      });
+
+      R.when(R.always(isValid), () => {
         const newWidget = createWidget(newWidgetCaption, newWidgetPath);
-        const updatedWidgets = [...widgets, newWidget];
+        const updatedWidgets = R.append(newWidget, widgets);
 
         saveToStorage(STORAGE_KEYS.WIDGETS, updatedWidgets)
           .then(() => {
             setWidgets(updatedWidgets);
             setNewWidgetCaption("");
             setNewWidgetPath("");
-            if (onSuccess) onSuccess();
+            R.when(R.complement(R.isNil), R.call)(onSuccess);
           })
           .catch(console.error);
-      }
+      })();
     },
     [newWidgetCaption, newWidgetPath, widgets],
   );
 
   const handleWidgetDelete = useCallback(
     async (widgetToDelete) => {
-      if (widgetToDelete) {
-        try {
-          const newWidgets = await removeWidgetById(widgets, widgetToDelete.id);
-          setWidgets(newWidgets);
-          saveToStorage(STORAGE_KEYS.WIDGETS, newWidgets).catch(console.error);
-
-          setSelectedWidgets((prevSelected) => {
-            const newSet = new Set(prevSelected);
-            newSet.delete(widgetToDelete.id);
-            const newArray = Array.from(newSet);
-            saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS, newArray).catch(
-              console.error,
-            );
-            return newSet;
-          });
-
-          return true;
-        } catch (error) {
-          console.error("Failed to delete widget:", error);
-          return false;
-        }
+      if (R.isNil(widgetToDelete)) {
+        return false;
       }
-      return false;
+
+      try {
+        const widgetId = R.prop("id", widgetToDelete);
+        const newWidgets = await removeWidgetById(widgets, widgetId);
+        setWidgets(newWidgets);
+        saveToStorage(STORAGE_KEYS.WIDGETS, newWidgets).catch(console.error);
+
+        setSelectedWidgets((prevSelected) => {
+          const newSet = new Set(prevSelected);
+          newSet.delete(widgetId);
+          const newArray = Array.from(newSet);
+          saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS, newArray).catch(console.error);
+          return newSet;
+        });
+
+        return true;
+      } catch (error) {
+        console.error("Failed to delete widget:", error);
+        return false;
+      }
     },
     [widgets],
   );
 
   useEffect(() => {
     const saveWidgetsSequentially = async () => {
-      if (widgets.length > 0) {
+      if (R.complement(R.isEmpty)(widgets)) {
         try {
-          const widgetOrder = widgets.map((w) => w.id);
+          const widgetOrder = R.pluck("id", widgets);
           await saveToStorage(STORAGE_KEYS.WIDGET_ORDER, widgetOrder);
           await saveToStorage(STORAGE_KEYS.WIDGETS, widgets);
         } catch (error) {
@@ -115,7 +108,8 @@ export function useWidgets() {
   useEffect(() => {
     const processWidgets = async () => {
       try {
-        const filtered = await filterWidgets(widgets, widgetSearchTerm || null);
+        const searchTerm = R.defaultTo(null, widgetSearchTerm);
+        const filtered = await filterWidgets(widgets, searchTerm);
         setFilteredWidgets(filtered);
       } catch (error) {
         console.error("Failed to filter widgets:", error);
@@ -123,11 +117,11 @@ export function useWidgets() {
       }
     };
 
-    if (widgets && widgets.length > 0) {
-      processWidgets();
-    } else {
-      setFilteredWidgets([]);
-    }
+    R.ifElse(
+      R.complement(R.isEmpty),
+      processWidgets,
+      () => setFilteredWidgets([]),
+    )(widgets);
   }, [widgets, widgetSearchTerm]);
 
   useEffect(() => {
@@ -149,20 +143,14 @@ export function useWidgets() {
     loadWidgets,
     widgetSearchTerm,
     setWidgetSearchTerm,
-    widgetPreviewSearch,
-    setWidgetPreviewSearch,
     selectedWidgets,
     setSelectedWidgets,
-    selectedWidgetForPreview,
-    setSelectedWidgetForPreview,
     newWidgetCaption,
     setNewWidgetCaption,
     newWidgetPath,
     setNewWidgetPath,
     handleAddWidget,
     handleWidgetDelete,
-    properties,
-    updateProperty,
   };
 }
 

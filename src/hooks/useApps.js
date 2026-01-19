@@ -31,24 +31,22 @@ export function useApps() {
     [],
   );
 
+  const toggleSetItem = R.curry((item, set) => {
+    const newSet = new Set(set);
+    R.ifElse(
+      () => newSet.has(item),
+      () => newSet.delete(item),
+      () => newSet.add(item),
+    )();
+    return newSet;
+  });
+
   const handleAppClick = useCallback(
     R.pipe(R.prop("path"), (appPath) => {
       setSelectedApps((prev) => {
-        const currentSet = new Set(prev);
-        const newSet = new Set(currentSet);
-
-        if (currentSet.has(appPath)) {
-          newSet.delete(appPath);
-        } else {
-          newSet.add(appPath);
-        }
-
+        const newSet = toggleSetItem(appPath, prev);
         const newArray = Array.from(newSet);
-
-        saveToStorage(STORAGE_KEYS.SELECTED_APPS, newArray).catch(
-          console.error,
-        );
-
+        saveToStorage(STORAGE_KEYS.SELECTED_APPS, newArray).catch(console.error);
         return newSet;
       });
     }),
@@ -63,13 +61,14 @@ export function useApps() {
 
         setSelectedApps((prev) => {
           const newSet = new Set(prev);
-          if (newSet.has(appPath)) {
-            newSet.delete(appPath);
-            const selectedAppsArray = Array.from(newSet);
-            saveToStorage(STORAGE_KEYS.SELECTED_APPS, selectedAppsArray).catch(
-              console.error,
-            );
-          }
+          R.when(
+            () => newSet.has(appPath),
+            () => {
+              newSet.delete(appPath);
+              const selectedAppsArray = Array.from(newSet);
+              saveToStorage(STORAGE_KEYS.SELECTED_APPS, selectedAppsArray).catch(console.error);
+            },
+          )();
           return newSet;
         });
 
@@ -85,15 +84,15 @@ export function useApps() {
   useEffect(() => {
     const processApps = async () => {
       try {
-        const targetVersion = versionFilter === "all" ? null : versionFilter;
-        const filtered = await filterMendixApps(
-          apps,
-          appSearchTerm || null,
-          targetVersion,
-          true,
-        );
+        const targetVersion = R.ifElse(
+          R.equals("all"),
+          R.always(null),
+          R.identity,
+        )(versionFilter);
+        const searchTerm = R.defaultTo(null, appSearchTerm);
+        const filtered = await filterMendixApps(apps, searchTerm, targetVersion, true);
         setFilteredApps(filtered);
-        setHasMore(filtered.length > ITEMS_PER_PAGE);
+        setHasMore(R.gt(R.length(filtered), ITEMS_PER_PAGE));
         setCurrentPage(1);
       } catch (error) {
         console.error("Failed to filter apps:", error);
@@ -101,11 +100,11 @@ export function useApps() {
       }
     };
 
-    if (apps && apps.length > 0) {
-      processApps();
-    } else {
-      setFilteredApps([]);
-    }
+    R.ifElse(
+      R.complement(R.isEmpty),
+      processApps,
+      () => setFilteredApps([]),
+    )(apps);
   }, [apps, versionFilter, appSearchTerm]);
 
   useEffect(() => {

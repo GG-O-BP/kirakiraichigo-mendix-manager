@@ -1,3 +1,4 @@
+import * as R from "ramda";
 import { useState, useCallback, useEffect } from "react";
 import { flavors } from "@catppuccin/palette";
 import catppuccinLogo from "../assets/catppuccin_circle.png";
@@ -42,41 +43,54 @@ const CATPPUCCIN_CSS_VARS = [
   "crust",
 ];
 
+const CUSTOM_THEMES = ["kiraichi", "kiraichi-light"];
+const LIGHT_THEMES = ["latte", "kiraichi-light"];
+
+const isCustomTheme = R.includes(R.__, CUSTOM_THEMES);
+const isLightTheme = R.includes(R.__, LIGHT_THEMES);
+
+const applyCatppuccinColors = R.curry((root, flavor) => {
+  R.forEach((colorName) => {
+    root.style.setProperty(
+      `--catppuccin-${colorName}`,
+      R.path(["colors", colorName, "hex"], flavor),
+    );
+  }, CATPPUCCIN_CSS_VARS);
+});
+
 const applyTheme = (themeName) => {
   const root = document.documentElement;
 
   root.classList.remove(...THEME_CLASSES);
   root.classList.add(`theme-${themeName}`);
 
-  if (themeName !== "kiraichi" && themeName !== "kiraichi-light") {
-    const flavor = flavors[themeName];
-
-    if (flavor) {
-      CATPPUCCIN_CSS_VARS.forEach((colorName) => {
-        root.style.setProperty(
-          `--catppuccin-${colorName}`,
-          flavor.colors[colorName].hex,
-        );
-      });
-    }
-  }
+  R.unless(
+    R.always(isCustomTheme(themeName)),
+    () => {
+      const flavor = R.prop(themeName, flavors);
+      R.when(R.complement(R.isNil), applyCatppuccinColors(root))(flavor);
+    },
+  )();
 };
-
-const isLightTheme = (theme) => ["latte", "kiraichi-light"].includes(theme);
 
 export function useTheme() {
   const [currentTheme, setCurrentTheme] = useState("kiraichi");
 
-  const currentLogo = isLightTheme(currentTheme)
-    ? catppuccinLatteLogo
-    : catppuccinLogo;
+  const currentLogo = R.ifElse(
+    isLightTheme,
+    R.always(catppuccinLatteLogo),
+    R.always(catppuccinLogo),
+  )(currentTheme);
 
-  const handleThemeChange = useCallback((event) => {
-    const newTheme = event.target.value;
-    setCurrentTheme(newTheme);
-    saveToStorage(STORAGE_KEYS.THEME, newTheme).catch(console.error);
-    applyTheme(newTheme);
-  }, []);
+  const handleThemeChange = useCallback(
+    R.pipe(
+      R.path(["target", "value"]),
+      R.tap(setCurrentTheme),
+      R.tap((newTheme) => saveToStorage(STORAGE_KEYS.THEME, newTheme).catch(console.error)),
+      R.tap(applyTheme),
+    ),
+    [],
+  );
 
   useEffect(() => {
     applyTheme(currentTheme);

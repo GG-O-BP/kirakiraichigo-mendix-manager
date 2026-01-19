@@ -17,6 +17,7 @@ import {
   useVersions,
   useApps,
   useWidgets,
+  useWidgetPreview,
   useModals,
   useBuildDeploy,
 } from "./hooks";
@@ -110,6 +111,7 @@ function App() {
   const versions = useVersions();
   const appsHook = useApps();
   const widgetsHook = useWidgets();
+  const widgetPreview = useWidgetPreview();
   const modals = useModals();
   const buildDeploy = useBuildDeploy({
     selectedWidgets: widgetsHook.selectedWidgets,
@@ -174,16 +176,18 @@ function App() {
       filteredWidgets: widgetsHook.filteredWidgets,
       widgetSearchTerm: widgetsHook.widgetSearchTerm,
       setWidgetSearchTerm: widgetsHook.setWidgetSearchTerm,
-      widgetPreviewSearch: widgetsHook.widgetPreviewSearch,
-      setWidgetPreviewSearch: widgetsHook.setWidgetPreviewSearch,
       selectedWidgets: widgetsHook.selectedWidgets,
       setSelectedWidgets: widgetsHook.setSelectedWidgets,
-      selectedWidgetForPreview: widgetsHook.selectedWidgetForPreview,
-      setSelectedWidgetForPreview: widgetsHook.setSelectedWidgetForPreview,
       setNewWidgetCaption: widgetsHook.setNewWidgetCaption,
       setNewWidgetPath: widgetsHook.setNewWidgetPath,
-      properties: widgetsHook.properties,
-      updateProperty: widgetsHook.updateProperty,
+
+      // Widget Preview
+      widgetPreviewSearch: widgetPreview.widgetPreviewSearch,
+      setWidgetPreviewSearch: widgetPreview.setWidgetPreviewSearch,
+      selectedWidgetForPreview: widgetPreview.selectedWidgetForPreview,
+      setSelectedWidgetForPreview: widgetPreview.setSelectedWidgetForPreview,
+      properties: widgetPreview.properties,
+      updateProperty: widgetPreview.updateProperty,
 
       // Modals
       setShowWidgetModal: modals.setShowWidgetModal,
@@ -208,6 +212,7 @@ function App() {
       versions,
       appsHook,
       widgetsHook,
+      widgetPreview,
       modals.setShowWidgetModal,
       modals.setShowAddWidgetForm,
       modals.openUninstallModal,
@@ -245,10 +250,14 @@ function App() {
     [createTabProps],
   );
 
-  const activeTabContent = useMemo(() => {
-    const foundTab = tabs.find((tab) => tab.id === activeTab);
-    return foundTab ? foundTab.component : null;
-  }, [tabs, activeTab]);
+  const activeTabContent = useMemo(
+    () =>
+      R.pipe(
+        R.find(R.propEq(activeTab, "id")),
+        R.ifElse(R.isNil, R.always(null), R.prop("component")),
+      )(tabs),
+    [tabs, activeTab],
+  );
 
   const renderTabButton = R.curry((activeTab, setActiveTab, tab) => (
     <TabButton

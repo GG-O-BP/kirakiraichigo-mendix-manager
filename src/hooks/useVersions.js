@@ -67,23 +67,32 @@ export function useVersions() {
   }, []);
 
   const handleVersionClick = useCallback((version) => {
-    setSelectedVersion((prevSelected) => {
-      if (prevSelected && prevSelected.version === version.version) {
-        return null;
-      }
-      return version;
-    });
+    setSelectedVersion((prevSelected) =>
+      R.ifElse(
+        R.both(
+          R.complement(R.isNil),
+          R.propEq(R.prop("version", version), "version"),
+        ),
+        R.always(null),
+        R.always(version),
+      )(prevSelected),
+    );
   }, []);
 
   const handleLaunchStudioPro = useCallback(
     async (version) => {
-      const versionId = version.version;
+      const versionId = R.prop("version", version);
       const loadingState = getVersionLoadingState(
         versionLoadingStates,
         versionId,
       );
 
-      if (loadingState.isLaunching || loadingState.isUninstalling) {
+      const isLoading = R.either(
+        R.prop("isLaunching"),
+        R.prop("isUninstalling"),
+      )(loadingState);
+
+      if (isLoading) {
         return;
       }
 
@@ -112,8 +121,9 @@ export function useVersions() {
 
   const handleUninstallStudioPro = useCallback(
     async (version, deleteApps = false, relatedAppsList = [], callbacks = {}) => {
-      const { onDeleteApp, onComplete } = callbacks;
-      const versionId = version.version;
+      const onDeleteApp = R.prop("onDeleteApp", callbacks);
+      const onComplete = R.prop("onComplete", callbacks);
+      const versionId = R.prop("version", version);
 
       setVersionLoadingStates((prev) =>
         updateVersionLoadingStates(versionId, "uninstall", true, prev),
@@ -126,34 +136,41 @@ export function useVersions() {
       };
 
       try {
-        if (deleteApps && relatedAppsList.length > 0 && onDeleteApp) {
+        const shouldDeleteApps = R.all(R.identity, [
+          deleteApps,
+          R.complement(R.isEmpty)(relatedAppsList),
+          R.complement(R.isNil)(onDeleteApp),
+        ]);
+
+        if (shouldDeleteApps) {
           for (const app of relatedAppsList) {
-            await onDeleteApp(app.path);
+            await onDeleteApp(R.prop("path", app));
           }
         }
 
         const result = await invoke("uninstall_studio_pro_and_wait", {
-          version: version.version,
+          version: versionId,
           timeoutSeconds: 60,
         });
 
         await loadVersions();
 
-        if (result.timed_out) {
-          console.warn(
-            `Uninstall of Studio Pro ${version.version} timed out, but may still complete`,
-          );
-        }
+        R.when(
+          R.prop("timed_out"),
+          () => console.warn(`Uninstall of Studio Pro ${versionId} timed out, but may still complete`),
+        )(result);
 
         cleanupUninstallState();
-        onComplete?.();
+        R.when(R.complement(R.isNil), R.call)(onComplete);
       } catch (error) {
-        const errorMsg = deleteApps
-          ? `Failed to uninstall Studio Pro ${version.version} with apps: ${error}`
-          : `Failed to uninstall Studio Pro ${version.version}: ${error}`;
+        const errorMsg = R.ifElse(
+          R.always(deleteApps),
+          R.always(`Failed to uninstall Studio Pro ${versionId} with apps: ${error}`),
+          R.always(`Failed to uninstall Studio Pro ${versionId}: ${error}`),
+        )();
         alert(errorMsg);
         cleanupUninstallState();
-        onComplete?.();
+        R.when(R.complement(R.isNil), R.call)(onComplete);
       }
     },
     [loadVersions],
@@ -161,14 +178,14 @@ export function useVersions() {
 
   const handleModalDownload = useCallback(
     async (version) => {
-      const versionId = version.version;
+      const versionId = R.prop("version", version);
       try {
         setVersionLoadingStates((prev) =>
           updateVersionLoadingStates(versionId, "download", true, prev),
         );
 
         const result = await invoke("download_and_install_mendix_version", {
-          version: version.version,
+          version: versionId,
         });
 
         await loadVersions();
@@ -189,11 +206,8 @@ export function useVersions() {
   useEffect(() => {
     const processVersions = async () => {
       try {
-        const filtered = await filterMendixVersions(
-          versions,
-          searchTerm || null,
-          true,
-        );
+        const term = R.defaultTo(null, searchTerm);
+        const filtered = await filterMendixVersions(versions, term, true);
         setFilteredVersions(filtered);
       } catch (error) {
         console.error("Failed to filter versions:", error);
@@ -201,11 +215,11 @@ export function useVersions() {
       }
     };
 
-    if (versions && versions.length > 0) {
-      processVersions();
-    } else {
-      setFilteredVersions([]);
-    }
+    R.ifElse(
+      R.complement(R.isEmpty),
+      processVersions,
+      () => setFilteredVersions([]),
+    )(versions);
   }, [versions, searchTerm]);
 
   useEffect(() => {

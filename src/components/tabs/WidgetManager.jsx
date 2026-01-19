@@ -263,16 +263,12 @@ const renderWidgetsList = R.curry(
     selectedWidgets,
     setSelectedWidgets,
     handleWidgetDeleteClick,
-    filteredWidgets,
     reorderedWidgets,
     widgetSearchTerm,
     modalHandlers,
     widgetListRef,
   ) => {
-    const widgetsToShow = R.isEmpty(widgetSearchTerm)
-      ? reorderedWidgets
-      : filteredWidgets;
-    const shouldEnableDragDrop = R.isEmpty(widgetSearchTerm);
+    const widgetsToShow = reorderedWidgets;
 
     return R.cond([
       [
@@ -280,6 +276,7 @@ const renderWidgetsList = R.curry(
         () => (
           <div>
             {renderAddWidgetItem(modalHandlers)}
+            <div ref={widgetListRef} className="draggable-widget-list" />
             {renderLoadingIndicator("🧩", "No widgets registered")}
           </div>
         ),
@@ -289,6 +286,7 @@ const renderWidgetsList = R.curry(
         () => (
           <div>
             {renderAddWidgetItem(modalHandlers)}
+            <div ref={widgetListRef} className="draggable-widget-list" style={{ display: "none" }} />
             {renderLoadingIndicator(
               "🔍",
               `No widgets found matching "${widgetSearchTerm}"`,
@@ -301,39 +299,21 @@ const renderWidgetsList = R.curry(
         () => (
           <div>
             {renderAddWidgetItem(modalHandlers)}
-            {shouldEnableDragDrop ? (
-              <div ref={widgetListRef} className="draggable-widget-list">
-                {R.map(
-                  (widget) => (
-                    <WidgetListItem
-                      key={R.prop("id", widget)}
-                      widget={widget}
-                      isSelected={selectedWidgets.has(R.prop("id", widget))}
-                      onClick={() => createWidgetClickHandler(setSelectedWidgets, R.prop("id", widget))}
-                      onDelete={handleWidgetDeleteClick}
-                      showIcon={true}
-                    />
-                  ),
-                  widgetsToShow,
-                )}
-              </div>
-            ) : (
-              <div className="widget-list">
-                {R.map(
-                  (widget) => (
-                    <WidgetListItem
-                      key={R.prop("id", widget)}
-                      widget={widget}
-                      isSelected={selectedWidgets.has(R.prop("id", widget))}
-                      onClick={() => createWidgetClickHandler(setSelectedWidgets, R.prop("id", widget))}
-                      onDelete={handleWidgetDeleteClick}
-                      showIcon={true}
-                    />
-                  ),
-                  widgetsToShow,
-                )}
-              </div>
-            )}
+            <div ref={widgetListRef} className="draggable-widget-list">
+              {R.map(
+                (widget) => (
+                  <WidgetListItem
+                    key={R.prop("id", widget)}
+                    widget={widget}
+                    isSelected={selectedWidgets.has(R.prop("id", widget))}
+                    onClick={() => createWidgetClickHandler(setSelectedWidgets, R.prop("id", widget))}
+                    onDelete={handleWidgetDeleteClick}
+                    showIcon={true}
+                  />
+                ),
+                widgetsToShow,
+              )}
+            </div>
           </div>
         ),
       ],
@@ -388,12 +368,9 @@ const WidgetManager = memo(
       setNewWidgetPath,
     };
 
-    const widgetsForDragDrop = R.isEmpty(widgetSearchTerm)
-      ? filteredWidgets
-      : [];
-
     const [widgetListRef, reorderedWidgets, setReorderedWidgets] =
-      useDragAndDrop(widgetsForDragDrop, {
+      useDragAndDrop(filteredWidgets, {
+        disabled: !R.isEmpty(widgetSearchTerm),
         onSort: ({ values }) => {
           if (R.isEmpty(widgetSearchTerm)) {
             setWidgets(values);
@@ -433,7 +410,6 @@ const WidgetManager = memo(
           selectedWidgets,
           setSelectedWidgets,
           handleWidgetDeleteClick,
-          filteredWidgets,
           reorderedWidgets,
           widgetSearchTerm,
           modalHandlers,

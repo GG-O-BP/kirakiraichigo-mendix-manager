@@ -50,10 +50,10 @@ The frontend follows **functional programming** patterns using Ramda.js:
   - `useTheme` - Theme selection and persistence
   - `useVersions` - Studio Pro versions, filtering, loading states, downloads
   - `useApps` - Mendix apps, filtering, pagination, selection
-  - `useWidgets` - Widget management, properties, preview selection
+  - `useWidgets` - Widget management, properties, selection
+  - `useWidgetPreview` - Widget preview state and build operations
   - `useModals` - Modal dialog states (uninstall, delete, download, widget)
   - `useBuildDeploy` - Build/deploy operations, package manager selection
-  - `useWorkflows` - Cross-cutting business logic (uninstall, delete, add workflows)
 - App.jsx orchestrates hooks and distributes props to tabs via `R.pick` and `R.applySpec`
 - State updates use Ramda lenses (e.g., `R.set`, `R.over`, `R.lensPath`)
 - Persistent state saved to Tauri storage via `save_to_storage` command
@@ -155,6 +155,58 @@ Theme system uses Catppuccin palette (`@catppuccin/palette`) with dynamic CSS va
 - Never mutate state directly - use Ramda's `R.set`, `R.over`, `R.evolve`
 - Keep side effects (invoke, console.log) out of pure functions
 - Use `wrapAsync` helper to safely handle async operations with error logging
+
+### Ramda.js Usage Guidelines
+
+**IMPORTANT**: Ramda.js must be used wherever applicable. Always prefer Ramda functions over native JavaScript methods.
+
+**Required Ramda Patterns**:
+- **Conditionals**: Use `R.ifElse`, `R.when`, `R.unless`, `R.cond` instead of `if/else` statements
+- **Null checks**: Use `R.isNil`, `R.complement(R.isNil)` instead of `=== null` or `!== undefined`
+- **Empty checks**: Use `R.isEmpty`, `R.complement(R.isEmpty)` instead of `.length > 0`
+- **Property access**: Use `R.prop`, `R.path`, `R.propOr`, `R.pathOr` instead of dot notation or optional chaining
+- **Array operations**: Use `R.map`, `R.filter`, `R.find`, `R.reduce`, `R.pluck` instead of native array methods
+- **Comparisons**: Use `R.equals`, `R.propEq`, `R.gt`, `R.lt`, `R.gte`, `R.lte` for comparisons
+- **Boolean logic**: Use `R.and`, `R.or`, `R.not`, `R.both`, `R.either`, `R.all`, `R.any`
+- **Function composition**: Use `R.pipe`, `R.compose` for chaining operations
+- **Side effects in pipes**: Use `R.tap` to execute side effects within `R.pipe`
+- **Currying**: Use `R.curry` for creating reusable curried functions
+- **Default values**: Use `R.defaultTo` instead of `|| defaultValue`
+- **Array manipulation**: Use `R.append`, `R.prepend`, `R.concat`, `R.remove` for immutable array operations
+
+**Common Patterns**:
+```javascript
+// Conditional rendering
+R.ifElse(R.isNil, R.always(null), R.prop("component"))(data)
+
+// Event handler with side effects
+R.pipe(
+  R.path(["target", "value"]),
+  R.tap(setValue),
+  R.tap(doSomething),
+)
+
+// Toggle selection
+R.ifElse(
+  R.propEq(currentId, "id"),
+  R.always(null),
+  R.always(newValue),
+)(prevSelected)
+
+// Safe property access with default
+R.propOr([], "items", data)
+
+// Check multiple conditions
+R.all(R.identity, [condition1, condition2, condition3])
+
+// Find item by property
+R.find(R.propEq(targetId, "id"), items)
+```
+
+**Import Convention**:
+```javascript
+import * as R from "ramda";
+```
 
 ### Rust Development
 - All commands must be async (`async fn`) and return `Result<T, String>`
