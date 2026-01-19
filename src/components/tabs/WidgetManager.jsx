@@ -147,15 +147,12 @@ const AppListItem = memo(({ app, selectedApps, handleAppClick }) => {
       <div className="version-info">
         <span className="version-icon">{renderAppIcon(selectedApps, app)}</span>
         <div className="version-details">
-          <span className="version-number">
-            {R.prop("name", app)}
+          <span className="version-number">{R.prop("name", app)}</span>
+          <span className="version-date">
             {renderVersionBadge(app)}
+            {formattedDate}
           </span>
-          <span className="version-date">{formattedDate}</span>
         </div>
-      </div>
-      <div className="app-actions">
-        <span className="item-sparkle">✨</span>
       </div>
     </div>
   );
