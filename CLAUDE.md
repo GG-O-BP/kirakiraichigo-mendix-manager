@@ -58,6 +58,9 @@ The frontend follows **functional programming** patterns using Ramda.js with Rea
 - `useVersions` - Studio Pro versions, downloads, loading states
 - `useWidgetPreview` - Widget preview state
 - `useTheme` - Theme selection and persistence
+- `useVersionFiltering` - Version filtering, pagination, and display logic
+- `useWidgetProperties` - Widget properties loading, editor config, group counts
+- `usePreviewBuild` - Preview build state and execution
 
 **Modal Hooks** (separated for single responsibility):
 - `useUninstallModal` - Studio Pro uninstall confirmation
@@ -73,11 +76,33 @@ The frontend follows **functional programming** patterns using Ramda.js with Rea
 3. Handlers invoke Rust backend via Tauri `invoke()`
 4. State updates propagate through context
 
-**Component Structure**:
-- `src/App.jsx` - Hook orchestration, context providers, tab management
-- `src/components/tabs/` - StudioProManager (props), WidgetManager (context), WidgetPreview (context)
+**Tab Component Structure** (`src/components/tabs/`):
+
+Each tab is split into focused subcomponents with a main orchestrator:
+
+```
+tabs/
+├── studio-pro/
+│   ├── StudioProManager.jsx      # Main orchestrator (~80 lines)
+│   ├── DownloadableVersionsPanel.jsx
+│   ├── InstalledVersionsPanel.jsx
+│   └── AppsPanel.jsx
+├── widget-manager/
+│   ├── WidgetManager.jsx         # Main orchestrator (~60 lines)
+│   ├── AppsSelectionPanel.jsx
+│   ├── WidgetsSelectionPanel.jsx
+│   └── BuildDeploySection.jsx
+└── widget-preview/
+    ├── WidgetPreview.jsx         # Main orchestrator (~80 lines)
+    ├── WidgetSelectionPanel.jsx
+    ├── PropertiesPanel.jsx
+    ├── PreviewPanel.jsx
+    └── PropertyGroupAccordion.jsx
+```
+
+**Other Component Directories**:
 - `src/components/modals/` - Modal dialogs
-- `src/components/common/` - Reusable UI components
+- `src/components/common/` - Reusable UI components (FilterCheckbox, LoadMoreIndicator, PackageManagerSelector, etc.)
 
 ### Backend Architecture (Rust + Tauri)
 

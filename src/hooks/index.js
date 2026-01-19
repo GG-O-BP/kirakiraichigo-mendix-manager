@@ -17,3 +17,8 @@ export { useResultModal } from "./useResultModal";
 // App-level orchestration hooks
 export { useAppInitialization } from "./useAppInitialization";
 export { useContextValues } from "./useContextValues";
+
+// Extracted domain hooks
+export { useVersionFiltering } from "./useVersionFiltering";
+export { useWidgetProperties } from "./useWidgetProperties";
+export { usePreviewBuild } from "./usePreviewBuild";
