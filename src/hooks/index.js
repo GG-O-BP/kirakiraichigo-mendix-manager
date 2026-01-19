@@ -22,3 +22,19 @@ export { useContextValues } from "./useContextValues";
 export { useVersionFiltering } from "./useVersionFiltering";
 export { useWidgetProperties } from "./useWidgetProperties";
 export { usePreviewBuild } from "./usePreviewBuild";
+
+// Version sub-hooks (for granular use)
+export {
+  useVersionFilters,
+  useVersionSelection,
+  useInstalledVersions,
+  useDownloadableVersions,
+  useVersionOperations,
+} from "./versions";
+
+// Widget properties sub-hooks (for granular use)
+export {
+  useWidgetDataLoader,
+  usePropertyVisibility,
+  usePropertyGroupUI,
+} from "./widget-properties";

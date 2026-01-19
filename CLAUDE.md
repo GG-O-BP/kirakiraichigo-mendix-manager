@@ -57,12 +57,24 @@ The frontend follows **functional programming** patterns using Ramda.js with Rea
 - `useApps` - Extends useCollection for Mendix apps
 - `useWidgets` - Extends useCollection for widgets
 - `useBuildDeploy` - Build/deploy operations with parameter-based handlers (no external dependencies)
-- `useVersions` - Studio Pro versions, downloads, loading states
+- `useVersions` - Composition hook combining version sub-hooks (backward compatible)
 - `useWidgetPreview` - Widget preview state
 - `useTheme` - Theme selection and persistence
 - `useVersionFiltering` - Version filtering, pagination, and display logic
-- `useWidgetProperties` - Widget properties loading, editor config, group counts
+- `useWidgetProperties` - Composition hook combining widget property sub-hooks (backward compatible)
 - `usePreviewBuild` - Preview build state and execution
+
+**Version Sub-Hooks** (`src/hooks/versions/`) - For granular control:
+- `useVersionFilters` - Pure filter state (searchTerm, LTS/MTS/Beta toggles)
+- `useVersionSelection` - Version selection with toggle behavior
+- `useInstalledVersions` - Installed versions loading and filtering
+- `useDownloadableVersions` - Downloadable versions fetching with pagination
+- `useVersionOperations` - Operation handlers (launch, uninstall, download) with dependency injection
+
+**Widget Property Sub-Hooks** (`src/hooks/widget-properties/`) - For granular control:
+- `useWidgetDataLoader` - Widget definition, properties, and editor config loading
+- `usePropertyVisibility` - Visible property keys and group counts calculation
+- `usePropertyGroupUI` - Group expansion/collapse UI state
 
 **Modal Hooks** (separated for single responsibility):
 - `useUninstallModal` - Studio Pro uninstall confirmation
@@ -103,7 +115,9 @@ tabs/
 ```
 
 **Other Component Directories**:
-- `src/components/modals/` - Modal dialogs
+- `src/components/modals/` - Modal dialogs with domain separation
+  - `domain/` - Domain-specific modal groups (StudioProModals, AppDeleteModals, WidgetModals, BuildResultModals)
+  - `AppModals.jsx` - Composition component combining all domain modals
 - `src/components/common/` - Reusable UI components (FilterCheckbox, LoadMoreIndicator, PackageManagerSelector, etc.)
 
 ### Backend Architecture (Rust + Tauri)
@@ -186,6 +200,22 @@ import * as R from "ramda";
 - Never mutate state directly - use Ramda's `R.set`, `R.over`, `R.evolve`
 - Keep side effects (invoke, console.log) out of pure functions
 - Use `wrapAsync` helper to safely handle async operations with error logging
+
+### Hook Composition Pattern
+When creating complex hooks, follow the composition pattern used by `useVersions` and `useWidgetProperties`:
+```javascript
+// Composition hook combines sub-hooks while maintaining backward compatibility
+export function useVersions() {
+  const filters = useVersionFilters();
+  const installed = useInstalledVersions(filters.searchTerm);
+  const operations = useVersionOperations({ onLoadVersions: installed.loadVersions });
+
+  return { ...filters, ...installed, ...operations };
+}
+```
+- Sub-hooks should have single responsibility (pure state, data loading, or operations)
+- Use dependency injection via parameters for callbacks (e.g., `{ onLoadVersions }`)
+- Composition hooks flatten returns for backward compatibility
 
 ### Rust Development
 - All commands must be async (`async fn`) and return `Result<T, String>`
