@@ -8,10 +8,10 @@ import { renderPanel } from "../../common/Panel";
 
 const DEFAULT_VERSION_FILTER = { value: "all", label: "📦 All Versions" };
 
-export const invokeCreateVersionOptions = async (versions) =>
+const invokeCreateVersionOptions = async (versions) =>
   invoke("create_version_options", { versions });
 
-export const invokeFormatDate = async (dateStr) =>
+const invokeFormatDate = async (dateStr) =>
   invoke("format_date", { dateStr });
 
 const isAppSelected = R.curry((selectedApps, app) =>

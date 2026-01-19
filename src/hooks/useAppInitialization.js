@@ -1,5 +1,4 @@
 import { useEffect, useCallback } from "react";
-import * as R from "ramda";
 
 import { useTheme } from "./useTheme";
 import { useVersions } from "./useVersions";
@@ -60,11 +59,9 @@ export function useAppInitialization() {
   );
 
   useEffect(() => {
-    R.juxt([
-      versions.loadVersions,
-      appsHook.loadApps,
-      widgetsHook.loadWidgets,
-    ])();
+    versions.loadVersions();
+    appsHook.loadApps();
+    widgetsHook.loadWidgets();
   }, [versions.loadVersions, appsHook.loadApps, widgetsHook.loadWidgets]);
 
   return {

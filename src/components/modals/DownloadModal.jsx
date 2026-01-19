@@ -70,7 +70,7 @@ const shouldShowProgress = (step) =>
   !R.includes(step, [DOWNLOAD_STEPS.CONFIRM, DOWNLOAD_STEPS.ERROR]);
 
 // Enhanced error message renderer
-const renderErrorMessage = R.curry((error) => (
+const renderErrorMessage = (error) => (
   <div className="error-container">
     <div className="error-icon">⚠️</div>
     <div className="error-content">
@@ -78,7 +78,7 @@ const renderErrorMessage = R.curry((error) => (
       <div className="error-message">{error}</div>
     </div>
   </div>
-));
+);
 
 // Enhanced action buttons renderer with functional composition
 const renderActionButtons = R.curry(

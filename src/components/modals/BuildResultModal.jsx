@@ -3,21 +3,12 @@ import { memo } from "react";
 
 const shouldShowModal = R.prop("showResultModal");
 
-const hasSuccessfulResults = R.pipe(
-  R.path(["buildResults", "successful"]),
-  R.complement(R.isEmpty),
-);
-
 const hasFailedResults = R.pipe(
   R.path(["buildResults", "failed"]),
   R.complement(R.isEmpty),
 );
 
-const getSuccessfulResults = R.path(["buildResults", "successful"]);
-
 const getFailedResults = R.path(["buildResults", "failed"]);
-
-const getResultsCount = R.pipe(R.length);
 
 const handleClose = R.curry((setShowResultModal, setBuildResults) =>
   R.pipe(
@@ -26,26 +17,6 @@ const handleClose = R.curry((setShowResultModal, setBuildResults) =>
     R.always(undefined),
   )(null),
 );
-
-const successStyles = {
-  container: {
-    marginBottom: "20px",
-  },
-  header: {
-    color: "var(--theme-success)",
-    marginBottom: "10px",
-  },
-  item: {
-    padding: "10px",
-    background: "var(--theme-success-bg)",
-    borderRadius: "5px",
-    marginBottom: "10px",
-  },
-  appList: {
-    fontSize: "14px",
-    marginTop: "5px",
-  },
-};
 
 const failedStyles = {
   header: {
@@ -73,15 +44,6 @@ const failedStyles = {
   },
 };
 
-const renderSuccessfulItem = R.curry((result, index) => (
-  <div key={index} style={successStyles.item}>
-    <strong>{R.prop("widget", result)}</strong>
-    <div style={successStyles.appList}>
-      Deployed to: {R.pipe(R.prop("apps"), R.join(", "))(result)}
-    </div>
-  </div>
-));
-
 const renderFailedItem = R.curry((result, index) => (
   <details key={index} style={failedStyles.item}>
     <summary style={failedStyles.summary}>{R.prop("widget", result)}</summary>
@@ -89,27 +51,11 @@ const renderFailedItem = R.curry((result, index) => (
   </details>
 ));
 
-const renderSuccessfulSection = R.ifElse(
-  hasSuccessfulResults,
-  (props) => {
-    const results = getSuccessfulResults(props);
-    const count = getResultsCount(results);
-
-    return (
-      <div style={successStyles.container}>
-        <h4 style={successStyles.header}>✅ Successfully Deployed ({count})</h4>
-        {R.addIndex(R.map)(renderSuccessfulItem, results)}
-      </div>
-    );
-  },
-  R.always(null),
-);
-
 const renderFailedSection = R.ifElse(
   hasFailedResults,
   (props) => {
     const results = getFailedResults(props);
-    const count = getResultsCount(results);
+    const count = R.length(results);
 
     return (
       <div>

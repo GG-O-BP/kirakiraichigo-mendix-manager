@@ -19,10 +19,6 @@ export {
 // Property calculation
 export {
   initializePropertyValues,
-  countVisiblePropertiesInGroup,
-  countVisiblePropertiesInWidgetGroup,
-  countAllGroupsVisibleProperties,
-  countAllWidgetGroupsVisibleProperties,
   transformPropertiesToSpec,
   countAllSpecGroupsVisibleProperties,
 } from "./propertyCalculation";
