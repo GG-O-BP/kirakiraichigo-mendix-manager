@@ -7,5 +7,3 @@ export const renderLoadingIndicator = R.curry((icon, message) => (
     <span>{message}</span>
   </div>
 ));
-
-export default renderLoadingIndicator;

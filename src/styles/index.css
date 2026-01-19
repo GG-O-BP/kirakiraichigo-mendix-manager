@@ -118,20 +118,6 @@ body {
         var(--animation-timing-ease);
 }
 
-/* ============= Global Focus Management ============= */
-
-.focus\:outline-none:focus {
-    outline: none;
-}
-
-.focus\:ring-2:focus {
-    box-shadow: 0 0 0 2px var(--theme-focus-ring);
-}
-
-.focus\:ring-primary:focus {
-    box-shadow: 0 0 0 2px var(--theme-primary);
-}
-
 /* ============= Global Disabled States ============= */
 
 .disabled,
@@ -183,20 +169,6 @@ body {
 
 *::-webkit-scrollbar-corner {
     background: var(--theme-surface);
-}
-
-/* ============= Global Backdrop Support ============= */
-
-.backdrop-blur {
-    backdrop-filter: blur(8px);
-}
-
-.backdrop-blur-sm {
-    backdrop-filter: blur(4px);
-}
-
-.backdrop-blur-lg {
-    backdrop-filter: blur(16px);
 }
 
 /* ============= Global Reduced Motion Support ============= */

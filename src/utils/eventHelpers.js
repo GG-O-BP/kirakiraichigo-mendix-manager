@@ -1,10 +1,10 @@
 import * as R from "ramda";
 
-// Extract value from input event target
-export const getEventValue = R.path(["target", "value"]);
+// Extract value from input event target (internal use only)
+const getEventValue = R.path(["target", "value"]);
 
-// Extract checked state from checkbox event target
-export const getEventChecked = R.path(["target", "checked"]);
+// Extract checked state from checkbox event target (internal use only)
+const getEventChecked = R.path(["target", "checked"]);
 
 // Create a simple change handler that extracts value and passes to callback
 export const createChangeHandler = R.curry((onChange, event) =>

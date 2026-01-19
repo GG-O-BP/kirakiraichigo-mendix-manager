@@ -6,5 +6,3 @@ export const renderPanel = R.curry((config) => (
     <div className="list-area">{config.content}</div>
   </div>
 ));
-
-export default renderPanel;

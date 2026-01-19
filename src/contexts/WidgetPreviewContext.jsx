@@ -20,5 +20,3 @@ export function useWidgetPreviewContext() {
   }
   return context;
 }
-
-export default WidgetPreviewContext;

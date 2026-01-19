@@ -18,5 +18,3 @@ export function useVersionsContext() {
   }
   return context;
 }
-
-export default VersionsContext;

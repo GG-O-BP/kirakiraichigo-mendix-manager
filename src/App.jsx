@@ -49,14 +49,7 @@ function App() {
 
   const createTabFromConfig = R.curry((config) => {
     const [id, label, Component] = config;
-    const componentElement = R.cond([
-      [R.equals("studio-pro"), () => React.createElement(Component)],
-      [R.equals("widget-manager"), () => React.createElement(Component)],
-      [R.equals("widget-preview"), () => React.createElement(Component)],
-      [R.T, () => null],
-    ])(id);
-
-    return { id, label, component: componentElement };
+    return { id, label, component: React.createElement(Component) };
   });
 
   const tabs = useMemo(

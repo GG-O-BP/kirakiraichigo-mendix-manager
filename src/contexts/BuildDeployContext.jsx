@@ -20,5 +20,3 @@ export function useBuildDeployContext() {
   }
   return context;
 }
-
-export default BuildDeployContext;

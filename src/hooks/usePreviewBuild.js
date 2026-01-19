@@ -55,5 +55,3 @@ export const usePreviewBuild = () => {
     clearPreview,
   };
 };
-
-export default usePreviewBuild;

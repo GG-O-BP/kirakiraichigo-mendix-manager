@@ -108,5 +108,3 @@ export function useCollection({
     removeFromSelection,
   };
 }
-
-export default useCollection;

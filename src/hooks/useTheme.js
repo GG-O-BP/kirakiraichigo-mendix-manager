@@ -115,5 +115,3 @@ export function useTheme() {
     handleThemeChange,
   };
 }
-
-export default useTheme;

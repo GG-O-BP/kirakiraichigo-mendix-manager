@@ -36,8 +36,6 @@ export { arrayToSet, hasItems, setProperty } from "./setUtils";
 
 // Event helpers
 export {
-  getEventValue,
-  getEventChecked,
   createChangeHandler,
   createTypedChangeHandler,
 } from "./eventHelpers";

@@ -127,5 +127,3 @@ export const useVersionFiltering = ({
     loadMoreHandler: createLoadMoreHandler(),
   };
 };
-
-export default useVersionFiltering;

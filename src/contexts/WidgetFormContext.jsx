@@ -20,5 +20,3 @@ export function useWidgetFormContext() {
   }
   return context;
 }
-
-export default WidgetFormContext;
