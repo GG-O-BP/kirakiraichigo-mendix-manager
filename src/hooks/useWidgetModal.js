@@ -6,8 +6,6 @@ export function useWidgetModal() {
 
   const open = useCallback(() => setShowModal(true), []);
   const close = useCallback(() => setShowModal(false), []);
-  const openAddForm = useCallback(() => setShowAddForm(true), []);
-  const closeAddForm = useCallback(() => setShowAddForm(false), []);
 
   return {
     showModal,
@@ -16,7 +14,5 @@ export function useWidgetModal() {
     setShowAddForm,
     open,
     close,
-    openAddForm,
-    closeAddForm,
   };
 }

@@ -40,11 +40,6 @@ export const usePreviewBuild = () => {
     }
   }, [packageManager]);
 
-  const clearPreview = useCallback(() => {
-    setPreviewData(null);
-    setBuildError(null);
-  }, []);
-
   return {
     previewData,
     isBuilding,
@@ -52,6 +47,5 @@ export const usePreviewBuild = () => {
     packageManager,
     setPackageManager,
     handleRunPreview,
-    clearPreview,
   };
 };
