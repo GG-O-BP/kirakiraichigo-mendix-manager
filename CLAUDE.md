@@ -38,7 +38,7 @@ The frontend follows **functional programming** patterns using Ramda.js with Rea
 - `storage.js` - saveToStorage, loadFromStorage
 - `validation.js` - invokeValidateRequired, invokeValidateBuildDeploySelections
 - `versionState.js` - updateVersionLoadingStates, getVersionLoadingState
-- `widgetHelpers.js` - createWidget, invokeHasBuildFailures, createCatastrophicErrorResult
+- `widgetHelpers.js` - invokeCreateWidget, invokeHasBuildFailures, invokeCreateCatastrophicErrorResult (all call backend)
 - `async.js` - wrapAsync helper for error handling
 - `setUtils.js` - arrayToSet, hasItems, setProperty
 - `dataProcessing.js` - Re-exports from data-processing/ (backward compatible)
@@ -48,7 +48,7 @@ The frontend follows **functional programming** patterns using Ramda.js with Rea
 - `versionFiltering.js` - filterMendixVersions
 - `appFiltering.js` - filterMendixApps, filterAndSortAppsWithPriority, filterAppsBySelectedPaths
 - `widgetFiltering.js` - filterWidgets, filterWidgetsBySelectedIds, sortWidgetsByOrder, removeWidgetById
-- `propertyCalculation.js` - initializePropertyValues, count* functions
+- `propertyCalculation.js` - initializePropertyValues, count* functions, transformPropertiesToSpec, countAllSpecGroupsVisibleProperties
 - `pathUtils.js` - extractFolderNameFromPath
 
 **Context API** (`src/contexts/`):
@@ -150,12 +150,12 @@ The Rust backend is organized into **domain modules**, each exposing Tauri comma
 **Module Structure** (`src-tauri/src/`):
 - `mendix/` - Studio Pro version/app management, installation detection
 - `web_scraper/` - Downloads Mendix versions using headless Chrome (chromiumoxide)
-- `widget_parser/` - Parses widget.xml, validates widget structure
+- `widget_parser/` - Parses widget.xml, validates widget structure, property transformation (parse_widget_properties_as_spec returns frontend-ready format)
 - `widget_preview/` - Builds widgets for preview mode
-- `build_deploy/` - Builds and deploys widgets to apps (parallel deployment via Rayon)
-- `package_manager/` - Runs npm/pnpm/yarn commands for widget builds
+- `build_deploy/` - Builds and deploys widgets to apps (parallel deployment via Rayon), create_catastrophic_error_result
+- `package_manager/` - Runs npm/pnpm/yarn/bun commands for widget builds
 - `storage/` - Persistent app state using Tauri's fs plugin
-- `data_processing/` - Filtering, pagination, sorting for frontend data
+- `data_processing/` - Filtering, pagination, sorting for frontend data, create_widget
 - `validation/` - Input validation (required fields, build/deploy selection checks)
 - `formatting/` - Date formatting and text transformations
 

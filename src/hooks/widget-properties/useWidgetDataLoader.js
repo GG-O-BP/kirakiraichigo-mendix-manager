@@ -38,7 +38,7 @@ export function useWidgetDataLoader(selectedWidget) {
     const loadWidgetData = async () => {
       try {
         const [definition, initialValues, editorConfigResult] = await Promise.all([
-          invoke("parse_widget_properties", { widgetPath }),
+          invoke("parse_widget_properties_as_spec", { widgetPath }),
           initializePropertyValues(widgetPath),
           invoke("read_editor_config", { widgetPath }),
         ]);

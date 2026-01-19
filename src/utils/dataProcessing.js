@@ -15,5 +15,7 @@ export {
   countVisiblePropertiesInWidgetGroup,
   countAllGroupsVisibleProperties,
   countAllWidgetGroupsVisibleProperties,
+  transformPropertiesToSpec,
+  countAllSpecGroupsVisibleProperties,
   extractFolderNameFromPath,
 } from "./data-processing";

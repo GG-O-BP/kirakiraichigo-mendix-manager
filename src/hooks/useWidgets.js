@@ -4,7 +4,7 @@ import {
   STORAGE_KEYS,
   loadFromStorage,
   saveToStorage,
-  createWidget,
+  invokeCreateWidget,
   invokeValidateRequired,
 } from "../utils";
 import { filterWidgets, sortWidgetsByOrder, removeWidgetById } from "../utils/dataProcessing";
@@ -39,25 +39,26 @@ export function useWidgets() {
   }, [collection.setItems]);
 
   const handleAddWidget = useCallback(
-    (onSuccess) => {
+    async (onSuccess) => {
       const isValid = invokeValidateRequired(["caption", "path"], {
         caption: newWidgetCaption,
         path: newWidgetPath,
       });
 
-      R.when(R.always(isValid), () => {
-        const newWidget = createWidget(newWidgetCaption, newWidgetPath);
+      if (!isValid) return;
+
+      try {
+        const newWidget = await invokeCreateWidget(newWidgetCaption, newWidgetPath);
         const updatedWidgets = R.append(newWidget, collection.items);
 
-        saveToStorage(STORAGE_KEYS.WIDGETS, updatedWidgets)
-          .then(() => {
-            collection.setItems(updatedWidgets);
-            setNewWidgetCaption("");
-            setNewWidgetPath("");
-            R.when(R.complement(R.isNil), R.call)(onSuccess);
-          })
-          .catch(console.error);
-      })();
+        await saveToStorage(STORAGE_KEYS.WIDGETS, updatedWidgets);
+        collection.setItems(updatedWidgets);
+        setNewWidgetCaption("");
+        setNewWidgetPath("");
+        R.when(R.complement(R.isNil), R.call)(onSuccess);
+      } catch (error) {
+        console.error("Failed to add widget:", error);
+      }
     },
     [newWidgetCaption, newWidgetPath, collection.items, collection.setItems],
   );

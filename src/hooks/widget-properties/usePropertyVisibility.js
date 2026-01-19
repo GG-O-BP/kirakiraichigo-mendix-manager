@@ -1,6 +1,6 @@
 import * as R from "ramda";
 import { useState, useEffect } from "react";
-import { countAllWidgetGroupsVisibleProperties } from "../../utils/dataProcessing";
+import { countAllSpecGroupsVisibleProperties } from "../../utils/dataProcessing";
 
 /**
  * usePropertyVisibility - Calculates visible property keys and group counts
@@ -41,7 +41,7 @@ export function usePropertyVisibility({
       return;
     }
 
-    const propertyGroups = R.propOr([], "property_groups", widgetDefinition);
+    const propertyGroups = R.propOr([], "propertyGroups", widgetDefinition);
     if (R.isEmpty(propertyGroups)) {
       setGroupCounts({});
       return;
@@ -49,7 +49,7 @@ export function usePropertyVisibility({
 
     const calculateCounts = async () => {
       try {
-        const results = await countAllWidgetGroupsVisibleProperties(
+        const results = await countAllSpecGroupsVisibleProperties(
           propertyGroups,
           visiblePropertyKeys,
         );

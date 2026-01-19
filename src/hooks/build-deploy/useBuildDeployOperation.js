@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   invokeValidateBuildDeploySelections,
-  createCatastrophicErrorResult,
+  invokeCreateCatastrophicErrorResult,
   invokeHasBuildFailures,
 } from "../../utils";
 import { filterWidgetsBySelectedIds, filterAppsBySelectedPaths } from "../../utils/dataProcessing";
@@ -53,17 +53,16 @@ export function useBuildDeployOperation({
       const widgetsList = await filterWidgetsBySelectedIds(widgets, selectedWidgetIds);
       const appsList = await filterAppsBySelectedPaths(apps, selectedAppPaths);
 
-      const executeBuildDeploy = R.tryCatch(
-        async () =>
-          await invoke("build_and_deploy_from_selections", {
-            widgets: widgetsList,
-            apps: appsList,
-            packageManager,
-          }),
-        createCatastrophicErrorResult,
-      );
-
-      const results = await executeBuildDeploy();
+      let results;
+      try {
+        results = await invoke("build_and_deploy_from_selections", {
+          widgets: widgetsList,
+          apps: appsList,
+          packageManager,
+        });
+      } catch (error) {
+        results = await invokeCreateCatastrophicErrorResult(error);
+      }
       setBuildResults(results);
       setInlineResults(results);
       setIsBuilding(false);

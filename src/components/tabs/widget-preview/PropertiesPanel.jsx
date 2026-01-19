@@ -1,32 +1,8 @@
 import * as R from "ramda";
 import { memo } from "react";
-import DynamicPropertyInput from "../../common/DynamicPropertyInput";
 import PropertyGroupAccordion from "./PropertyGroupAccordion";
 import PreviewBuildControls from "./PreviewBuildControls";
-
-const renderPropertyInputField = R.curry((properties, updateProperty, property) => (
-  <DynamicPropertyInput
-    key={R.prop("key", property)}
-    property={property}
-    value={R.prop(R.prop("key", property), properties)}
-    onChange={updateProperty(R.prop("key", property))}
-    disabled={false}
-    showValidation={true}
-  />
-));
-
-const parsePropertySpec = R.pipe(
-  R.applySpec({
-    key: R.prop("key"),
-    type: R.prop("property_type"),
-    caption: R.prop("caption"),
-    description: R.prop("description"),
-    required: R.prop("required"),
-    defaultValue: R.prop("default_value"),
-    options: R.prop("options"),
-  }),
-  R.reject(R.isNil),
-);
+import { renderPropertyInputField } from "./propertyUtils";
 
 const renderNoConfigurableProperties = () => (
   <div className="no-properties">
@@ -58,18 +34,16 @@ const RootPropertyGroup = memo(({ properties, updateProperty, visibleKeys, rootP
 
   if (R.isEmpty(filteredProps)) return null;
 
-  const parsedProperties = R.map(parsePropertySpec, filteredProps);
-
   return (
     <div className="property-group depth-0 expanded root-properties">
       <div className="property-group-header-static">
         <span className="property-group-title">General</span>
-        <span className="property-group-count">{R.length(parsedProperties)}</span>
+        <span className="property-group-count">{R.length(filteredProps)}</span>
       </div>
       <div className="property-group-content">
         {R.map(
           (prop) => renderPropertyInputField(properties, updateProperty, prop),
-          parsedProperties,
+          filteredProps,
         )}
       </div>
     </div>
@@ -88,7 +62,7 @@ const WidgetPropertyGroups = memo(({
   definition,
 }) => {
   const rootProperties = R.propOr([], "properties", definition);
-  const propertyGroups = R.propOr([], "property_groups", definition);
+  const propertyGroups = R.propOr([], "propertyGroups", definition);
 
   const visibleRootProps = visibleKeys
     ? R.filter((prop) => R.includes(R.prop("key", prop), visibleKeys), rootProperties)

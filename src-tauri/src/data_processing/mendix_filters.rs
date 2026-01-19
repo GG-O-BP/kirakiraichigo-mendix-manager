@@ -300,6 +300,21 @@ pub fn remove_widget_by_id(
     Ok(widgets.into_iter().filter(|w| w.id != widget_id).collect())
 }
 
+// ============= Widget Creation =============
+
+use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Creates a new widget with a timestamp-based ID
+#[tauri::command]
+pub fn create_widget(caption: String, path: String) -> Result<Widget, String> {
+    let id = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis().to_string())
+        .unwrap_or_else(|_| "0".to_string());
+
+    Ok(Widget { id, caption, path })
+}
+
 // ============= Tests =============
 
 #[cfg(test)]

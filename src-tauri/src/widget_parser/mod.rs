@@ -1264,6 +1264,183 @@ pub fn count_all_widget_groups_visible_properties(
     ))
 }
 
+// ============= Property Spec Transformation =============
+
+/// Property spec format expected by frontend components
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PropertySpec {
+    pub key: String,
+    #[serde(rename = "type")]
+    pub property_type: String,
+    pub caption: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub required: bool,
+    #[serde(rename = "defaultValue", skip_serializing_if = "Option::is_none")]
+    pub default_value: Option<String>,
+    pub options: Vec<String>,
+}
+
+/// Transforms a WidgetProperty to PropertySpec format
+fn transform_widget_property_to_spec(prop: &WidgetProperty) -> PropertySpec {
+    PropertySpec {
+        key: prop.key.clone(),
+        property_type: prop.property_type.clone(),
+        caption: prop.caption.clone(),
+        description: if prop.description.is_empty() {
+            None
+        } else {
+            Some(prop.description.clone())
+        },
+        required: prop.required,
+        default_value: prop.default_value.clone(),
+        options: prop.options.clone(),
+    }
+}
+
+/// Transforms a batch of WidgetProperty to PropertySpec format
+#[tauri::command]
+pub fn transform_properties_to_spec(
+    properties: Vec<WidgetProperty>,
+) -> Result<Vec<PropertySpec>, String> {
+    Ok(properties
+        .iter()
+        .map(transform_widget_property_to_spec)
+        .collect())
+}
+
+// ============= Complete Widget Definition in Spec Format =============
+
+/// Property group in spec format
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PropertyGroupSpec {
+    pub caption: String,
+    pub properties: Vec<PropertySpec>,
+    #[serde(rename = "propertyGroups")]
+    pub property_groups: Vec<PropertyGroupSpec>,
+}
+
+/// Complete widget definition in spec format (frontend-ready)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WidgetDefinitionSpec {
+    pub name: String,
+    pub description: String,
+    pub properties: Vec<PropertySpec>,
+    #[serde(rename = "propertyGroups")]
+    pub property_groups: Vec<PropertyGroupSpec>,
+}
+
+/// Transforms a WidgetPropertyGroup to PropertyGroupSpec format
+fn transform_property_group_to_spec(group: &WidgetPropertyGroup) -> PropertyGroupSpec {
+    PropertyGroupSpec {
+        caption: group.caption.clone(),
+        properties: group
+            .properties
+            .iter()
+            .map(transform_widget_property_to_spec)
+            .collect(),
+        property_groups: group
+            .property_groups
+            .iter()
+            .map(transform_property_group_to_spec)
+            .collect(),
+    }
+}
+
+/// Transforms a WidgetDefinition to WidgetDefinitionSpec format
+fn transform_widget_definition_to_spec(definition: &WidgetDefinition) -> WidgetDefinitionSpec {
+    WidgetDefinitionSpec {
+        name: definition.name.clone(),
+        description: definition.description.clone(),
+        properties: definition
+            .properties
+            .iter()
+            .map(transform_widget_property_to_spec)
+            .collect(),
+        property_groups: definition
+            .property_groups
+            .iter()
+            .map(transform_property_group_to_spec)
+            .collect(),
+    }
+}
+
+/// Parses widget properties and returns in spec format (frontend-ready)
+#[tauri::command]
+pub fn parse_widget_properties_as_spec(widget_path: String) -> Result<WidgetDefinitionSpec, String> {
+    let definition = parse_widget_xml(&widget_path).map_err(|e| e.to_string())?;
+    Ok(transform_widget_definition_to_spec(&definition))
+}
+
+// ============= Property Count Functions for Spec Format =============
+
+/// Recursively counts visible properties in a PropertyGroupSpec
+fn count_visible_properties_in_spec_group_internal(
+    group: &PropertyGroupSpec,
+    visible_keys: Option<&[String]>,
+) -> usize {
+    // Count properties in this group
+    let direct_count = match visible_keys {
+        Some(keys) => group
+            .properties
+            .iter()
+            .filter(|p| keys.contains(&p.key))
+            .count(),
+        None => group.properties.len(),
+    };
+
+    // Recursively count properties in nested groups
+    let nested_count: usize = group
+        .property_groups
+        .iter()
+        .map(|nested| count_visible_properties_in_spec_group_internal(nested, visible_keys))
+        .sum();
+
+    direct_count + nested_count
+}
+
+/// Recursively counts all groups and builds a map of group_path -> count (for PropertyGroupSpec)
+fn count_all_spec_groups_recursive(
+    group: &PropertyGroupSpec,
+    parent_path: &str,
+    visible_keys: Option<&[String]>,
+    results: &mut Vec<GroupCountResult>,
+) {
+    let caption = &group.caption;
+    let group_path = if parent_path.is_empty() {
+        caption.clone()
+    } else {
+        format!("{}.{}", parent_path, caption)
+    };
+
+    // Count for this group
+    let count = count_visible_properties_in_spec_group_internal(group, visible_keys);
+    results.push(GroupCountResult {
+        group_path: group_path.clone(),
+        count,
+    });
+
+    // Recurse into nested groups
+    for nested in &group.property_groups {
+        count_all_spec_groups_recursive(nested, &group_path, visible_keys, results);
+    }
+}
+
+/// Counts visible properties for all groups in spec format
+#[tauri::command]
+pub fn count_all_spec_groups_visible_properties(
+    property_groups: Vec<PropertyGroupSpec>,
+    visible_keys: Option<Vec<String>>,
+) -> Result<Vec<GroupCountResult>, String> {
+    let mut results = Vec::new();
+
+    for group in &property_groups {
+        count_all_spec_groups_recursive(group, "", visible_keys.as_deref(), &mut results);
+    }
+
+    Ok(results)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -23,9 +23,9 @@ export {
 
 // Widget helpers
 export {
-  createWidget,
+  invokeCreateWidget,
   invokeHasBuildFailures,
-  createCatastrophicErrorResult,
+  invokeCreateCatastrophicErrorResult,
 } from "./widgetHelpers";
 
 // Async utilities

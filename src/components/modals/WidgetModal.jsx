@@ -2,7 +2,7 @@ import * as R from "ramda";
 import { memo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import { saveToStorage, STORAGE_KEYS, createWidget } from "../../utils";
+import { saveToStorage, STORAGE_KEYS, invokeCreateWidget } from "../../utils";
 import { extractFolderNameFromPath } from "../../utils/dataProcessing";
 
 const DISABLED_BUTTON_STYLE = {
@@ -58,17 +58,13 @@ const handleAddWidgetSubmit = R.curry(async (props) => {
         return;
       }
 
-      R.pipe(
-        () => createWidget(newWidgetCaption, newWidgetPath),
-        (newWidget) =>
-          setWidgets((prev) => {
-            const newWidgets = [...prev, newWidget];
-            saveToStorage(STORAGE_KEYS.WIDGETS, newWidgets).catch(console.error);
-            return newWidgets;
-          }),
-        () => closeFormAndResetFields(props),
-        R.always(undefined),
-      )();
+      const newWidget = await invokeCreateWidget(newWidgetCaption, newWidgetPath);
+      setWidgets((prev) => {
+        const newWidgets = [...prev, newWidget];
+        saveToStorage(STORAGE_KEYS.WIDGETS, newWidgets).catch(console.error);
+        return newWidgets;
+      });
+      closeFormAndResetFields(props);
     } catch (error) {
       alert(
         `Validation Error: ${error}\n\n` +

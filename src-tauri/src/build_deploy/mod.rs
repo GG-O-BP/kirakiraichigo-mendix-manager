@@ -227,3 +227,15 @@ pub async fn build_and_deploy_from_selections(
     // Delegate to existing build_and_deploy_widgets
     build_and_deploy_widgets(widget_requests, app_paths, app_names, package_manager).await
 }
+
+/// Creates a catastrophic error result when an entire build/deploy operation fails
+#[tauri::command]
+pub fn create_catastrophic_error_result(error_message: String) -> Result<BuildDeployResult, String> {
+    Ok(BuildDeployResult {
+        successful: Vec::new(),
+        failed: vec![FailedDeployment {
+            widget: "All widgets".to_string(),
+            error: error_message,
+        }],
+    })
+}

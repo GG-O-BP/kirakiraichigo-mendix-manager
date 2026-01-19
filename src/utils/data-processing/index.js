@@ -23,6 +23,8 @@ export {
   countVisiblePropertiesInWidgetGroup,
   countAllGroupsVisibleProperties,
   countAllWidgetGroupsVisibleProperties,
+  transformPropertiesToSpec,
+  countAllSpecGroupsVisibleProperties,
 } from "./propertyCalculation";
 
 // Path utilities

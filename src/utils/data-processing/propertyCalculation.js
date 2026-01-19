@@ -19,3 +19,11 @@ export async function countAllGroupsVisibleProperties(propertyGroups, visibleKey
 export async function countAllWidgetGroupsVisibleProperties(propertyGroups, visibleKeys = null) {
   return await invoke("count_all_widget_groups_visible_properties", { propertyGroups, visibleKeys });
 }
+
+export async function transformPropertiesToSpec(properties) {
+  return await invoke("transform_properties_to_spec", { properties });
+}
+
+export async function countAllSpecGroupsVisibleProperties(propertyGroups, visibleKeys = null) {
+  return await invoke("count_all_spec_groups_visible_properties", { propertyGroups, visibleKeys });
+}
