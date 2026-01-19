@@ -13,3 +13,7 @@ export { useWidgetModal } from "./useWidgetModal";
 export { useWidgetDeleteModal } from "./useWidgetDeleteModal";
 export { useDownloadModal } from "./useDownloadModal";
 export { useResultModal } from "./useResultModal";
+
+// App-level orchestration hooks
+export { useAppInitialization } from "./useAppInitialization";
+export { useContextValues } from "./useContextValues";
