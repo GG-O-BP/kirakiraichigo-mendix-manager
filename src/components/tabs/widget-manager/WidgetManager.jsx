@@ -1,13 +1,20 @@
 import * as R from "ramda";
 import { memo } from "react";
-import { useAppContext, useWidgetContext, useBuildDeployContext, useModalContext } from "../../../contexts";
+import {
+  useAppContext,
+  useWidgetCollectionContext,
+  useWidgetFormContext,
+  useBuildDeployContext,
+  useModalContext,
+} from "../../../contexts";
 import AppsSelectionPanel from "./AppsSelectionPanel";
 import WidgetsSelectionPanel from "./WidgetsSelectionPanel";
 import BuildDeploySection from "./BuildDeploySection";
 
 const WidgetManager = memo(({ versions }) => {
   const appContext = useAppContext();
-  const widgetContext = useWidgetContext();
+  const widgetCollectionContext = useWidgetCollectionContext();
+  const widgetFormContext = useWidgetFormContext();
   const buildDeployContext = useBuildDeployContext();
   const modalContext = useModalContext();
 
@@ -29,9 +36,9 @@ const WidgetManager = memo(({ versions }) => {
     setSelectedWidgets,
     widgetSearchTerm,
     setWidgetSearchTerm,
-    setNewWidgetCaption,
-    setNewWidgetPath,
-  } = widgetContext;
+  } = widgetCollectionContext;
+
+  const { setNewWidgetCaption, setNewWidgetPath } = widgetFormContext;
 
   const {
     packageManager,

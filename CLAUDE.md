@@ -46,7 +46,9 @@ The frontend follows **functional programming** patterns using Ramda.js with Rea
 
 **Context API** (`src/contexts/`):
 - `AppContext` - Apps state: filteredApps, selectedApps, handleAppClick, versionFilter
-- `WidgetContext` - Widgets state: widgets, selectedWidgets, properties, preview state
+- `WidgetCollectionContext` - Widget CRUD: widgets, selectedWidgets, filteredWidgets, handleAddWidget
+- `WidgetPreviewContext` - Preview state: selectedWidgetForPreview, properties, updateProperty
+- `WidgetFormContext` - Widget form inputs: newWidgetCaption, newWidgetPath
 - `BuildDeployContext` - Build/deploy state: packageManager, isBuilding, handleInstall/handleBuildDeploy
 - `ModalContext` - Modal states: all modal visibility and handlers
 
@@ -72,7 +74,7 @@ The frontend follows **functional programming** patterns using Ramda.js with Rea
 
 **Data Flow**:
 1. App.jsx initializes hooks and wraps app with Context providers
-2. Tab components consume context via `useAppContext()`, `useWidgetContext()`, etc.
+2. Tab components consume context via `useAppContext()`, `useWidgetCollectionContext()`, `useWidgetPreviewContext()`, etc.
 3. Handlers invoke Rust backend via Tauri `invoke()`
 4. State updates propagate through context
 

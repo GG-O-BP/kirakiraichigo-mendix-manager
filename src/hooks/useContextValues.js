@@ -1,7 +1,13 @@
 import { useMemo } from "react";
 import { ITEMS_PER_PAGE } from "../utils";
 
-export function useContextValues({ appsHook, widgetsHook, widgetPreviewHook, buildDeploy, modals }) {
+export function useContextValues({
+  appsHook,
+  widgetsHook,
+  widgetPreviewHook,
+  buildDeploy,
+  modals,
+}) {
   const appContextValue = useMemo(
     () => ({
       apps: appsHook.apps,
@@ -22,7 +28,7 @@ export function useContextValues({ appsHook, widgetsHook, widgetPreviewHook, bui
     [appsHook],
   );
 
-  const widgetContextValue = useMemo(
+  const widgetCollectionContextValue = useMemo(
     () => ({
       widgets: widgetsHook.widgets,
       setWidgets: widgetsHook.setWidgets,
@@ -31,20 +37,38 @@ export function useContextValues({ appsHook, widgetsHook, widgetPreviewHook, bui
       setSelectedWidgets: widgetsHook.setSelectedWidgets,
       widgetSearchTerm: widgetsHook.widgetSearchTerm,
       setWidgetSearchTerm: widgetsHook.setWidgetSearchTerm,
-      newWidgetCaption: widgetsHook.newWidgetCaption,
-      setNewWidgetCaption: widgetsHook.setNewWidgetCaption,
-      newWidgetPath: widgetsHook.newWidgetPath,
-      setNewWidgetPath: widgetsHook.setNewWidgetPath,
       handleAddWidget: widgetsHook.handleAddWidget,
       handleWidgetDelete: widgetsHook.handleWidgetDelete,
+    }),
+    [widgetsHook],
+  );
+
+  const widgetPreviewContextValue = useMemo(
+    () => ({
       selectedWidgetForPreview: widgetPreviewHook.selectedWidgetForPreview,
-      setSelectedWidgetForPreview: widgetPreviewHook.setSelectedWidgetForPreview,
+      setSelectedWidgetForPreview:
+        widgetPreviewHook.setSelectedWidgetForPreview,
       properties: widgetPreviewHook.properties,
       updateProperty: widgetPreviewHook.updateProperty,
       widgetPreviewSearch: widgetPreviewHook.widgetPreviewSearch,
       setWidgetPreviewSearch: widgetPreviewHook.setWidgetPreviewSearch,
     }),
-    [widgetsHook, widgetPreviewHook],
+    [widgetPreviewHook],
+  );
+
+  const widgetFormContextValue = useMemo(
+    () => ({
+      newWidgetCaption: widgetsHook.newWidgetCaption,
+      setNewWidgetCaption: widgetsHook.setNewWidgetCaption,
+      newWidgetPath: widgetsHook.newWidgetPath,
+      setNewWidgetPath: widgetsHook.setNewWidgetPath,
+    }),
+    [
+      widgetsHook.newWidgetCaption,
+      widgetsHook.setNewWidgetCaption,
+      widgetsHook.newWidgetPath,
+      widgetsHook.setNewWidgetPath,
+    ],
   );
 
   const buildDeployContextValue = useMemo(
@@ -72,7 +96,13 @@ export function useContextValues({ appsHook, widgetsHook, widgetPreviewHook, bui
       isUninstalling: buildDeploy.isUninstalling,
       setIsUninstalling: buildDeploy.setIsUninstalling,
     }),
-    [buildDeploy, widgetsHook.selectedWidgets, widgetsHook.widgets, appsHook.selectedApps, appsHook.apps],
+    [
+      buildDeploy,
+      widgetsHook.selectedWidgets,
+      widgetsHook.widgets,
+      appsHook.selectedApps,
+      appsHook.apps,
+    ],
   );
 
   const modalContextValue = useMemo(
@@ -108,7 +138,9 @@ export function useContextValues({ appsHook, widgetsHook, widgetPreviewHook, bui
 
   return {
     appContextValue,
-    widgetContextValue,
+    widgetCollectionContextValue,
+    widgetPreviewContextValue,
+    widgetFormContextValue,
     buildDeployContextValue,
     modalContextValue,
   };

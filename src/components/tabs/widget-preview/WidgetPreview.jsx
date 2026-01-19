@@ -1,13 +1,20 @@
 import * as R from "ramda";
 import { memo } from "react";
-import { useWidgetContext, useModalContext } from "../../../contexts";
+import {
+  useWidgetCollectionContext,
+  useWidgetPreviewContext,
+  useWidgetFormContext,
+  useModalContext,
+} from "../../../contexts";
 import { useWidgetProperties, usePreviewBuild } from "../../../hooks";
 import WidgetSelectionPanel from "./WidgetSelectionPanel";
 import PropertiesPanel from "./PropertiesPanel";
 import PreviewPanel from "./PreviewPanel";
 
 const WidgetPreview = memo(() => {
-  const widgetContext = useWidgetContext();
+  const widgetCollectionContext = useWidgetCollectionContext();
+  const widgetPreviewContext = useWidgetPreviewContext();
+  const widgetFormContext = useWidgetFormContext();
   const modalContext = useModalContext();
 
   const {
@@ -16,12 +23,15 @@ const WidgetPreview = memo(() => {
     filteredWidgets,
     widgetSearchTerm,
     setWidgetSearchTerm,
+  } = widgetCollectionContext;
+
+  const {
     selectedWidgetForPreview,
     setSelectedWidgetForPreview,
     properties,
-    setNewWidgetCaption,
-    setNewWidgetPath,
-  } = widgetContext;
+  } = widgetPreviewContext;
+
+  const { setNewWidgetCaption, setNewWidgetPath } = widgetFormContext;
 
   const {
     setShowWidgetModal,

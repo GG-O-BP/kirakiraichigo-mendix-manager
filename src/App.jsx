@@ -7,7 +7,14 @@ import { StudioProManager, WidgetManager, WidgetPreview } from "./components/tab
 import { AppModals } from "./components/modals";
 
 import { useAppInitialization, useContextValues } from "./hooks";
-import { AppProvider, WidgetProvider, BuildDeployProvider, ModalProvider } from "./contexts";
+import {
+  AppProvider,
+  WidgetCollectionProvider,
+  WidgetPreviewProvider,
+  WidgetFormProvider,
+  BuildDeployProvider,
+  ModalProvider,
+} from "./contexts";
 
 const TAB_CONFIGURATIONS = [
   ["studio-pro", "Studio Pro Manager", StudioProManager],
@@ -19,8 +26,14 @@ function App() {
   const { theme, versions, appsHook, widgetsHook, widgetPreviewHook, buildDeploy, modals } =
     useAppInitialization();
 
-  const { appContextValue, widgetContextValue, buildDeployContextValue, modalContextValue } =
-    useContextValues({ appsHook, widgetsHook, widgetPreviewHook, buildDeploy, modals });
+  const {
+    appContextValue,
+    widgetCollectionContextValue,
+    widgetPreviewContextValue,
+    widgetFormContextValue,
+    buildDeployContextValue,
+    modalContextValue,
+  } = useContextValues({ appsHook, widgetsHook, widgetPreviewHook, buildDeploy, modals });
 
   const [activeTab, setActiveTab] = useState("studio-pro");
 
@@ -90,48 +103,52 @@ function App() {
   return (
     <ModalProvider value={modalContextValue}>
       <AppProvider value={appContextValue}>
-        <WidgetProvider value={widgetContextValue}>
-          <BuildDeployProvider value={buildDeployContextValue}>
-            <main className="app-container">
-              <AppHeader
-                currentTheme={theme.currentTheme}
-                currentLogo={theme.currentLogo}
-                handleThemeChange={theme.handleThemeChange}
-              />
+        <WidgetCollectionProvider value={widgetCollectionContextValue}>
+          <WidgetPreviewProvider value={widgetPreviewContextValue}>
+            <WidgetFormProvider value={widgetFormContextValue}>
+              <BuildDeployProvider value={buildDeployContextValue}>
+                <main className="app-container">
+                  <AppHeader
+                    currentTheme={theme.currentTheme}
+                    currentLogo={theme.currentLogo}
+                    handleThemeChange={theme.handleThemeChange}
+                  />
 
-              <div className="tabs">
-                {R.map(renderTabButton(activeTab, setActiveTab), tabs)}
-              </div>
+                  <div className="tabs">
+                    {R.map(renderTabButton(activeTab, setActiveTab), tabs)}
+                  </div>
 
-              <div className="tab-content">{activeTabContent}</div>
+                  <div className="tab-content">{activeTabContent}</div>
 
-              <AppModals
-                uninstallModal={modals.uninstall}
-                appDeleteModal={modals.appDelete}
-                widgetModal={modals.widget}
-                widgetDeleteModal={modals.widgetDelete}
-                downloadModal={modals.download}
-                resultModal={modals.result}
-                versionLoadingStates={versions.versionLoadingStates}
-                handleUninstallStudioPro={versions.handleUninstallStudioPro}
-                handleDeleteApp={appsHook.handleDeleteApp}
-                loadApps={appsHook.loadApps}
-                handleWidgetDelete={widgetsHook.handleWidgetDelete}
-                newWidgetCaption={widgetsHook.newWidgetCaption}
-                setNewWidgetCaption={widgetsHook.setNewWidgetCaption}
-                newWidgetPath={widgetsHook.newWidgetPath}
-                setNewWidgetPath={widgetsHook.setNewWidgetPath}
-                setWidgets={widgetsHook.setWidgets}
-                handleAddWidget={widgetsHook.handleAddWidget}
-                isUninstalling={buildDeploy.isUninstalling}
-                setIsUninstalling={buildDeploy.setIsUninstalling}
-                buildResults={buildDeploy.buildResults}
-                setBuildResults={buildDeploy.setBuildResults}
-                handleModalDownload={versions.handleModalDownload}
-              />
-            </main>
-          </BuildDeployProvider>
-        </WidgetProvider>
+                  <AppModals
+                    uninstallModal={modals.uninstall}
+                    appDeleteModal={modals.appDelete}
+                    widgetModal={modals.widget}
+                    widgetDeleteModal={modals.widgetDelete}
+                    downloadModal={modals.download}
+                    resultModal={modals.result}
+                    versionLoadingStates={versions.versionLoadingStates}
+                    handleUninstallStudioPro={versions.handleUninstallStudioPro}
+                    handleDeleteApp={appsHook.handleDeleteApp}
+                    loadApps={appsHook.loadApps}
+                    handleWidgetDelete={widgetsHook.handleWidgetDelete}
+                    newWidgetCaption={widgetsHook.newWidgetCaption}
+                    setNewWidgetCaption={widgetsHook.setNewWidgetCaption}
+                    newWidgetPath={widgetsHook.newWidgetPath}
+                    setNewWidgetPath={widgetsHook.setNewWidgetPath}
+                    setWidgets={widgetsHook.setWidgets}
+                    handleAddWidget={widgetsHook.handleAddWidget}
+                    isUninstalling={buildDeploy.isUninstalling}
+                    setIsUninstalling={buildDeploy.setIsUninstalling}
+                    buildResults={buildDeploy.buildResults}
+                    setBuildResults={buildDeploy.setBuildResults}
+                    handleModalDownload={versions.handleModalDownload}
+                  />
+                </main>
+              </BuildDeployProvider>
+            </WidgetFormProvider>
+          </WidgetPreviewProvider>
+        </WidgetCollectionProvider>
       </AppProvider>
     </ModalProvider>
   );
