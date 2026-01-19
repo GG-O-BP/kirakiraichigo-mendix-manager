@@ -51,6 +51,7 @@ LoadMoreIndicator.displayName = "LoadMoreIndicator";
 
 export const renderLoadMoreIndicator = R.curry((fetchFunction, isLoading, totalCount) => (
   <LoadMoreIndicator
+    key="load-more-indicator"
     fetchFunction={fetchFunction}
     isLoading={isLoading}
     totalCount={totalCount}
