@@ -7,7 +7,7 @@ import {
   MendixVersionListItem,
   MendixAppListItem,
 } from "../common/ListItems";
-import { getVersionLoadingState } from "../../utils/functional";
+import { getVersionLoadingState } from "../../utils";
 import {
   filterMendixVersions,
   filterAndSortAppsWithPriority,

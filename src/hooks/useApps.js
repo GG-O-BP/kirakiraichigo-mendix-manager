@@ -1,22 +1,17 @@
 import * as R from "ramda";
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  STORAGE_KEYS,
-  ITEMS_PER_PAGE,
-  wrapAsync,
-  arrayToSet,
-  saveToStorage,
-  loadFromStorage,
-} from "../utils/functional";
+import { STORAGE_KEYS, ITEMS_PER_PAGE, wrapAsync } from "../utils";
 import { filterMendixApps } from "../utils/dataProcessing";
+import { useCollection } from "./useCollection";
 
 export function useApps() {
-  const [apps, setApps] = useState([]);
-  const [filteredApps, setFilteredApps] = useState([]);
-  const [appSearchTerm, setAppSearchTerm] = useState("");
+  const collection = useCollection({
+    selectionStorageKey: STORAGE_KEYS.SELECTED_APPS,
+    getItemId: R.prop("path"),
+  });
+
   const [versionFilter, setVersionFilter] = useState("all");
-  const [selectedApps, setSelectedApps] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
@@ -25,32 +20,15 @@ export function useApps() {
       (error) => console.error("Failed to load apps:", error),
       R.pipeWith(R.andThen, [
         () => invoke("get_installed_mendix_apps"),
-        setApps,
+        collection.setItems,
       ]),
     ),
-    [],
+    [collection.setItems],
   );
 
-  const toggleSetItem = R.curry((item, set) => {
-    const newSet = new Set(set);
-    R.ifElse(
-      () => newSet.has(item),
-      () => newSet.delete(item),
-      () => newSet.add(item),
-    )();
-    return newSet;
-  });
-
   const handleAppClick = useCallback(
-    R.pipe(R.prop("path"), (appPath) => {
-      setSelectedApps((prev) => {
-        const newSet = toggleSetItem(appPath, prev);
-        const newArray = Array.from(newSet);
-        saveToStorage(STORAGE_KEYS.SELECTED_APPS, newArray).catch(console.error);
-        return newSet;
-      });
-    }),
-    [],
+    R.pipe(collection.toggleSelection),
+    [collection.toggleSelection],
   );
 
   const handleDeleteApp = useCallback(
@@ -59,28 +37,17 @@ export function useApps() {
         await invoke("delete_mendix_app", { appPath });
         await loadApps();
 
-        setSelectedApps((prev) => {
-          const newSet = new Set(prev);
-          R.when(
-            () => newSet.has(appPath),
-            () => {
-              newSet.delete(appPath);
-              const selectedAppsArray = Array.from(newSet);
-              saveToStorage(STORAGE_KEYS.SELECTED_APPS, selectedAppsArray).catch(console.error);
-            },
-          )();
-          return newSet;
-        });
-
+        collection.removeFromSelection({ path: appPath });
         return true;
       } catch (error) {
         console.error("Failed to delete app:", error);
         throw error;
       }
     },
-    [loadApps],
+    [loadApps, collection.removeFromSelection],
   );
 
+  // Filter apps effect
   useEffect(() => {
     const processApps = async () => {
       try {
@@ -89,47 +56,40 @@ export function useApps() {
           R.always(null),
           R.identity,
         )(versionFilter);
-        const searchTerm = R.defaultTo(null, appSearchTerm);
-        const filtered = await filterMendixApps(apps, searchTerm, targetVersion, true);
-        setFilteredApps(filtered);
+        const searchTerm = R.defaultTo(null, collection.searchTerm);
+        const filtered = await filterMendixApps(
+          collection.items,
+          searchTerm,
+          targetVersion,
+          true,
+        );
+        collection.setFilteredItems(filtered);
         setHasMore(R.gt(R.length(filtered), ITEMS_PER_PAGE));
         setCurrentPage(1);
       } catch (error) {
         console.error("Failed to filter apps:", error);
-        setFilteredApps(apps);
+        collection.setFilteredItems(collection.items);
       }
     };
 
     R.ifElse(
       R.complement(R.isEmpty),
       processApps,
-      () => setFilteredApps([]),
-    )(apps);
-  }, [apps, versionFilter, appSearchTerm]);
-
-  useEffect(() => {
-    const loadSelectedApps = async () => {
-      try {
-        const selectedAppsArray = await loadFromStorage(STORAGE_KEYS.SELECTED_APPS, []);
-        setSelectedApps(arrayToSet(selectedAppsArray));
-      } catch (error) {
-        console.error("Failed to load selected apps:", error);
-      }
-    };
-    loadSelectedApps();
-  }, []);
+      () => collection.setFilteredItems([]),
+    )(collection.items);
+  }, [collection.items, versionFilter, collection.searchTerm]);
 
   return {
-    apps,
-    setApps,
-    filteredApps,
+    apps: collection.items,
+    setApps: collection.setItems,
+    filteredApps: collection.filteredItems,
     loadApps,
-    appSearchTerm,
-    setAppSearchTerm,
+    appSearchTerm: collection.searchTerm,
+    setAppSearchTerm: collection.setSearchTerm,
     versionFilter,
     setVersionFilter,
-    selectedApps,
-    setSelectedApps,
+    selectedApps: collection.selectedItems,
+    setSelectedApps: collection.setSelectedItems,
     handleAppClick,
     handleDeleteApp,
     currentPage,

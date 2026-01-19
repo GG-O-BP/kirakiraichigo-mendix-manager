@@ -2,7 +2,7 @@ import * as R from "ramda";
 import { memo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import { saveToStorage, STORAGE_KEYS, createWidget } from "../../utils/functional";
+import { saveToStorage, STORAGE_KEYS, createWidget } from "../../utils";
 import { extractFolderNameFromPath } from "../../utils/dataProcessing";
 
 const DISABLED_BUTTON_STYLE = {

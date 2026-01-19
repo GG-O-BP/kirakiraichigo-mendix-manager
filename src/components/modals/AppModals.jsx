@@ -3,15 +3,20 @@ import { ConfirmModal } from "../common";
 import WidgetModal from "./WidgetModal";
 import BuildResultModal from "./BuildResultModal";
 import DownloadModal from "./DownloadModal";
-import { getVersionLoadingState } from "../../utils/functional";
+import { getVersionLoadingState } from "../../utils";
 
 /**
  * AppModals component - renders all modal dialogs for the app
- * Now receives explicit props instead of hook objects for better separation of concerns
+ * Receives individual modal hooks for better separation of concerns
  */
 function AppModals({
-  // Modal states
-  modals,
+  // Individual modal hooks
+  uninstallModal,
+  appDeleteModal,
+  widgetModal,
+  widgetDeleteModal,
+  downloadModal,
+  resultModal,
   // Version loading states
   versionLoadingStates,
   // Version handlers
@@ -36,11 +41,11 @@ function AppModals({
 }) {
   // Composed handler: Uninstall Studio Pro with optional app deletion
   const handleConfirmUninstall = async (deleteApps = false) => {
-    if (modals.versionToUninstall) {
+    if (uninstallModal.versionToUninstall) {
       await handleUninstallStudioPro(
-        modals.versionToUninstall,
+        uninstallModal.versionToUninstall,
         deleteApps,
-        modals.relatedApps,
+        uninstallModal.relatedApps,
         {
           onDeleteApp: async (appPath) => {
             await invoke("delete_mendix_app", { appPath });
@@ -49,7 +54,7 @@ function AppModals({
             if (deleteApps) {
               loadApps();
             }
-            modals.closeUninstallModal();
+            uninstallModal.close();
           },
         },
       );
@@ -58,24 +63,24 @@ function AppModals({
 
   // Composed handler: Confirm widget delete
   const handleConfirmWidgetDelete = async () => {
-    const success = await handleWidgetDelete(modals.widgetToDelete);
+    const success = await handleWidgetDelete(widgetDeleteModal.widgetToDelete);
     if (success) {
-      modals.closeWidgetDeleteModal();
+      widgetDeleteModal.close();
     }
   };
 
   // Composed handler: Confirm app delete
   const handleConfirmAppDelete = async () => {
-    if (modals.appToDelete) {
+    if (appDeleteModal.appToDelete) {
       setIsUninstalling(true);
       try {
-        await handleDeleteApp(modals.appToDelete.path);
+        await handleDeleteApp(appDeleteModal.appToDelete.path);
         setIsUninstalling(false);
-        modals.closeAppDeleteModal();
+        appDeleteModal.close();
       } catch (error) {
         alert(`Failed to delete app: ${error}`);
         setIsUninstalling(false);
-        modals.closeAppDeleteModal();
+        appDeleteModal.close();
       }
     }
   };
@@ -83,17 +88,18 @@ function AppModals({
   // Composed handler: Add widget
   const handleConfirmAddWidget = () => {
     handleAddWidget(() => {
-      modals.setShowAddWidgetForm(false);
-      modals.setShowWidgetModal(false);
+      widgetModal.setShowAddForm(false);
+      widgetModal.setShowModal(false);
     });
   };
+
   return (
     <>
       <WidgetModal
-        showWidgetModal={modals.showWidgetModal}
-        showAddWidgetForm={modals.showAddWidgetForm}
-        setShowWidgetModal={modals.setShowWidgetModal}
-        setShowAddWidgetForm={modals.setShowAddWidgetForm}
+        showWidgetModal={widgetModal.showModal}
+        showAddWidgetForm={widgetModal.showAddForm}
+        setShowWidgetModal={widgetModal.setShowModal}
+        setShowAddWidgetForm={widgetModal.setShowAddForm}
         newWidgetCaption={newWidgetCaption}
         setNewWidgetCaption={setNewWidgetCaption}
         newWidgetPath={newWidgetPath}
@@ -102,77 +108,77 @@ function AppModals({
       />
 
       <ConfirmModal
-        isOpen={modals.showUninstallModal}
+        isOpen={uninstallModal.showModal}
         title="🍓 Say Goodbye to Studio Pro?"
         message={
-          modals.versionToUninstall
-            ? `Are you really really sure you want to uninstall Studio Pro ${modals.versionToUninstall.version}? ✨\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay? 💝`
+          uninstallModal.versionToUninstall
+            ? `Are you really really sure you want to uninstall Studio Pro ${uninstallModal.versionToUninstall.version}? ✨\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay? 💝`
             : ""
         }
         onConfirm={() => handleConfirmUninstall(false)}
         onConfirmWithApps={
-          modals.relatedApps.length > 0
+          uninstallModal.relatedApps.length > 0
             ? () => handleConfirmUninstall(true)
             : null
         }
-        onCancel={modals.closeUninstallModal}
+        onCancel={uninstallModal.close}
         isLoading={
-          modals.versionToUninstall
+          uninstallModal.versionToUninstall
             ? getVersionLoadingState(
                 versionLoadingStates,
-                modals.versionToUninstall.version,
+                uninstallModal.versionToUninstall.version,
               ).isUninstalling
             : false
         }
-        relatedApps={modals.relatedApps}
+        relatedApps={uninstallModal.relatedApps}
       />
 
       <ConfirmModal
-        isOpen={modals.showAppDeleteModal}
+        isOpen={appDeleteModal.showModal}
         title="🍓 Delete This App?"
         message={
-          modals.appToDelete
-            ? `Do you really want to delete ${modals.appToDelete.name}? 🥺\n\nI can't undo this once it's done! Are you absolutely sure? 💕`
+          appDeleteModal.appToDelete
+            ? `Do you really want to delete ${appDeleteModal.appToDelete.name}? 🥺\n\nI can't undo this once it's done! Are you absolutely sure? 💕`
             : ""
         }
         onConfirm={handleConfirmAppDelete}
-        onCancel={modals.closeAppDeleteModal}
+        onCancel={appDeleteModal.close}
         isLoading={isUninstalling}
         relatedApps={[]}
       />
 
       <ConfirmModal
-        isOpen={modals.showWidgetDeleteModal}
+        isOpen={widgetDeleteModal.showModal}
         title="🍓 Remove Widget from List?"
         message={
-          modals.widgetToDelete
-            ? `Should I remove "${modals.widgetToDelete.caption}" from your widget list? 🎀\n\nDon't worry! This only removes it from my list - your files will stay safe and sound! 🌟`
+          widgetDeleteModal.widgetToDelete
+            ? `Should I remove "${widgetDeleteModal.widgetToDelete.caption}" from your widget list? 🎀\n\nDon't worry! This only removes it from my list - your files will stay safe and sound! 🌟`
             : ""
         }
         onConfirm={handleConfirmWidgetDelete}
-        onCancel={modals.closeWidgetDeleteModal}
+        onCancel={widgetDeleteModal.close}
         isLoading={false}
         relatedApps={[]}
       />
 
       <BuildResultModal
-        showResultModal={modals.showResultModal}
+        showResultModal={resultModal.showModal}
         buildResults={buildResults}
-        setShowResultModal={modals.setShowResultModal}
+        setShowResultModal={resultModal.setShowModal}
         setBuildResults={setBuildResults}
       />
 
       <DownloadModal
-        isOpen={modals.showDownloadModal}
-        version={modals.versionToDownload}
+        isOpen={downloadModal.showModal}
+        version={downloadModal.versionToDownload}
         onDownload={handleModalDownload}
-        onClose={modals.closeDownloadModal}
-        onCancel={modals.closeDownloadModal}
+        onClose={downloadModal.close}
+        onCancel={downloadModal.close}
         isLoading={
-          modals.versionToDownload
+          downloadModal.versionToDownload
             ? getVersionLoadingState(
                 versionLoadingStates,
-                modals.versionToDownload.version,
+                downloadModal.versionToDownload.version,
               ).isDownloading
             : false
         }

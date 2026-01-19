@@ -7,7 +7,8 @@ import WidgetListItem from "../common/WidgetListItem";
 import { renderLoadingIndicator } from "../common/LoadingIndicator";
 import { renderPanel } from "../common/Panel";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
-import { PACKAGE_MANAGERS, STORAGE_KEYS, saveToStorage } from "../../utils/functional";
+import { PACKAGE_MANAGERS, STORAGE_KEYS, saveToStorage } from "../../utils";
+import { useAppContext, useWidgetContext, useBuildDeployContext, useModalContext } from "../../contexts";
 
 const DEFAULT_VERSION_FILTER = { value: "all", label: "📦 All Versions" };
 
@@ -321,156 +322,172 @@ const renderWidgetsList = R.curry(
   },
 );
 
-const WidgetManager = memo(
-  ({
-    versionFilter,
-    setVersionFilter,
-    versions,
-    appSearchTerm,
-    setAppSearchTerm,
+const WidgetManager = memo(({ versions }) => {
+  // Use contexts
+  const appContext = useAppContext();
+  const widgetContext = useWidgetContext();
+  const buildDeployContext = useBuildDeployContext();
+  const modalContext = useModalContext();
+
+  // Destructure from contexts
+  const {
     filteredApps,
     selectedApps,
+    appSearchTerm,
+    setAppSearchTerm,
+    versionFilter,
+    setVersionFilter,
     handleAppClick,
+  } = appContext;
+
+  const {
+    widgets,
+    setWidgets,
+    filteredWidgets,
+    selectedWidgets,
+    setSelectedWidgets,
+    widgetSearchTerm,
+    setWidgetSearchTerm,
+    setNewWidgetCaption,
+    setNewWidgetPath,
+  } = widgetContext;
+
+  const {
     packageManager,
     setPackageManager,
     handleInstall,
     handleBuildDeploy,
     isInstalling,
     isBuilding,
-    selectedWidgets,
-    setSelectedWidgets,
-    filteredWidgets,
-    widgetSearchTerm,
-    setWidgetSearchTerm,
+    inlineResults,
+    setInlineResults,
+  } = buildDeployContext;
+
+  const {
+    setShowWidgetModal,
+    setShowAddWidgetForm,
+    handleWidgetDeleteClick,
+  } = modalContext;
+
+  const [versionOptions, setVersionOptions] = useState([DEFAULT_VERSION_FILTER]);
+
+  useEffect(() => {
+    if (versions && versions.length > 0) {
+      invokeCreateVersionOptions(versions)
+        .then(setVersionOptions)
+        .catch(() => setVersionOptions([DEFAULT_VERSION_FILTER]));
+    }
+  }, [versions]);
+
+  const modalHandlers = {
     setShowWidgetModal,
     setShowAddWidgetForm,
     setNewWidgetCaption,
     setNewWidgetPath,
-    setWidgets,
-    inlineResults,
-    setInlineResults,
-    handleWidgetDeleteClick,
-  }) => {
-    const [versionOptions, setVersionOptions] = useState([DEFAULT_VERSION_FILTER]);
+  };
 
-    useEffect(() => {
-      if (versions && versions.length > 0) {
-        invokeCreateVersionOptions(versions)
-          .then(setVersionOptions)
-          .catch(() => setVersionOptions([DEFAULT_VERSION_FILTER]));
-      }
-    }, [versions]);
+  const [widgetListRef, reorderedWidgets, setReorderedWidgets] =
+    useDragAndDrop(filteredWidgets, {
+      disabled: !R.isEmpty(widgetSearchTerm),
+      onSort: ({ values }) => {
+        if (R.isEmpty(widgetSearchTerm)) {
+          setWidgets(values);
+        }
+      },
+    });
 
-    const modalHandlers = {
-      setShowWidgetModal,
-      setShowAddWidgetForm,
-      setNewWidgetCaption,
-      setNewWidgetPath,
-    };
+  useEffect(() => {
+    setReorderedWidgets(filteredWidgets);
+  }, [filteredWidgets, setReorderedWidgets]);
 
-    const [widgetListRef, reorderedWidgets, setReorderedWidgets] =
-      useDragAndDrop(filteredWidgets, {
-        disabled: !R.isEmpty(widgetSearchTerm),
-        onSort: ({ values }) => {
-          if (R.isEmpty(widgetSearchTerm)) {
-            setWidgets(values);
-          }
+  const panelConfigs = [
+    {
+      key: "apps",
+      className: "list-container",
+      searchControls: renderSearchControls({
+        placeholder: "Search Mendix apps...",
+        searchTerm: appSearchTerm,
+        setSearchTerm: setAppSearchTerm,
+        dropdown: {
+          value: versionFilter,
+          onChange: setVersionFilter,
+          options: versionOptions,
         },
-      });
+      }),
+      content: renderAppsList(selectedApps, handleAppClick, filteredApps),
+    },
+    {
+      key: "widgets",
+      className: "list-container",
+      searchControls: renderSearchControls({
+        placeholder: "Search widgets by caption...",
+        searchTerm: widgetSearchTerm,
+        setSearchTerm: setWidgetSearchTerm,
+      }),
+      content: renderWidgetsList(
+        selectedWidgets,
+        setSelectedWidgets,
+        handleWidgetDeleteClick,
+        reorderedWidgets,
+        widgetSearchTerm,
+        modalHandlers,
+        widgetListRef,
+      ),
+    },
+  ];
 
-    useEffect(() => {
-      setReorderedWidgets(filteredWidgets);
-    }, [filteredWidgets, setReorderedWidgets]);
+  return (
+    <div className="base-manager widget-manager">
+      {R.map(renderPanel, panelConfigs)}
 
-    const panelConfigs = [
-      {
-        key: "apps",
-        className: "list-container",
-        searchControls: renderSearchControls({
-          placeholder: "Search Mendix apps...",
-          searchTerm: appSearchTerm,
-          setSearchTerm: setAppSearchTerm,
-          dropdown: {
-            value: versionFilter,
-            onChange: setVersionFilter,
-            options: versionOptions,
-          },
-        }),
-        content: renderAppsList(selectedApps, handleAppClick, filteredApps),
-      },
-      {
-        key: "widgets",
-        className: "list-container",
-        searchControls: renderSearchControls({
-          placeholder: "Search widgets by caption...",
-          searchTerm: widgetSearchTerm,
-          setSearchTerm: setWidgetSearchTerm,
-        }),
-        content: renderWidgetsList(
-          selectedWidgets,
-          setSelectedWidgets,
-          handleWidgetDeleteClick,
-          reorderedWidgets,
-          widgetSearchTerm,
-          modalHandlers,
-          widgetListRef,
-        ),
-      },
-    ];
-
-    return (
-      <div className="base-manager widget-manager">
-        {R.map(renderPanel, panelConfigs)}
-
-        <div className="package-manager-section">
-          <div className="package-manager-group">
-            <label className="package-manager-label">Package Manager:</label>
-            <div className="package-manager-filters">
-              {R.map(
-                renderPackageManagerOption(packageManager, setPackageManager),
-                PACKAGE_MANAGERS,
-              )}
-            </div>
-          </div>
-
-          <button
-            onClick={handleInstall}
-            disabled={isInstallButtonDisabled(isInstalling, selectedWidgets)}
-            className={`install-button install-button-full ${
-              selectedWidgets.size > 0 ? "button-enabled" : "button-disabled"
-            }`}
-          >
-            <span className="button-icon">{isInstalling ? "⏳" : "📦"}</span>
-            {isInstalling
-              ? "Installing..."
-              : `Install (${selectedWidgets.size} widgets)`}
-          </button>
-
-          <button
-            onClick={handleBuildDeploy}
-            disabled={isBuildDeployButtonDisabled(
-              isBuilding,
-              selectedWidgets,
-              selectedApps,
+      <div className="package-manager-section">
+        <div className="package-manager-group">
+          <label className="package-manager-label">Package Manager:</label>
+          <div className="package-manager-filters">
+            {R.map(
+              renderPackageManagerOption(packageManager, setPackageManager),
+              PACKAGE_MANAGERS,
             )}
-            className={`install-button build-deploy-button ${
-              selectedWidgets.size > 0 && selectedApps.size > 0
-                ? "button-enabled"
-                : "button-disabled"
-            }`}
-          >
-            <span className="button-icon">{isBuilding ? "⏳" : "🚀"}</span>
-            {isBuilding
-              ? "Building & Deploying..."
-              : `Build + Deploy (${selectedWidgets.size} widgets → ${selectedApps.size} apps)`}
-          </button>
-
-          {renderInlineResults({ inlineResults, setInlineResults })}
+          </div>
         </div>
+
+        <button
+          onClick={handleInstall}
+          disabled={isInstallButtonDisabled(isInstalling, selectedWidgets)}
+          className={`install-button install-button-full ${
+            selectedWidgets.size > 0 ? "button-enabled" : "button-disabled"
+          }`}
+        >
+          <span className="button-icon">{isInstalling ? "⏳" : "📦"}</span>
+          {isInstalling
+            ? "Installing..."
+            : `Install (${selectedWidgets.size} widgets)`}
+        </button>
+
+        <button
+          onClick={handleBuildDeploy}
+          disabled={isBuildDeployButtonDisabled(
+            isBuilding,
+            selectedWidgets,
+            selectedApps,
+          )}
+          className={`install-button build-deploy-button ${
+            selectedWidgets.size > 0 && selectedApps.size > 0
+              ? "button-enabled"
+              : "button-disabled"
+          }`}
+        >
+          <span className="button-icon">{isBuilding ? "⏳" : "🚀"}</span>
+          {isBuilding
+            ? "Building & Deploying..."
+            : `Build + Deploy (${selectedWidgets.size} widgets → ${selectedApps.size} apps)`}
+        </button>
+
+        {renderInlineResults({ inlineResults, setInlineResults })}
       </div>
-    );
-  },
-);
+    </div>
+  );
+});
 
 WidgetManager.displayName = "WidgetManager";
 

@@ -5,7 +5,7 @@ import {
   wrapAsync,
   updateVersionLoadingStates,
   getVersionLoadingState,
-} from "../utils/functional";
+} from "../utils";
 import { filterMendixVersions } from "../utils/dataProcessing";
 
 const LAUNCH_LOADING_RESET_DELAY_MS = 60000;

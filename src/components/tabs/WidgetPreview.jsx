@@ -9,6 +9,7 @@ import { renderLoadingIndicator } from "../common/LoadingIndicator";
 import { createEditorConfigHandler } from "../../utils/editorConfigParser";
 import { initializePropertyValues, countAllWidgetGroupsVisibleProperties } from "../../utils/dataProcessing";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
+import { useWidgetContext, useModalContext } from "../../contexts";
 
 const ADD_WIDGET_BUTTON_STYLE = {
   cursor: "pointer",
@@ -343,290 +344,297 @@ const renderWidgetListPanel = R.curryN(
   ),
 );
 
-const WidgetPreview = memo(
-  ({
-    widgetPreviewSearch,
-    setWidgetPreviewSearch,
-    properties,
-    updateProperty,
+const WidgetPreview = memo(() => {
+  // Use contexts
+  const widgetContext = useWidgetContext();
+  const modalContext = useModalContext();
+
+  // Destructure from contexts
+  const {
     widgets,
+    setWidgets,
     filteredWidgets,
     widgetSearchTerm,
     setWidgetSearchTerm,
     selectedWidgetForPreview,
     setSelectedWidgetForPreview,
-    setWidgets,
+    properties,
+    setNewWidgetCaption,
+    setNewWidgetPath,
+  } = widgetContext;
+
+  const {
+    setShowWidgetModal,
+    setShowAddWidgetForm,
+    handleWidgetDeleteClick,
+  } = modalContext;
+
+  const [widgetDefinition, setWidgetDefinition] = useState(null);
+  const [dynamicProperties, setDynamicProperties] = useState({});
+  const [editorConfigHandler, setEditorConfigHandler] = useState(null);
+  const [visiblePropertyKeys, setVisiblePropertyKeys] = useState(null);
+  const [previewData, setPreviewData] = useState(null);
+  const [isBuilding, setIsBuilding] = useState(false);
+  const [buildError, setBuildError] = useState(null);
+  const [packageManager, setPackageManager] = useState("bun");
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const [groupCounts, setGroupCounts] = useState({});
+
+  const toggleGroup = useCallback((category) => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [category]: !R.propOr(true, category, prev),
+    }));
+  }, []);
+
+  const widgetsForDragDrop = R.ifElse(
+    R.isEmpty,
+    R.always(filteredWidgets),
+    R.always([]),
+  )(widgetSearchTerm);
+
+  const [widgetListRef, reorderedWidgets, setReorderedWidgets] =
+    useDragAndDrop(widgetsForDragDrop, {
+      onSort: R.pipe(R.prop("values"), setWidgets),
+    });
+
+  useEffect(() => {
+    setReorderedWidgets(filteredWidgets);
+  }, [filteredWidgets, setReorderedWidgets]);
+
+  const selectedWidget = R.pipe(
+    R.find(R.propEq(String(selectedWidgetForPreview), "id")),
+    R.defaultTo(null),
+  )(widgets);
+
+  const resetWidgetPropertiesState = () => {
+    setWidgetDefinition(null);
+    setDynamicProperties({});
+    setEditorConfigHandler(null);
+    setVisiblePropertyKeys(null);
+    setGroupCounts({});
+  };
+
+  useEffect(() => {
+    if (!selectedWidget) {
+      resetWidgetPropertiesState();
+      return;
+    }
+
+    const widgetPath = R.prop("path", selectedWidget);
+
+    const loadWidgetData = async () => {
+      try {
+        const [definition, initialValues, editorConfigResult] = await Promise.all([
+          invoke("parse_widget_properties", { widgetPath }),
+          initializePropertyValues(widgetPath),
+          invoke("read_editor_config", { widgetPath }),
+        ]);
+
+        setWidgetDefinition(definition);
+        setDynamicProperties(initialValues);
+
+        if (editorConfigResult.found && editorConfigResult.content) {
+          const handler = createEditorConfigHandler(editorConfigResult.content);
+          setEditorConfigHandler(handler);
+        } else {
+          setEditorConfigHandler(null);
+        }
+      } catch (error) {
+        console.error("Failed to load widget data:", error);
+        setWidgetDefinition(null);
+        setDynamicProperties({});
+        setEditorConfigHandler(null);
+      }
+    };
+
+    loadWidgetData();
+  }, [selectedWidget]);
+
+  useEffect(() => {
+    if (!editorConfigHandler || !editorConfigHandler.isAvailable || !widgetDefinition) {
+      setVisiblePropertyKeys(null);
+      return;
+    }
+
+    const combinedValues = R.mergeRight(properties, dynamicProperties);
+    const visibleKeys = editorConfigHandler.getVisiblePropertyKeys(
+      combinedValues,
+      widgetDefinition,
+    );
+    setVisiblePropertyKeys(visibleKeys);
+  }, [editorConfigHandler, widgetDefinition, dynamicProperties, properties]);
+
+  // Calculate group counts when widgetDefinition or visiblePropertyKeys change
+  useEffect(() => {
+    if (!widgetDefinition) {
+      setGroupCounts({});
+      return;
+    }
+
+    const propertyGroups = R.propOr([], "property_groups", widgetDefinition);
+    if (R.isEmpty(propertyGroups)) {
+      setGroupCounts({});
+      return;
+    }
+
+    const calculateCounts = async () => {
+      try {
+        const results = await countAllWidgetGroupsVisibleProperties(
+          propertyGroups,
+          visiblePropertyKeys,
+        );
+        // Convert array of { group_path, count } to object { [group_path]: count }
+        const countsMap = R.pipe(
+          R.map((item) => [item.group_path, item.count]),
+          R.fromPairs,
+        )(results);
+        setGroupCounts(countsMap);
+      } catch (error) {
+        console.error("Failed to calculate group counts:", error);
+        setGroupCounts({});
+      }
+    };
+
+    calculateCounts();
+  }, [widgetDefinition, visiblePropertyKeys]);
+
+  const updateDynamicProperty = R.curry((propertyKey, value) =>
+    setDynamicProperties(R.assoc(propertyKey, value)),
+  );
+
+  const combinedProperties = R.mergeRight(properties, dynamicProperties);
+
+  const handleRunPreview = async () => {
+    if (!selectedWidget) return;
+
+    setIsBuilding(true);
+    setBuildError(null);
+
+    try {
+      const response = await invoke("build_widget_for_preview", {
+        widgetPath: selectedWidget.path,
+        packageManager: packageManager,
+      });
+
+      if (response.success) {
+        setPreviewData({
+          bundle: response.bundle_content,
+          css: response.css_content,
+          widgetName: response.widget_name,
+          widgetId: response.widget_id,
+        });
+        setBuildError(null);
+      } else {
+        setBuildError(response.error || "Build failed");
+        setPreviewData(null);
+      }
+    } catch (error) {
+      console.error("[Widget Preview] Error:", error);
+      setBuildError(String(error));
+      setPreviewData(null);
+    } finally {
+      setIsBuilding(false);
+    }
+  };
+
+  const modalHandlers = {
     setShowWidgetModal,
     setShowAddWidgetForm,
     setNewWidgetCaption,
     setNewWidgetPath,
-    handleWidgetDeleteClick,
-  }) => {
-    const [widgetDefinition, setWidgetDefinition] = useState(null);
-    const [dynamicProperties, setDynamicProperties] = useState({});
-    const [editorConfigHandler, setEditorConfigHandler] = useState(null);
-    const [visiblePropertyKeys, setVisiblePropertyKeys] = useState(null);
-    const [previewData, setPreviewData] = useState(null);
-    const [isBuilding, setIsBuilding] = useState(false);
-    const [buildError, setBuildError] = useState(null);
-    const [packageManager, setPackageManager] = useState("bun");
-    const [expandedGroups, setExpandedGroups] = useState({});
-    const [groupCounts, setGroupCounts] = useState({});
+  };
 
-    const toggleGroup = useCallback((category) => {
-      setExpandedGroups((prev) => ({
-        ...prev,
-        [category]: !R.propOr(true, category, prev),
-      }));
-    }, []);
-
-    const widgetsForDragDrop = R.ifElse(
-      R.isEmpty,
-      R.always(filteredWidgets),
-      R.always([]),
-    )(widgetSearchTerm);
-
-    const [widgetListRef, reorderedWidgets, setReorderedWidgets] =
-      useDragAndDrop(widgetsForDragDrop, {
-        onSort: R.pipe(R.prop("values"), setWidgets),
-      });
-
-    useEffect(() => {
-      setReorderedWidgets(filteredWidgets);
-    }, [filteredWidgets, setReorderedWidgets]);
-
-    const selectedWidget = R.pipe(
-      R.find(R.propEq(String(selectedWidgetForPreview), "id")),
-      R.defaultTo(null),
-    )(widgets);
-
-    const resetWidgetPropertiesState = () => {
-      setWidgetDefinition(null);
-      setDynamicProperties({});
-      setEditorConfigHandler(null);
-      setVisiblePropertyKeys(null);
-      setGroupCounts({});
-    };
-
-    useEffect(() => {
-      if (!selectedWidget) {
-        resetWidgetPropertiesState();
-        return;
-      }
-
-      const widgetPath = R.prop("path", selectedWidget);
-
-      const loadWidgetData = async () => {
-        try {
-          const [definition, initialValues, editorConfigResult] = await Promise.all([
-            invoke("parse_widget_properties", { widgetPath }),
-            initializePropertyValues(widgetPath),
-            invoke("read_editor_config", { widgetPath }),
-          ]);
-
-          setWidgetDefinition(definition);
-          setDynamicProperties(initialValues);
-
-          if (editorConfigResult.found && editorConfigResult.content) {
-            const handler = createEditorConfigHandler(editorConfigResult.content);
-            setEditorConfigHandler(handler);
-          } else {
-            setEditorConfigHandler(null);
-          }
-        } catch (error) {
-          console.error("Failed to load widget data:", error);
-          setWidgetDefinition(null);
-          setDynamicProperties({});
-          setEditorConfigHandler(null);
-        }
-      };
-
-      loadWidgetData();
-    }, [selectedWidget]);
-
-    useEffect(() => {
-      if (!editorConfigHandler || !editorConfigHandler.isAvailable || !widgetDefinition) {
-        setVisiblePropertyKeys(null);
-        return;
-      }
-
-      const combinedValues = R.mergeRight(properties, dynamicProperties);
-      const visibleKeys = editorConfigHandler.getVisiblePropertyKeys(
-        combinedValues,
-        widgetDefinition,
-      );
-      setVisiblePropertyKeys(visibleKeys);
-    }, [editorConfigHandler, widgetDefinition, dynamicProperties, properties]);
-
-    // Calculate group counts when widgetDefinition or visiblePropertyKeys change
-    useEffect(() => {
-      if (!widgetDefinition) {
-        setGroupCounts({});
-        return;
-      }
-
-      const propertyGroups = R.propOr([], "property_groups", widgetDefinition);
-      if (R.isEmpty(propertyGroups)) {
-        setGroupCounts({});
-        return;
-      }
-
-      const calculateCounts = async () => {
-        try {
-          const results = await countAllWidgetGroupsVisibleProperties(
-            propertyGroups,
-            visiblePropertyKeys,
-          );
-          // Convert array of { group_path, count } to object { [group_path]: count }
-          const countsMap = R.pipe(
-            R.map((item) => [item.group_path, item.count]),
-            R.fromPairs,
-          )(results);
-          setGroupCounts(countsMap);
-        } catch (error) {
-          console.error("Failed to calculate group counts:", error);
-          setGroupCounts({});
-        }
-      };
-
-      calculateCounts();
-    }, [widgetDefinition, visiblePropertyKeys]);
-
-    const updateDynamicProperty = R.curry((propertyKey, value) =>
-      setDynamicProperties(R.assoc(propertyKey, value)),
-    );
-
-    const combinedProperties = R.mergeRight(properties, dynamicProperties);
-
-    const handleRunPreview = async () => {
-      if (!selectedWidget) return;
-
-      setIsBuilding(true);
-      setBuildError(null);
-
-      try {
-        const response = await invoke("build_widget_for_preview", {
-          widgetPath: selectedWidget.path,
-          packageManager: packageManager,
-        });
-
-        if (response.success) {
-          setPreviewData({
-            bundle: response.bundle_content,
-            css: response.css_content,
-            widgetName: response.widget_name,
-            widgetId: response.widget_id,
-          });
-          setBuildError(null);
-        } else {
-          setBuildError(response.error || "Build failed");
-          setPreviewData(null);
-        }
-      } catch (error) {
-        console.error("[Widget Preview] Error:", error);
-        setBuildError(String(error));
-        setPreviewData(null);
-      } finally {
-        setIsBuilding(false);
-      }
-    };
-
-    return (
-      <div className="base-manager widget-preview">
-        <div className="preview-left">
-          <SearchBox
-            placeholder="Search widgets by caption..."
-            value={widgetSearchTerm}
-            onChange={setWidgetSearchTerm}
-          />
-          {renderWidgetListPanel(
-            {
-              reorderedWidgets,
-              widgetSearchTerm,
-              selectedWidgetForPreview,
-            },
-            {
-              setSelectedWidgetForPreview,
-              setWidgets,
-              handleWidgetDeleteClick,
-            },
-            {
-              setShowWidgetModal,
-              setShowAddWidgetForm,
-              setNewWidgetCaption,
-              setNewWidgetPath,
-            },
-            widgetListRef,
-          )}
-        </div>
-
-        <div className="preview-middle">
-          <div className="properties-header">
-            <h3>Properties</h3>
-            <div className="preview-controls">
-              <select
-                value={packageManager}
-                onChange={(e) => setPackageManager(e.target.value)}
-                disabled={isBuilding}
-                className="package-manager-select"
-              >
-                <option value="npm">npm</option>
-                <option value="yarn">yarn</option>
-                <option value="pnpm">pnpm</option>
-                <option value="bun">bun</option>
-              </select>
-              <button
-                className="run-preview-button"
-                onClick={handleRunPreview}
-                disabled={!selectedWidget || isBuilding}
-              >
-                <span className="button-icon">{isBuilding ? "⏳" : "▶️"}</span>
-                {isBuilding ? "Building..." : "Run Preview"}
-              </button>
-            </div>
-          </div>
-          {buildError && (
-            <div className="build-error">
-              <span className="error-icon">❌</span>
-              <p>{buildError}</p>
-            </div>
-          )}
-          {renderPropertiesPanel(
-            selectedWidget,
-            widgetDefinition,
-            combinedProperties,
-            updateDynamicProperty,
-            expandedGroups,
-            toggleGroup,
-            visiblePropertyKeys,
-            groupCounts,
-          )}
-        </div>
-
-        <div className="preview-right">
-          {previewData ? (
-            <WidgetPreviewFrame
-              bundle={previewData.bundle}
-              css={previewData.css}
-              widgetName={previewData.widgetName}
-              widgetId={previewData.widgetId}
-              properties={combinedProperties}
-            />
-          ) : (
-            <div className="preview-instructions">
-              <span className="preview-emoji">🍓</span>
-              <p className="preview-message">
-                Pick a widget, click Run Preview,
-                <br />
-                and watch the magic happen!
-              </p>
-            </div>
-          )}
-        </div>
+  return (
+    <div className="base-manager widget-preview">
+      <div className="preview-left">
+        <SearchBox
+          placeholder="Search widgets by caption..."
+          value={widgetSearchTerm}
+          onChange={setWidgetSearchTerm}
+        />
+        {renderWidgetListPanel(
+          {
+            reorderedWidgets,
+            widgetSearchTerm,
+            selectedWidgetForPreview,
+          },
+          {
+            setSelectedWidgetForPreview,
+            setWidgets,
+            handleWidgetDeleteClick,
+          },
+          modalHandlers,
+          widgetListRef,
+        )}
       </div>
-    );
-  },
-);
+
+      <div className="preview-middle">
+        <div className="properties-header">
+          <h3>Properties</h3>
+          <div className="preview-controls">
+            <select
+              value={packageManager}
+              onChange={(e) => setPackageManager(e.target.value)}
+              disabled={isBuilding}
+              className="package-manager-select"
+            >
+              <option value="npm">npm</option>
+              <option value="yarn">yarn</option>
+              <option value="pnpm">pnpm</option>
+              <option value="bun">bun</option>
+            </select>
+            <button
+              className="run-preview-button"
+              onClick={handleRunPreview}
+              disabled={!selectedWidget || isBuilding}
+            >
+              <span className="button-icon">{isBuilding ? "⏳" : "▶️"}</span>
+              {isBuilding ? "Building..." : "Run Preview"}
+            </button>
+          </div>
+        </div>
+        {buildError && (
+          <div className="build-error">
+            <span className="error-icon">❌</span>
+            <p>{buildError}</p>
+          </div>
+        )}
+        {renderPropertiesPanel(
+          selectedWidget,
+          widgetDefinition,
+          combinedProperties,
+          updateDynamicProperty,
+          expandedGroups,
+          toggleGroup,
+          visiblePropertyKeys,
+          groupCounts,
+        )}
+      </div>
+
+      <div className="preview-right">
+        {previewData ? (
+          <WidgetPreviewFrame
+            bundle={previewData.bundle}
+            css={previewData.css}
+            widgetName={previewData.widgetName}
+            widgetId={previewData.widgetId}
+            properties={combinedProperties}
+          />
+        ) : (
+          <div className="preview-instructions">
+            <span className="preview-emoji">🍓</span>
+            <p className="preview-message">
+              Pick a widget, click Run Preview,
+              <br />
+              and watch the magic happen!
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
 
 WidgetPreview.displayName = "WidgetPreview";
 

@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from "react";
 import { flavors } from "@catppuccin/palette";
 import catppuccinLogo from "../assets/catppuccin_circle.png";
 import catppuccinLatteLogo from "../assets/catppuccin_latte_circle.png";
-import { STORAGE_KEYS, loadFromStorage, saveToStorage } from "../utils/functional";
+import { STORAGE_KEYS, loadFromStorage, saveToStorage } from "../utils";
 
 const THEME_CLASSES = [
   "theme-kiraichi",

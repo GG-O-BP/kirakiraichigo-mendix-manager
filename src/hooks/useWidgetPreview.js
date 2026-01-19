@@ -1,6 +1,6 @@
 import * as R from "ramda";
 import { useState, useCallback } from "react";
-import { setProperty } from "../utils/functional";
+import { setProperty } from "../utils";
 
 export function useWidgetPreview() {
   const [widgetPreviewSearch, setWidgetPreviewSearch] = useState("");

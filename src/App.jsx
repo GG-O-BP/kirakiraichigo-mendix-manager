@@ -2,7 +2,7 @@ import * as R from "ramda";
 import React, { useState, useMemo, useEffect } from "react";
 import "./styles/index.css";
 
-import { ITEMS_PER_PAGE } from "./utils/functional";
+import { ITEMS_PER_PAGE } from "./utils";
 
 import { TabButton, AppHeader } from "./components/common";
 import {
@@ -18,92 +18,26 @@ import {
   useApps,
   useWidgets,
   useWidgetPreview,
-  useModals,
   useBuildDeploy,
+  useUninstallModal,
+  useAppDeleteModal,
+  useWidgetModal,
+  useWidgetDeleteModal,
+  useDownloadModal,
+  useResultModal,
 } from "./hooks";
 
-const STUDIO_PRO_MANAGER_PROP_KEYS = [
-  "searchTerm",
-  "setSearchTerm",
-  "versions",
-  "filteredVersions",
-  "selectedVersion",
-  "handleVersionClick",
-  "apps",
-  "versionLoadingStates",
-  "handleLaunchStudioPro",
-  "handleUninstallClick",
-  "fetchVersionsFromDatagrid",
-  "downloadableVersions",
-  "isLoadingDownloadableVersions",
-  "handleDownloadVersion",
-  "showOnlyDownloadableVersions",
-  "setShowOnlyDownloadableVersions",
-  "showLTSOnly",
-  "setShowLTSOnly",
-  "showMTSOnly",
-  "setShowMTSOnly",
-  "showBetaOnly",
-  "setShowBetaOnly",
-];
-
-const WIDGET_MANAGER_PROP_KEYS = [
-  "versionFilter",
-  "setVersionFilter",
-  "versions",
-  "appSearchTerm",
-  "setAppSearchTerm",
-  "filteredApps",
-  "currentPage",
-  "setCurrentPage",
-  "hasMore",
-  "selectedApps",
-  "handleAppClick",
-  "packageManager",
-  "setPackageManager",
-  "handleInstall",
-  "handleBuildDeploy",
-  "isInstalling",
-  "isBuilding",
-  "selectedWidgets",
-  "setSelectedWidgets",
-  "widgets",
-  "filteredWidgets",
-  "widgetSearchTerm",
-  "setWidgetSearchTerm",
-  "setShowWidgetModal",
-  "setShowAddWidgetForm",
-  "setNewWidgetCaption",
-  "setNewWidgetPath",
-  "setWidgets",
-  "inlineResults",
-  "setInlineResults",
-  "handleWidgetDeleteClick",
-];
-
-const WIDGET_PREVIEW_PROP_KEYS = [
-  "widgetPreviewSearch",
-  "setWidgetPreviewSearch",
-  "properties",
-  "updateProperty",
-  "widgets",
-  "filteredWidgets",
-  "widgetSearchTerm",
-  "setWidgetSearchTerm",
-  "selectedWidgetForPreview",
-  "setSelectedWidgetForPreview",
-  "setWidgets",
-  "setShowWidgetModal",
-  "setShowAddWidgetForm",
-  "setNewWidgetCaption",
-  "setNewWidgetPath",
-  "handleWidgetDeleteClick",
-];
+import {
+  AppProvider,
+  WidgetProvider,
+  BuildDeployProvider,
+  ModalProvider,
+} from "./contexts";
 
 const TAB_CONFIGURATIONS = [
-  ["studio-pro", "Studio Pro Manager", StudioProManager, "studioProManager"],
-  ["widget-manager", "Widget Manager", WidgetManager, "widgetManager"],
-  ["widget-preview", "Widget Preview", WidgetPreview, "widgetPreview"],
+  ["studio-pro", "Studio Pro Manager", StudioProManager],
+  ["widget-manager", "Widget Manager", WidgetManager],
+  ["widget-preview", "Widget Preview", WidgetPreview],
 ];
 
 function App() {
@@ -111,14 +45,18 @@ function App() {
   const versions = useVersions();
   const appsHook = useApps();
   const widgetsHook = useWidgets();
-  const widgetPreview = useWidgetPreview();
-  const modals = useModals();
+  const widgetPreviewHook = useWidgetPreview();
+
+  // Individual modal hooks
+  const uninstallModal = useUninstallModal();
+  const appDeleteModal = useAppDeleteModal();
+  const widgetModal = useWidgetModal();
+  const widgetDeleteModal = useWidgetDeleteModal();
+  const downloadModal = useDownloadModal();
+  const resultModal = useResultModal();
+
   const buildDeploy = useBuildDeploy({
-    selectedWidgets: widgetsHook.selectedWidgets,
-    selectedApps: appsHook.selectedApps,
-    widgets: widgetsHook.widgets,
-    apps: appsHook.apps,
-    setShowResultModal: modals.setShowResultModal,
+    onShowResultModal: resultModal.setShowModal,
   });
 
   const [activeTab, setActiveTab] = useState("studio-pro");
@@ -133,21 +71,136 @@ function App() {
     loadInitialData();
   }, [versions.loadVersions, appsHook.loadApps, widgetsHook.loadWidgets]);
 
-  // Create state object for tab props
-  const stateObject = useMemo(
+  // Context values
+  const appContextValue = useMemo(
     () => ({
-      // Versions
+      apps: appsHook.apps,
+      filteredApps: appsHook.filteredApps,
+      selectedApps: appsHook.selectedApps,
+      appSearchTerm: appsHook.appSearchTerm,
+      setAppSearchTerm: appsHook.setAppSearchTerm,
+      versionFilter: appsHook.versionFilter,
+      setVersionFilter: appsHook.setVersionFilter,
+      handleAppClick: appsHook.handleAppClick,
+      handleDeleteApp: appsHook.handleDeleteApp,
+      loadApps: appsHook.loadApps,
+      currentPage: appsHook.currentPage,
+      setCurrentPage: appsHook.setCurrentPage,
+      hasMore: appsHook.hasMore,
+      ITEMS_PER_PAGE,
+    }),
+    [appsHook],
+  );
+
+  const widgetContextValue = useMemo(
+    () => ({
+      widgets: widgetsHook.widgets,
+      setWidgets: widgetsHook.setWidgets,
+      filteredWidgets: widgetsHook.filteredWidgets,
+      selectedWidgets: widgetsHook.selectedWidgets,
+      setSelectedWidgets: widgetsHook.setSelectedWidgets,
+      widgetSearchTerm: widgetsHook.widgetSearchTerm,
+      setWidgetSearchTerm: widgetsHook.setWidgetSearchTerm,
+      newWidgetCaption: widgetsHook.newWidgetCaption,
+      setNewWidgetCaption: widgetsHook.setNewWidgetCaption,
+      newWidgetPath: widgetsHook.newWidgetPath,
+      setNewWidgetPath: widgetsHook.setNewWidgetPath,
+      handleAddWidget: widgetsHook.handleAddWidget,
+      handleWidgetDelete: widgetsHook.handleWidgetDelete,
+      // Widget Preview
+      selectedWidgetForPreview: widgetPreviewHook.selectedWidgetForPreview,
+      setSelectedWidgetForPreview: widgetPreviewHook.setSelectedWidgetForPreview,
+      properties: widgetPreviewHook.properties,
+      updateProperty: widgetPreviewHook.updateProperty,
+      widgetPreviewSearch: widgetPreviewHook.widgetPreviewSearch,
+      setWidgetPreviewSearch: widgetPreviewHook.setWidgetPreviewSearch,
+    }),
+    [widgetsHook, widgetPreviewHook],
+  );
+
+  const buildDeployContextValue = useMemo(
+    () => ({
+      packageManager: buildDeploy.packageManager,
+      setPackageManager: buildDeploy.setPackageManager,
+      isInstalling: buildDeploy.isInstalling,
+      isBuilding: buildDeploy.isBuilding,
+      // Wrap handlers to pass current state automatically
+      handleInstall: () =>
+        buildDeploy.handleInstall({
+          selectedWidgets: widgetsHook.selectedWidgets,
+          widgets: widgetsHook.widgets,
+        }),
+      handleBuildDeploy: () =>
+        buildDeploy.handleBuildDeploy({
+          selectedWidgets: widgetsHook.selectedWidgets,
+          selectedApps: appsHook.selectedApps,
+          widgets: widgetsHook.widgets,
+          apps: appsHook.apps,
+        }),
+      buildResults: buildDeploy.buildResults,
+      setBuildResults: buildDeploy.setBuildResults,
+      inlineResults: buildDeploy.inlineResults,
+      setInlineResults: buildDeploy.setInlineResults,
+      isUninstalling: buildDeploy.isUninstalling,
+      setIsUninstalling: buildDeploy.setIsUninstalling,
+    }),
+    [buildDeploy, widgetsHook.selectedWidgets, widgetsHook.widgets, appsHook.selectedApps, appsHook.apps],
+  );
+
+  const modalContextValue = useMemo(
+    () => ({
+      // Uninstall Modal
+      showUninstallModal: uninstallModal.showModal,
+      versionToUninstall: uninstallModal.versionToUninstall,
+      relatedApps: uninstallModal.relatedApps,
+      setRelatedApps: uninstallModal.setRelatedApps,
+      openUninstallModal: uninstallModal.open,
+      closeUninstallModal: uninstallModal.close,
+      // App Delete Modal
+      showAppDeleteModal: appDeleteModal.showModal,
+      appToDelete: appDeleteModal.appToDelete,
+      openAppDeleteModal: appDeleteModal.open,
+      closeAppDeleteModal: appDeleteModal.close,
+      // Widget Modal
+      showWidgetModal: widgetModal.showModal,
+      showAddWidgetForm: widgetModal.showAddForm,
+      setShowWidgetModal: widgetModal.setShowModal,
+      setShowAddWidgetForm: widgetModal.setShowAddForm,
+      // Widget Delete Modal
+      showWidgetDeleteModal: widgetDeleteModal.showModal,
+      widgetToDelete: widgetDeleteModal.widgetToDelete,
+      openWidgetDeleteModal: widgetDeleteModal.open,
+      closeWidgetDeleteModal: widgetDeleteModal.close,
+      handleWidgetDeleteClick: widgetDeleteModal.open,
+      // Download Modal
+      showDownloadModal: downloadModal.showModal,
+      versionToDownload: downloadModal.versionToDownload,
+      openDownloadModal: downloadModal.open,
+      closeDownloadModal: downloadModal.close,
+      // Result Modal
+      showResultModal: resultModal.showModal,
+      setShowResultModal: resultModal.setShowModal,
+    }),
+    [uninstallModal, appDeleteModal, widgetModal, widgetDeleteModal, downloadModal, resultModal],
+  );
+
+  // StudioProManager still uses props for now (more complex state)
+  const studioProManagerProps = useMemo(
+    () => ({
       searchTerm: versions.searchTerm,
       setSearchTerm: versions.setSearchTerm,
       versions: versions.versions,
       filteredVersions: versions.filteredVersions,
       selectedVersion: versions.selectedVersion,
       handleVersionClick: versions.handleVersionClick,
+      apps: appsHook.apps,
       versionLoadingStates: versions.versionLoadingStates,
       handleLaunchStudioPro: versions.handleLaunchStudioPro,
+      handleUninstallClick: uninstallModal.open,
       fetchVersionsFromDatagrid: versions.fetchVersionsFromDatagrid,
       downloadableVersions: versions.downloadableVersions,
       isLoadingDownloadableVersions: versions.isLoadingDownloadableVersions,
+      handleDownloadVersion: downloadModal.open,
       showOnlyDownloadableVersions: versions.showOnlyDownloadableVersions,
       setShowOnlyDownloadableVersions: versions.setShowOnlyDownloadableVersions,
       showLTSOnly: versions.showLTSOnly,
@@ -156,98 +209,29 @@ function App() {
       setShowMTSOnly: versions.setShowMTSOnly,
       showBetaOnly: versions.showBetaOnly,
       setShowBetaOnly: versions.setShowBetaOnly,
-
-      // Apps
-      apps: appsHook.apps,
-      versionFilter: appsHook.versionFilter,
-      setVersionFilter: appsHook.setVersionFilter,
-      appSearchTerm: appsHook.appSearchTerm,
-      setAppSearchTerm: appsHook.setAppSearchTerm,
-      filteredApps: appsHook.filteredApps,
-      currentPage: appsHook.currentPage,
-      setCurrentPage: appsHook.setCurrentPage,
-      hasMore: appsHook.hasMore,
-      selectedApps: appsHook.selectedApps,
-      handleAppClick: appsHook.handleAppClick,
-
-      // Widgets
-      widgets: widgetsHook.widgets,
-      setWidgets: widgetsHook.setWidgets,
-      filteredWidgets: widgetsHook.filteredWidgets,
-      widgetSearchTerm: widgetsHook.widgetSearchTerm,
-      setWidgetSearchTerm: widgetsHook.setWidgetSearchTerm,
-      selectedWidgets: widgetsHook.selectedWidgets,
-      setSelectedWidgets: widgetsHook.setSelectedWidgets,
-      setNewWidgetCaption: widgetsHook.setNewWidgetCaption,
-      setNewWidgetPath: widgetsHook.setNewWidgetPath,
-
-      // Widget Preview
-      widgetPreviewSearch: widgetPreview.widgetPreviewSearch,
-      setWidgetPreviewSearch: widgetPreview.setWidgetPreviewSearch,
-      selectedWidgetForPreview: widgetPreview.selectedWidgetForPreview,
-      setSelectedWidgetForPreview: widgetPreview.setSelectedWidgetForPreview,
-      properties: widgetPreview.properties,
-      updateProperty: widgetPreview.updateProperty,
-
-      // Modals
-      setShowWidgetModal: modals.setShowWidgetModal,
-      setShowAddWidgetForm: modals.setShowAddWidgetForm,
-
-      // Build/Deploy
-      packageManager: buildDeploy.packageManager,
-      setPackageManager: buildDeploy.setPackageManager,
-      handleInstall: buildDeploy.handleInstall,
-      handleBuildDeploy: buildDeploy.handleBuildDeploy,
-      isInstalling: buildDeploy.isInstalling,
-      isBuilding: buildDeploy.isBuilding,
-      inlineResults: buildDeploy.inlineResults,
-      setInlineResults: buildDeploy.setInlineResults,
-
-      // Modal open handlers (directly from useModals)
-      handleUninstallClick: modals.openUninstallModal,
-      handleDownloadVersion: modals.openDownloadModal,
-      handleWidgetDeleteClick: modals.openWidgetDeleteModal,
     }),
-    [
-      versions,
-      appsHook,
-      widgetsHook,
-      widgetPreview,
-      modals.setShowWidgetModal,
-      modals.setShowAddWidgetForm,
-      modals.openUninstallModal,
-      modals.openDownloadModal,
-      modals.openWidgetDeleteModal,
-      buildDeploy,
-    ],
+    [versions, appsHook.apps, uninstallModal.open, downloadModal.open],
   );
 
-  const createTabPropsFromState = R.applySpec({
-    studioProManager: R.pick(STUDIO_PRO_MANAGER_PROP_KEYS),
-    widgetManager: R.pipe(
-      R.pick(WIDGET_MANAGER_PROP_KEYS),
-      R.assoc("ITEMS_PER_PAGE", ITEMS_PER_PAGE),
-    ),
-    widgetPreview: R.pick(WIDGET_PREVIEW_PROP_KEYS),
-  });
+  const createTabFromConfig = R.curry((config) => {
+    const [id, label, Component] = config;
+    const componentElement = R.cond([
+      [R.equals("studio-pro"), () => React.createElement(Component, studioProManagerProps)],
+      [R.equals("widget-manager"), () => React.createElement(Component, { versions: versions.versions })],
+      [R.equals("widget-preview"), () => React.createElement(Component)],
+      [R.T, () => null],
+    ])(id);
 
-  const createTabProps = useMemo(
-    () => createTabPropsFromState(stateObject),
-    [stateObject],
-  );
-
-  const createTabFromConfig = R.curry((props, config) => {
-    const [id, label, Component, propsKey] = config;
     return {
       id,
       label,
-      component: React.createElement(Component, R.prop(propsKey, props)),
+      component: componentElement,
     };
   });
 
   const tabs = useMemo(
-    () => R.map(createTabFromConfig(createTabProps), TAB_CONFIGURATIONS),
-    [createTabProps],
+    () => R.map(createTabFromConfig, TAB_CONFIGURATIONS),
+    [studioProManagerProps, versions.versions],
   );
 
   const activeTabContent = useMemo(
@@ -269,39 +253,52 @@ function App() {
   ));
 
   return (
-    <main className="app-container">
-      <AppHeader
-        currentTheme={theme.currentTheme}
-        currentLogo={theme.currentLogo}
-        handleThemeChange={theme.handleThemeChange}
-      />
+    <ModalProvider value={modalContextValue}>
+      <AppProvider value={appContextValue}>
+        <WidgetProvider value={widgetContextValue}>
+          <BuildDeployProvider value={buildDeployContextValue}>
+            <main className="app-container">
+              <AppHeader
+                currentTheme={theme.currentTheme}
+                currentLogo={theme.currentLogo}
+                handleThemeChange={theme.handleThemeChange}
+              />
 
-      <div className="tabs">
-        {R.map(renderTabButton(activeTab, setActiveTab), tabs)}
-      </div>
+              <div className="tabs">
+                {R.map(renderTabButton(activeTab, setActiveTab), tabs)}
+              </div>
 
-      <div className="tab-content">{activeTabContent}</div>
+              <div className="tab-content">{activeTabContent}</div>
 
-      <AppModals
-        modals={modals}
-        versionLoadingStates={versions.versionLoadingStates}
-        handleUninstallStudioPro={versions.handleUninstallStudioPro}
-        handleDeleteApp={appsHook.handleDeleteApp}
-        loadApps={appsHook.loadApps}
-        handleWidgetDelete={widgetsHook.handleWidgetDelete}
-        newWidgetCaption={widgetsHook.newWidgetCaption}
-        setNewWidgetCaption={widgetsHook.setNewWidgetCaption}
-        newWidgetPath={widgetsHook.newWidgetPath}
-        setNewWidgetPath={widgetsHook.setNewWidgetPath}
-        setWidgets={widgetsHook.setWidgets}
-        handleAddWidget={widgetsHook.handleAddWidget}
-        isUninstalling={buildDeploy.isUninstalling}
-        setIsUninstalling={buildDeploy.setIsUninstalling}
-        buildResults={buildDeploy.buildResults}
-        setBuildResults={buildDeploy.setBuildResults}
-        handleModalDownload={versions.handleModalDownload}
-      />
-    </main>
+              <AppModals
+                uninstallModal={uninstallModal}
+                appDeleteModal={appDeleteModal}
+                widgetModal={widgetModal}
+                widgetDeleteModal={widgetDeleteModal}
+                downloadModal={downloadModal}
+                resultModal={resultModal}
+                versionLoadingStates={versions.versionLoadingStates}
+                handleUninstallStudioPro={versions.handleUninstallStudioPro}
+                handleDeleteApp={appsHook.handleDeleteApp}
+                loadApps={appsHook.loadApps}
+                handleWidgetDelete={widgetsHook.handleWidgetDelete}
+                newWidgetCaption={widgetsHook.newWidgetCaption}
+                setNewWidgetCaption={widgetsHook.setNewWidgetCaption}
+                newWidgetPath={widgetsHook.newWidgetPath}
+                setNewWidgetPath={widgetsHook.setNewWidgetPath}
+                setWidgets={widgetsHook.setWidgets}
+                handleAddWidget={widgetsHook.handleAddWidget}
+                isUninstalling={buildDeploy.isUninstalling}
+                setIsUninstalling={buildDeploy.setIsUninstalling}
+                buildResults={buildDeploy.buildResults}
+                setBuildResults={buildDeploy.setBuildResults}
+                handleModalDownload={versions.handleModalDownload}
+              />
+            </main>
+          </BuildDeployProvider>
+        </WidgetProvider>
+      </AppProvider>
+    </ModalProvider>
   );
 }
 
