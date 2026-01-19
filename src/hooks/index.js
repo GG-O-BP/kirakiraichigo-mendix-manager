@@ -46,3 +46,10 @@ export {
   useInstallOperation,
   useBuildDeployOperation,
 } from "./build-deploy";
+
+// App initialization sub-hooks (for granular use)
+export {
+  useHooksInitializer,
+  useDataLoader,
+  useWrappedBuildDeployHandlers,
+} from "./app-initialization";

@@ -1,68 +1,27 @@
-import { useEffect, useCallback } from "react";
-
-import { useTheme } from "./useTheme";
-import { useVersions } from "./useVersions";
-import { useApps } from "./useApps";
-import { useWidgets } from "./useWidgets";
-import { useWidgetPreview } from "./useWidgetPreview";
-import { useBuildDeploy } from "./useBuildDeploy";
-import { useUninstallModal } from "./useUninstallModal";
-import { useAppDeleteModal } from "./useAppDeleteModal";
-import { useWidgetModal } from "./useWidgetModal";
-import { useWidgetDeleteModal } from "./useWidgetDeleteModal";
-import { useDownloadModal } from "./useDownloadModal";
-import { useResultModal } from "./useResultModal";
+import {
+  useHooksInitializer,
+  useDataLoader,
+  useWrappedBuildDeployHandlers,
+} from "./app-initialization";
 
 export function useAppInitialization() {
-  const theme = useTheme();
-  const versions = useVersions();
-  const appsHook = useApps();
-  const widgetsHook = useWidgets();
-  const widgetPreviewHook = useWidgetPreview();
+  const {
+    theme,
+    versions,
+    appsHook,
+    widgetsHook,
+    widgetPreviewHook,
+    buildDeploy,
+    modals,
+  } = useHooksInitializer();
 
-  const uninstallModal = useUninstallModal();
-  const appDeleteModal = useAppDeleteModal();
-  const widgetModal = useWidgetModal();
-  const widgetDeleteModal = useWidgetDeleteModal();
-  const downloadModal = useDownloadModal();
-  const resultModal = useResultModal();
+  useDataLoader({ versions, appsHook, widgetsHook });
 
-  const buildDeploy = useBuildDeploy({
-    onShowResultModal: resultModal.setShowModal,
+  const wrappedHandlers = useWrappedBuildDeployHandlers({
+    buildDeploy,
+    widgetsHook,
+    appsHook,
   });
-
-  // Create wrapped handlers that include the current selection state
-  const wrappedHandleInstall = useCallback(
-    () =>
-      buildDeploy.handleInstall({
-        selectedWidgets: widgetsHook.selectedWidgets,
-        widgets: widgetsHook.widgets,
-      }),
-    [buildDeploy.handleInstall, widgetsHook.selectedWidgets, widgetsHook.widgets],
-  );
-
-  const wrappedHandleBuildDeploy = useCallback(
-    () =>
-      buildDeploy.handleBuildDeploy({
-        selectedWidgets: widgetsHook.selectedWidgets,
-        selectedApps: appsHook.selectedApps,
-        widgets: widgetsHook.widgets,
-        apps: appsHook.apps,
-      }),
-    [
-      buildDeploy.handleBuildDeploy,
-      widgetsHook.selectedWidgets,
-      appsHook.selectedApps,
-      widgetsHook.widgets,
-      appsHook.apps,
-    ],
-  );
-
-  useEffect(() => {
-    versions.loadVersions();
-    appsHook.loadApps();
-    widgetsHook.loadWidgets();
-  }, [versions.loadVersions, appsHook.loadApps, widgetsHook.loadWidgets]);
 
   return {
     theme,
@@ -72,17 +31,8 @@ export function useAppInitialization() {
     widgetPreviewHook,
     buildDeploy: {
       ...buildDeploy,
-      // Replace with wrapped handlers
-      handleInstall: wrappedHandleInstall,
-      handleBuildDeploy: wrappedHandleBuildDeploy,
+      ...wrappedHandlers,
     },
-    modals: {
-      uninstall: uninstallModal,
-      appDelete: appDeleteModal,
-      widget: widgetModal,
-      widgetDelete: widgetDeleteModal,
-      download: downloadModal,
-      result: resultModal,
-    },
+    modals,
   };
 }
