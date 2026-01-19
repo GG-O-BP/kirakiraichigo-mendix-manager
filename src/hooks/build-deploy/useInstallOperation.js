@@ -2,7 +2,7 @@ import * as R from "ramda";
 import { useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { hasItems } from "../../utils";
-import { filterWidgetsBySelectedIds } from "../../utils/dataProcessing";
+import { filterWidgetsBySelectedIds } from "../../utils/data-processing/widgetFiltering";
 
 /**
  * Install operation hook

@@ -7,7 +7,7 @@ import {
   invokeCreateWidget,
   invokeValidateRequired,
 } from "../utils";
-import { filterWidgets, sortWidgetsByOrder, removeWidgetById } from "../utils/dataProcessing";
+import { filterWidgets, sortWidgetsByOrder, removeWidgetById } from "../utils/data-processing/widgetFiltering";
 import { useCollection } from "./useCollection";
 
 export function useWidgets() {

@@ -1,6 +1,6 @@
 import * as R from "ramda";
 import { useState, useEffect } from "react";
-import { countAllSpecGroupsVisibleProperties } from "../../utils/dataProcessing";
+import { countAllSpecGroupsVisibleProperties } from "../../utils/data-processing/propertyCalculation";
 
 /**
  * usePropertyVisibility - Calculates visible property keys and group counts

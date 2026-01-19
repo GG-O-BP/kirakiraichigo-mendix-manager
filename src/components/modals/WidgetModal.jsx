@@ -3,7 +3,7 @@ import { memo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { saveToStorage, STORAGE_KEYS, invokeCreateWidget } from "../../utils";
-import { extractFolderNameFromPath } from "../../utils/dataProcessing";
+import { extractFolderNameFromPath } from "../../utils/data-processing/pathUtils";
 
 const DISABLED_BUTTON_STYLE = {
   opacity: 0.5,

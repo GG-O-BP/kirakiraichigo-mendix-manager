@@ -1,10 +1,8 @@
 import * as R from "ramda";
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  filterMendixVersions,
-  filterAndSortAppsWithPriority,
-} from "../utils/dataProcessing";
+import { filterMendixVersions } from "../utils/data-processing/versionFiltering";
+import { filterAndSortAppsWithPriority } from "../utils/data-processing/appFiltering";
 
 const DOWNLOADABLE_VERSIONS_PAGE_SIZE = 10;
 

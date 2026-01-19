@@ -2,7 +2,7 @@ import * as R from "ramda";
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { createEditorConfigHandler } from "../../utils/editorConfigParser";
-import { initializePropertyValues } from "../../utils/dataProcessing";
+import { initializePropertyValues } from "../../utils/data-processing/propertyCalculation";
 
 /**
  * useWidgetDataLoader - Loads widget definition, properties, and editor config

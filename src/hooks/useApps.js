@@ -2,7 +2,7 @@ import * as R from "ramda";
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { STORAGE_KEYS, ITEMS_PER_PAGE, wrapAsync } from "../utils";
-import { filterMendixApps } from "../utils/dataProcessing";
+import { filterMendixApps } from "../utils/data-processing/appFiltering";
 import { useCollection } from "./useCollection";
 
 export function useApps() {

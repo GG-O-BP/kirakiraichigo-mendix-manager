@@ -6,7 +6,8 @@ import {
   invokeCreateCatastrophicErrorResult,
   invokeHasBuildFailures,
 } from "../../utils";
-import { filterWidgetsBySelectedIds, filterAppsBySelectedPaths } from "../../utils/dataProcessing";
+import { filterWidgetsBySelectedIds } from "../../utils/data-processing/widgetFiltering";
+import { filterAppsBySelectedPaths } from "../../utils/data-processing/appFiltering";
 
 /**
  * Build and deploy operation hook

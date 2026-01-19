@@ -2,7 +2,7 @@ import * as R from "ramda";
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { wrapAsync } from "../../utils";
-import { filterMendixVersions } from "../../utils/dataProcessing";
+import { filterMendixVersions } from "../../utils/data-processing/versionFiltering";
 
 /**
  * useInstalledVersions - Manages installed Mendix version loading and filtering
