@@ -38,11 +38,11 @@ The frontend follows **functional programming** patterns using Ramda.js:
 - **Composition**: Complex operations built from composing simple, reusable functions
 
 **Component Structure**:
-- `src/App.jsx` - Main application orchestration, hook composition, prop distribution
+- `src/App.jsx` - Minimal orchestration: hook initialization, tab management, component composition
 - `src/hooks/` - Custom React hooks for domain-specific state management
 - `src/components/tabs/` - Main feature tabs (StudioProManager, WidgetManager, WidgetPreview)
-- `src/components/modals/` - Modal dialogs (WidgetModal, BuildResultModal, DownloadModal)
-- `src/components/common/` - Reusable UI components (TabButton, ConfirmModal, etc.)
+- `src/components/modals/` - Modal dialogs (WidgetModal, BuildResultModal, DownloadModal, AppModals)
+- `src/components/common/` - Reusable UI components (TabButton, ConfirmModal, AppHeader, etc.)
 - `src/components/functional/` - Exported functional components index
 
 **State Management**:
@@ -53,6 +53,7 @@ The frontend follows **functional programming** patterns using Ramda.js:
   - `useWidgets` - Widget management, properties, preview selection
   - `useModals` - Modal dialog states (uninstall, delete, download, widget)
   - `useBuildDeploy` - Build/deploy operations, package manager selection
+  - `useWorkflows` - Cross-cutting business logic (uninstall, delete, add workflows)
 - App.jsx orchestrates hooks and distributes props to tabs via `R.pick` and `R.applySpec`
 - State updates use Ramda lenses (e.g., `R.set`, `R.over`, `R.lensPath`)
 - Persistent state saved to Tauri storage via `save_to_storage` command

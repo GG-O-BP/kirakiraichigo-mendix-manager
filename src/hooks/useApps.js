@@ -55,6 +55,33 @@ export function useApps() {
     [],
   );
 
+  const handleDeleteApp = useCallback(
+    async (appPath) => {
+      try {
+        await invoke("delete_mendix_app", { appPath });
+        await loadApps();
+
+        setSelectedApps((prev) => {
+          const newSet = new Set(prev);
+          if (newSet.has(appPath)) {
+            newSet.delete(appPath);
+            const selectedAppsArray = Array.from(newSet);
+            saveToStorage(STORAGE_KEYS.SELECTED_APPS, selectedAppsArray).catch(
+              console.error,
+            );
+          }
+          return newSet;
+        });
+
+        return true;
+      } catch (error) {
+        console.error("Failed to delete app:", error);
+        throw error;
+      }
+    },
+    [loadApps],
+  );
+
   useEffect(() => {
     const processApps = async () => {
       try {
@@ -105,6 +132,7 @@ export function useApps() {
     selectedApps,
     setSelectedApps,
     handleAppClick,
+    handleDeleteApp,
     currentPage,
     setCurrentPage,
     hasMore,

@@ -1,27 +1,16 @@
 import * as R from "ramda";
-import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import React, { useState, useMemo, useEffect } from "react";
 import "./styles/index.css";
 
-import {
-  STORAGE_KEYS,
-  ITEMS_PER_PAGE,
-  saveToStorage,
-  getVersionLoadingState,
-  updateVersionLoadingStates,
-} from "./utils/functional";
+import { ITEMS_PER_PAGE } from "./utils/functional";
 
-import { TabButton, ConfirmModal } from "./components/common";
+import { TabButton, AppHeader } from "./components/common";
 import {
   StudioProManager,
   WidgetManager,
   WidgetPreview,
 } from "./components/tabs";
-import {
-  WidgetModal,
-  BuildResultModal,
-  DownloadModal,
-} from "./components/modals";
+import { AppModals } from "./components/modals";
 
 import {
   useTheme,
@@ -110,6 +99,12 @@ const WIDGET_PREVIEW_PROP_KEYS = [
   "handleWidgetDeleteClick",
 ];
 
+const TAB_CONFIGURATIONS = [
+  ["studio-pro", "Studio Pro Manager", StudioProManager, "studioProManager"],
+  ["widget-manager", "Widget Manager", WidgetManager, "widgetManager"],
+  ["widget-preview", "Widget Preview", WidgetPreview, "widgetPreview"],
+];
+
 function App() {
   const theme = useTheme();
   const versions = useVersions();
@@ -135,122 +130,6 @@ function App() {
     ]);
     loadInitialData();
   }, [versions.loadVersions, appsHook.loadApps, widgetsHook.loadWidgets]);
-
-  // Handle uninstall click - combines versions and modals
-  const handleUninstallClick = useCallback(
-    (version) => modals.openUninstallModal(version),
-    [modals.openUninstallModal],
-  );
-
-  // Handle widget delete click
-  const handleWidgetDeleteClick = useCallback(
-    (widget) => modals.openWidgetDeleteModal(widget),
-    [modals.openWidgetDeleteModal],
-  );
-
-  // Handle download version - opens download modal
-  const handleDownloadVersion = useCallback(
-    (version) => modals.openDownloadModal(version),
-    [modals.openDownloadModal],
-  );
-
-  // Handle uninstall Studio Pro
-  const handleUninstallStudioPro = useCallback(
-    async (version, deleteApps = false, relatedAppsList = []) => {
-      const versionId = version.version;
-      versions.setVersionLoadingStates((prev) =>
-        updateVersionLoadingStates(versionId, "uninstall", true, prev),
-      );
-
-      const cleanupUninstallState = () => {
-        versions.setVersionLoadingStates((prev) =>
-          updateVersionLoadingStates(versionId, "uninstall", false, prev),
-        );
-        modals.closeUninstallModal();
-      };
-
-      try {
-        if (deleteApps && relatedAppsList.length > 0) {
-          for (const app of relatedAppsList) {
-            await invoke("delete_mendix_app", {
-              appPath: app.path,
-            });
-          }
-        }
-
-        const result = await invoke("uninstall_studio_pro_and_wait", {
-          version: version.version,
-          timeoutSeconds: 60,
-        });
-
-        await versions.loadVersions();
-        if (deleteApps) {
-          await appsHook.loadApps();
-        }
-
-        if (result.timed_out) {
-          console.warn(
-            `Uninstall of Studio Pro ${version.version} timed out, but may still complete`,
-          );
-        }
-
-        cleanupUninstallState();
-      } catch (error) {
-        const errorMsg = deleteApps
-          ? `Failed to uninstall Studio Pro ${version.version} with apps: ${error}`
-          : `Failed to uninstall Studio Pro ${version.version}: ${error}`;
-        alert(errorMsg);
-        cleanupUninstallState();
-      }
-    },
-    [versions.loadVersions, appsHook.loadApps, versions.setVersionLoadingStates, modals.closeUninstallModal],
-  );
-
-  // Handle confirm widget delete
-  const handleConfirmWidgetDelete = useCallback(async () => {
-    const success = await widgetsHook.handleWidgetDelete(modals.widgetToDelete);
-    if (success) {
-      modals.closeWidgetDeleteModal();
-    }
-  }, [widgetsHook.handleWidgetDelete, modals.widgetToDelete, modals.closeWidgetDeleteModal]);
-
-  // Handle app delete
-  const handleConfirmAppDelete = useCallback(async () => {
-    if (modals.appToDelete) {
-      buildDeploy.setIsUninstalling(true);
-      try {
-        await invoke("delete_mendix_app", { appPath: modals.appToDelete.path });
-        await appsHook.loadApps();
-
-        appsHook.setSelectedApps((prev) => {
-          const newSet = new Set(prev);
-          if (newSet.has(modals.appToDelete.path)) {
-            newSet.delete(modals.appToDelete.path);
-            const selectedAppsArray = Array.from(newSet);
-            saveToStorage(STORAGE_KEYS.SELECTED_APPS, selectedAppsArray).catch(
-              console.error,
-            );
-          }
-          return newSet;
-        });
-
-        buildDeploy.setIsUninstalling(false);
-        modals.closeAppDeleteModal();
-      } catch (error) {
-        alert(`Failed to delete app: ${error}`);
-        buildDeploy.setIsUninstalling(false);
-        modals.closeAppDeleteModal();
-      }
-    }
-  }, [modals.appToDelete, appsHook.loadApps, appsHook.setSelectedApps, buildDeploy.setIsUninstalling, modals.closeAppDeleteModal]);
-
-  // Handle add widget
-  const handleAddWidget = useCallback(() => {
-    widgetsHook.handleAddWidget(() => {
-      modals.setShowAddWidgetForm(false);
-      modals.setShowWidgetModal(false);
-    });
-  }, [widgetsHook.handleAddWidget, modals.setShowAddWidgetForm, modals.setShowWidgetModal]);
 
   // Create state object for tab props
   const stateObject = useMemo(
@@ -320,10 +199,10 @@ function App() {
       inlineResults: buildDeploy.inlineResults,
       setInlineResults: buildDeploy.setInlineResults,
 
-      // Handlers
-      handleUninstallClick,
-      handleDownloadVersion,
-      handleWidgetDeleteClick,
+      // Modal open handlers (directly from useModals)
+      handleUninstallClick: modals.openUninstallModal,
+      handleDownloadVersion: modals.openDownloadModal,
+      handleWidgetDeleteClick: modals.openWidgetDeleteModal,
     }),
     [
       versions,
@@ -331,10 +210,10 @@ function App() {
       widgetsHook,
       modals.setShowWidgetModal,
       modals.setShowAddWidgetForm,
+      modals.openUninstallModal,
+      modals.openDownloadModal,
+      modals.openWidgetDeleteModal,
       buildDeploy,
-      handleUninstallClick,
-      handleDownloadVersion,
-      handleWidgetDeleteClick,
     ],
   );
 
@@ -352,12 +231,6 @@ function App() {
     [stateObject],
   );
 
-  const tabConfigurations = [
-    ["studio-pro", "Studio Pro Manager", StudioProManager, "studioProManager"],
-    ["widget-manager", "Widget Manager", WidgetManager, "widgetManager"],
-    ["widget-preview", "Widget Preview", WidgetPreview, "widgetPreview"],
-  ];
-
   const createTabFromConfig = R.curry((props, config) => {
     const [id, label, Component, propsKey] = config;
     return {
@@ -368,7 +241,7 @@ function App() {
   });
 
   const tabs = useMemo(
-    () => R.map(createTabFromConfig(createTabProps), tabConfigurations),
+    () => R.map(createTabFromConfig(createTabProps), TAB_CONFIGURATIONS),
     [createTabProps],
   );
 
@@ -388,97 +261,11 @@ function App() {
 
   return (
     <main className="app-container">
-      <div className="app-header">
-        <h1 className="app-title">
-          <span className="title-icon">🍓</span>
-          Kirakira Ichigo Manager
-          <span className="title-sparkle">✨</span>
-        </h1>
-        <div className="theme-selector">
-          <div className="catppuccin-banner">
-            <img
-              src={theme.currentLogo}
-              alt="Catppuccin"
-              className="catppuccin-logo"
-            />
-            <div className="catppuccin-info">
-              <span className="catppuccin-attribution">
-                Latte, Frappé, Macchiato, Mocha themes powered by
-              </span>
-              <a
-                href="https://catppuccin.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="catppuccin-link"
-              >
-                Catppuccin
-              </a>
-            </div>
-          </div>
-          <div className="theme-options">
-            <label className="theme-option">
-              <input
-                type="radio"
-                name="theme"
-                value="kiraichi"
-                checked={theme.currentTheme === "kiraichi"}
-                onChange={theme.handleThemeChange}
-              />
-              <span>KiraIchi Dark</span>
-            </label>
-            <label className="theme-option strawberry-theme">
-              <input
-                type="radio"
-                name="theme"
-                value="kiraichi-light"
-                checked={theme.currentTheme === "kiraichi-light"}
-                onChange={theme.handleThemeChange}
-              />
-              <span>KiraIchi Light</span>
-            </label>
-            <label className="theme-option catppuccin-theme catppuccin-latte-theme">
-              <input
-                type="radio"
-                name="theme"
-                value="latte"
-                checked={theme.currentTheme === "latte"}
-                onChange={theme.handleThemeChange}
-              />
-              <span>Latte</span>
-            </label>
-            <label className="theme-option catppuccin-theme catppuccin-frappe-theme">
-              <input
-                type="radio"
-                name="theme"
-                value="frappe"
-                checked={theme.currentTheme === "frappe"}
-                onChange={theme.handleThemeChange}
-              />
-              <span>Frappé</span>
-            </label>
-            <label className="theme-option catppuccin-theme catppuccin-macchiato-theme">
-              <input
-                type="radio"
-                name="theme"
-                value="macchiato"
-                checked={theme.currentTheme === "macchiato"}
-                onChange={theme.handleThemeChange}
-              />
-              <span>Macchiato</span>
-            </label>
-            <label className="theme-option catppuccin-theme catppuccin-mocha-theme">
-              <input
-                type="radio"
-                name="theme"
-                value="mocha"
-                checked={theme.currentTheme === "mocha"}
-                onChange={theme.handleThemeChange}
-              />
-              <span>Mocha</span>
-            </label>
-          </div>
-        </div>
-      </div>
+      <AppHeader
+        currentTheme={theme.currentTheme}
+        currentLogo={theme.currentLogo}
+        handleThemeChange={theme.handleThemeChange}
+      />
 
       <div className="tabs">
         {R.map(renderTabButton(activeTab, setActiveTab), tabs)}
@@ -486,109 +273,24 @@ function App() {
 
       <div className="tab-content">{activeTabContent}</div>
 
-      <WidgetModal
-        showWidgetModal={modals.showWidgetModal}
-        showAddWidgetForm={modals.showAddWidgetForm}
-        setShowWidgetModal={modals.setShowWidgetModal}
-        setShowAddWidgetForm={modals.setShowAddWidgetForm}
+      <AppModals
+        modals={modals}
+        versionLoadingStates={versions.versionLoadingStates}
+        handleUninstallStudioPro={versions.handleUninstallStudioPro}
+        handleDeleteApp={appsHook.handleDeleteApp}
+        loadApps={appsHook.loadApps}
+        handleWidgetDelete={widgetsHook.handleWidgetDelete}
         newWidgetCaption={widgetsHook.newWidgetCaption}
         setNewWidgetCaption={widgetsHook.setNewWidgetCaption}
         newWidgetPath={widgetsHook.newWidgetPath}
         setNewWidgetPath={widgetsHook.setNewWidgetPath}
         setWidgets={widgetsHook.setWidgets}
-      />
-
-      <ConfirmModal
-        isOpen={modals.showUninstallModal}
-        title="🍓 Say Goodbye to Studio Pro?"
-        message={
-          modals.versionToUninstall
-            ? `Are you really really sure you want to uninstall Studio Pro ${modals.versionToUninstall.version}? ✨\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay? 💝`
-            : ""
-        }
-        onConfirm={async () => {
-          if (modals.versionToUninstall) {
-            await handleUninstallStudioPro(
-              modals.versionToUninstall,
-              false,
-              modals.relatedApps,
-            );
-          }
-        }}
-        onConfirmWithApps={
-          modals.relatedApps.length > 0
-            ? async () => {
-                if (modals.versionToUninstall) {
-                  await handleUninstallStudioPro(
-                    modals.versionToUninstall,
-                    true,
-                    modals.relatedApps,
-                  );
-                }
-              }
-            : null
-        }
-        onCancel={modals.closeUninstallModal}
-        isLoading={
-          modals.versionToUninstall
-            ? getVersionLoadingState(
-                versions.versionLoadingStates,
-                modals.versionToUninstall.version,
-              ).isUninstalling
-            : false
-        }
-        relatedApps={modals.relatedApps}
-      />
-
-      <ConfirmModal
-        isOpen={modals.showAppDeleteModal}
-        title="🍓 Delete This App?"
-        message={
-          modals.appToDelete
-            ? `Do you really want to delete ${modals.appToDelete.name}? 🥺\n\nI can't undo this once it's done! Are you absolutely sure? 💕`
-            : ""
-        }
-        onConfirm={handleConfirmAppDelete}
-        onCancel={modals.closeAppDeleteModal}
-        isLoading={buildDeploy.isUninstalling}
-        relatedApps={[]}
-      />
-
-      <ConfirmModal
-        isOpen={modals.showWidgetDeleteModal}
-        title="🍓 Remove Widget from List?"
-        message={
-          modals.widgetToDelete
-            ? `Should I remove "${modals.widgetToDelete.caption}" from your widget list? 🎀\n\nDon't worry! This only removes it from my list - your files will stay safe and sound! 🌟`
-            : ""
-        }
-        onConfirm={handleConfirmWidgetDelete}
-        onCancel={modals.closeWidgetDeleteModal}
-        isLoading={false}
-        relatedApps={[]}
-      />
-
-      <BuildResultModal
-        showResultModal={modals.showResultModal}
+        handleAddWidget={widgetsHook.handleAddWidget}
+        isUninstalling={buildDeploy.isUninstalling}
+        setIsUninstalling={buildDeploy.setIsUninstalling}
         buildResults={buildDeploy.buildResults}
-        setShowResultModal={modals.setShowResultModal}
         setBuildResults={buildDeploy.setBuildResults}
-      />
-
-      <DownloadModal
-        isOpen={modals.showDownloadModal}
-        version={modals.versionToDownload}
-        onDownload={versions.handleModalDownload}
-        onClose={modals.closeDownloadModal}
-        onCancel={modals.closeDownloadModal}
-        isLoading={
-          modals.versionToDownload
-            ? getVersionLoadingState(
-                versions.versionLoadingStates,
-                modals.versionToDownload.version,
-              ).isDownloading
-            : false
-        }
+        handleModalDownload={versions.handleModalDownload}
       />
     </main>
   );

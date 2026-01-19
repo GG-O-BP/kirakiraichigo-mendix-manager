@@ -110,9 +110,54 @@ export function useVersions() {
     [versionLoadingStates],
   );
 
-  const handleDownloadVersion = useCallback((version) => {
-    return version;
-  }, []);
+  const handleUninstallStudioPro = useCallback(
+    async (version, deleteApps = false, relatedAppsList = [], callbacks = {}) => {
+      const { onDeleteApp, onComplete } = callbacks;
+      const versionId = version.version;
+
+      setVersionLoadingStates((prev) =>
+        updateVersionLoadingStates(versionId, "uninstall", true, prev),
+      );
+
+      const cleanupUninstallState = () => {
+        setVersionLoadingStates((prev) =>
+          updateVersionLoadingStates(versionId, "uninstall", false, prev),
+        );
+      };
+
+      try {
+        if (deleteApps && relatedAppsList.length > 0 && onDeleteApp) {
+          for (const app of relatedAppsList) {
+            await onDeleteApp(app.path);
+          }
+        }
+
+        const result = await invoke("uninstall_studio_pro_and_wait", {
+          version: version.version,
+          timeoutSeconds: 60,
+        });
+
+        await loadVersions();
+
+        if (result.timed_out) {
+          console.warn(
+            `Uninstall of Studio Pro ${version.version} timed out, but may still complete`,
+          );
+        }
+
+        cleanupUninstallState();
+        onComplete?.();
+      } catch (error) {
+        const errorMsg = deleteApps
+          ? `Failed to uninstall Studio Pro ${version.version} with apps: ${error}`
+          : `Failed to uninstall Studio Pro ${version.version}: ${error}`;
+        alert(errorMsg);
+        cleanupUninstallState();
+        onComplete?.();
+      }
+    },
+    [loadVersions],
+  );
 
   const handleModalDownload = useCallback(
     async (version) => {
@@ -203,7 +248,7 @@ export function useVersions() {
     versionLoadingStates,
     setVersionLoadingStates,
     handleLaunchStudioPro,
-    handleDownloadVersion,
+    handleUninstallStudioPro,
     handleModalDownload,
   };
 }
