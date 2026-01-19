@@ -1,31 +1,10 @@
 import * as R from "ramda";
 import { memo } from "react";
+import { createTypedChangeHandler } from "../../utils";
 
 const DECIMAL_STEP = 0.01;
 const INTEGER_STEP = 1;
 const DECIMAL_PRECISION_MULTIPLIER = 100;
-
-const extractInputValue = R.path(["target", "value"]);
-const extractCheckboxState = R.path(["target", "checked"]);
-
-const parseIntegerOrEmpty = (value) =>
-  value === "" ? "" : parseInt(value, 10);
-
-const parseDecimalOrEmpty = (value) =>
-  value === "" ? "" : parseFloat(value);
-
-const createChangeHandler = R.curry((onChange, type, event) => {
-  const rawValue = extractInputValue(event);
-
-  const value = R.cond([
-    [R.equals("boolean"), R.always(extractCheckboxState(event))],
-    [R.equals("integer"), R.always(parseIntegerOrEmpty(rawValue))],
-    [R.equals("decimal"), R.always(parseDecimalOrEmpty(rawValue))],
-    [R.T, R.always(rawValue)],
-  ])(type);
-
-  return onChange(value);
-});
 
 const validateInput = R.curry((property, value) => {
   const type = R.prop("type", property);
@@ -71,7 +50,7 @@ const renderTextInput = R.curry((property, value, onChange, disabled) => (
     type="text"
     className="property-input"
     value={value || ""}
-    onChange={createChangeHandler(onChange, "string")}
+    onChange={createTypedChangeHandler(onChange, "string")}
     disabled={disabled}
     placeholder={R.prop("description", property)}
   />
@@ -82,7 +61,7 @@ const renderTextarea = R.curry((property, value, onChange, disabled) => (
     className="property-textarea"
     rows="4"
     value={value || ""}
-    onChange={createChangeHandler(onChange, "string")}
+    onChange={createTypedChangeHandler(onChange, "string")}
     disabled={disabled}
     placeholder={R.prop("description", property)}
   />
@@ -128,7 +107,7 @@ const renderNumberInput = R.curry((property, value, onChange, disabled) => {
         step={step}
         className="property-input number-input"
         value={value ?? ""}
-        onChange={createChangeHandler(onChange, type)}
+        onChange={createTypedChangeHandler(onChange, type)}
         disabled={disabled}
         placeholder={R.prop("description", property)}
       />
@@ -151,7 +130,7 @@ const renderCheckbox = R.curry((property, value, onChange, disabled) => (
       type="checkbox"
       className="property-checkbox"
       checked={Boolean(value)}
-      onChange={createChangeHandler(onChange, "boolean")}
+      onChange={createTypedChangeHandler(onChange, "boolean")}
       disabled={disabled}
     />
     <span className="property-checkbox-label">
@@ -168,7 +147,7 @@ const renderSelect = R.curry((property, value, onChange, disabled) => {
     <select
       className="property-select"
       value={value || ""}
-      onChange={createChangeHandler(onChange, "enumeration")}
+      onChange={createTypedChangeHandler(onChange, "enumeration")}
       disabled={disabled}
     >
       {needsPlaceholderOption && <option value="">Select...</option>}
@@ -188,7 +167,7 @@ const renderFileInput = R.curry((property, value, onChange, disabled) => (
   <input
     type="file"
     className="property-input"
-    onChange={createChangeHandler(onChange, "file")}
+    onChange={createTypedChangeHandler(onChange, "file")}
     disabled={disabled}
   />
 ));

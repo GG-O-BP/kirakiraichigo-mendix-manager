@@ -1,0 +1,74 @@
+import * as R from "ramda";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { createEditorConfigHandler } from "../../utils/editorConfigParser";
+import { initializePropertyValues } from "../../utils/data-processing/propertyCalculation";
+
+/**
+ * useWidgetDataLoader - Loads widget definition, properties, and editor config
+ * @param {Object|null} selectedWidget - The currently selected widget
+ */
+export function useWidgetDataLoader(selectedWidget) {
+  const [widgetDefinition, setWidgetDefinition] = useState(null);
+  const [dynamicProperties, setDynamicProperties] = useState({});
+  const [editorConfigHandler, setEditorConfigHandler] = useState(null);
+
+  const resetWidgetPropertiesState = useCallback(() => {
+    setWidgetDefinition(null);
+    setDynamicProperties({});
+    setEditorConfigHandler(null);
+  }, []);
+
+  const updateProperty = useCallback(
+    R.curry((propertyKey, value) =>
+      setDynamicProperties(R.assoc(propertyKey, value))
+    ),
+    []
+  );
+
+  // Load widget data when selection changes
+  useEffect(() => {
+    if (!selectedWidget) {
+      resetWidgetPropertiesState();
+      return;
+    }
+
+    const widgetPath = R.prop("path", selectedWidget);
+
+    const loadWidgetData = async () => {
+      try {
+        const [definition, initialValues, editorConfigResult] = await Promise.all([
+          invoke("parse_widget_properties_as_spec", { widgetPath }),
+          initializePropertyValues(widgetPath),
+          invoke("read_editor_config", { widgetPath }),
+        ]);
+
+        setWidgetDefinition(definition);
+        setDynamicProperties(initialValues);
+
+        if (editorConfigResult.found && editorConfigResult.content) {
+          const handler = createEditorConfigHandler(editorConfigResult.content);
+          setEditorConfigHandler(handler);
+        } else {
+          setEditorConfigHandler(null);
+        }
+      } catch (error) {
+        console.error("Failed to load widget data:", error);
+        setWidgetDefinition(null);
+        setDynamicProperties({});
+        setEditorConfigHandler(null);
+      }
+    };
+
+    loadWidgetData();
+  }, [selectedWidget, resetWidgetPropertiesState]);
+
+  return {
+    widgetDefinition,
+    dynamicProperties,
+    editorConfigHandler,
+    updateProperty,
+  };
+}
+
+export default useWidgetDataLoader;

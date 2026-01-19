@@ -212,6 +212,26 @@ fn validate_widget_copy_inputs(widget_path: &str, app_paths: &[String]) -> Resul
     Ok(())
 }
 
+// Path utility functions
+
+/// Extracts the folder/file name from a path (last segment)
+/// Works with Windows paths (backslash separator)
+fn extract_folder_name_internal(path: &str) -> String {
+    path.split(&['\\', '/'][..])
+        .filter(|s| !s.is_empty())
+        .last()
+        .unwrap_or("")
+        .to_string()
+}
+
+#[tauri::command]
+pub fn extract_folder_name_from_path(path: String) -> Result<String, String> {
+    if path.is_empty() {
+        return Err("Path cannot be empty".to_string());
+    }
+    Ok(extract_folder_name_internal(&path))
+}
+
 // Main API functions
 #[tauri::command]
 pub fn greet(name: &str) -> String {
@@ -340,5 +360,33 @@ mod tests {
 
         let result = construct_target_file_path(target_dir, relative_path);
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_extract_folder_name_internal() {
+        // Windows path
+        assert_eq!(
+            extract_folder_name_internal("C:\\Users\\test\\MyWidget"),
+            "MyWidget"
+        );
+        // Unix path
+        assert_eq!(
+            extract_folder_name_internal("/home/test/MyWidget"),
+            "MyWidget"
+        );
+        // Trailing slash
+        assert_eq!(
+            extract_folder_name_internal("C:\\Users\\test\\MyWidget\\"),
+            "MyWidget"
+        );
+        // Mixed separators
+        assert_eq!(
+            extract_folder_name_internal("C:/Users/test\\MyWidget"),
+            "MyWidget"
+        );
+        // Single segment
+        assert_eq!(extract_folder_name_internal("MyWidget"), "MyWidget");
+        // Empty path
+        assert_eq!(extract_folder_name_internal(""), "");
     }
 }

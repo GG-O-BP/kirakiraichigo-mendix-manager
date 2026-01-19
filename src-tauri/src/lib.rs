@@ -18,7 +18,7 @@ pub use mendix::{
     uninstall_studio_pro_and_wait, MendixApp, MendixVersion,
 };
 pub use package_manager::run_package_manager_command;
-pub use utils::{copy_widget_to_apps, greet};
+pub use utils::{copy_widget_to_apps, extract_folder_name_from_path, greet};
 pub use web_scraper::{
     debug_page_structure, download_and_install_mendix_version, extract_build_number,
     get_download_url_for_version, get_downloadable_mendix_versions,
@@ -26,17 +26,22 @@ pub use web_scraper::{
     wait_for_datagrid_content, BuildInfo, DownloadProgress, DownloadableVersion,
 };
 
-pub use build_deploy::{build_and_deploy_from_selections, build_and_deploy_widgets};
+pub use build_deploy::{
+    build_and_deploy_from_selections, build_and_deploy_widgets, create_catastrophic_error_result,
+};
 pub use storage::{
     clear_app_state, load_app_state, load_from_storage, save_app_state, save_to_storage,
 };
 pub use widget_parser::{
-    extract_all_property_keys_from_groups, filter_parsed_properties_by_keys,
-    filter_properties_by_search, get_default_value_for_type, get_ui_type_mappings,
-    group_properties_by_category, initialize_property_values, is_property_key_in_groups,
-    map_property_type_to_ui_type, parse_widget_properties, parse_widget_properties_to_parsed,
-    read_editor_config, transform_widget_definition_to_editor_format, validate_mendix_widget,
-    validate_property_value,
+    count_all_groups_visible_properties, count_all_spec_groups_visible_properties,
+    count_all_widget_groups_visible_properties, count_visible_properties_in_group,
+    count_visible_properties_in_widget_group, extract_all_property_keys_from_groups,
+    filter_parsed_properties_by_keys, filter_properties_by_search, get_default_value_for_type,
+    get_ui_type_mappings, group_properties_by_category, initialize_property_values,
+    is_property_key_in_groups, map_property_type_to_ui_type, parse_widget_properties,
+    parse_widget_properties_as_spec, parse_widget_properties_to_parsed, read_editor_config,
+    transform_properties_to_spec, transform_widget_definition_to_editor_format,
+    validate_mendix_widget, validate_property_value,
 };
 pub use widget_preview::build_widget_for_preview;
 
@@ -55,9 +60,11 @@ pub use validation::{has_build_failures, validate_build_deploy_selections, valid
 
 pub use data_processing::{
     mendix_filters::{
-        filter_and_sort_apps_with_priority, filter_mendix_apps, filter_mendix_versions,
-        filter_widgets, paginate_mendix_apps, paginate_mendix_versions,
-        sort_apps_by_version_and_date, sort_versions_by_semantic_version, Widget,
+        create_widget, filter_and_sort_apps_with_priority, filter_apps_by_selected_paths,
+        filter_mendix_apps, filter_mendix_versions, filter_widgets, filter_widgets_by_selected_ids,
+        paginate_mendix_apps, paginate_mendix_versions, remove_widget_by_id,
+        sort_apps_by_version_and_date, sort_versions_by_semantic_version, sort_widgets_by_order,
+        Widget,
     },
     FilterOptions, PaginatedResult, PaginationOptions, SearchFilter, VersionFilter,
 };
@@ -137,7 +144,29 @@ pub fn run() {
             get_version_validity_badge,
             get_version_status_text,
             extract_searchable_text,
-            text_matches_search
+            text_matches_search,
+            // Path utility commands
+            extract_folder_name_from_path,
+            // Selection filtering commands
+            filter_widgets_by_selected_ids,
+            filter_apps_by_selected_paths,
+            // Widget ordering & deletion commands
+            sort_widgets_by_order,
+            remove_widget_by_id,
+            // Property count commands
+            count_visible_properties_in_group,
+            count_visible_properties_in_widget_group,
+            count_all_groups_visible_properties,
+            count_all_widget_groups_visible_properties,
+            // Widget creation commands
+            create_widget,
+            // Error result commands
+            create_catastrophic_error_result,
+            // Property transformation commands
+            transform_properties_to_spec,
+            parse_widget_properties_as_spec,
+            // Spec format counting commands
+            count_all_spec_groups_visible_properties
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,13 +1,5 @@
-import * as R from "ramda";
 import { memo } from "react";
-
-// Extract value from event
-const getEventValue = R.path(["target", "value"]);
-
-// Create change handler
-const createChangeHandler = R.curry((onChange, event) =>
-  R.pipe(getEventValue, onChange)(event),
-);
+import { createChangeHandler } from "../../utils";
 
 // SearchBox component with functional approach
 const SearchBox = memo(({ placeholder, value, onChange }) => (

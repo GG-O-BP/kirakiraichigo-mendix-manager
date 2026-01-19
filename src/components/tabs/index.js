@@ -1,3 +1,3 @@
-export { default as StudioProManager } from './StudioProManager';
-export { default as WidgetManager } from './WidgetManager';
-export { default as WidgetPreview } from './WidgetPreview';
+export { default as StudioProManager } from './studio-pro';
+export { default as WidgetManager } from './widget-manager';
+export { default as WidgetPreview } from './widget-preview';

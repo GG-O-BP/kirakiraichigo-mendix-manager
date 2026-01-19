@@ -225,6 +225,96 @@ pub fn filter_widgets(
     }
 }
 
+// ============= Selection Filtering =============
+
+use std::collections::HashSet;
+
+/// Filters widgets by a list of selected IDs
+/// Uses HashSet for O(n) performance
+#[tauri::command]
+pub fn filter_widgets_by_selected_ids(
+    widgets: Vec<Widget>,
+    selected_ids: Vec<String>,
+) -> Result<Vec<Widget>, String> {
+    let id_set: HashSet<&String> = selected_ids.iter().collect();
+    Ok(widgets
+        .into_iter()
+        .filter(|w| id_set.contains(&w.id))
+        .collect())
+}
+
+/// Filters apps by a list of selected paths
+/// Uses HashSet for O(n) performance
+#[tauri::command]
+pub fn filter_apps_by_selected_paths(
+    apps: Vec<MendixApp>,
+    selected_paths: Vec<String>,
+) -> Result<Vec<MendixApp>, String> {
+    let path_set: HashSet<&String> = selected_paths.iter().collect();
+    Ok(apps
+        .into_iter()
+        .filter(|a| path_set.contains(&a.path))
+        .collect())
+}
+
+// ============= Widget Ordering & Deletion =============
+
+/// Sorts widgets according to a saved order
+/// Widgets not in the order list are appended at the end
+#[tauri::command]
+pub fn sort_widgets_by_order(
+    widgets: Vec<Widget>,
+    order: Vec<String>,
+) -> Result<Vec<Widget>, String> {
+    if order.is_empty() {
+        return Ok(widgets);
+    }
+
+    // Create a map for O(1) lookup of widget positions
+    let order_map: std::collections::HashMap<&String, usize> = order
+        .iter()
+        .enumerate()
+        .map(|(i, id)| (id, i))
+        .collect();
+
+    // Partition widgets into ordered and unordered
+    let (mut ordered, unordered): (Vec<_>, Vec<_>) = widgets
+        .into_iter()
+        .partition(|w| order_map.contains_key(&w.id));
+
+    // Sort ordered widgets by their position in the order list
+    ordered.sort_by_key(|w| order_map.get(&w.id).copied().unwrap_or(usize::MAX));
+
+    // Append unordered widgets at the end
+    ordered.extend(unordered);
+
+    Ok(ordered)
+}
+
+/// Removes a widget by its ID
+#[tauri::command]
+pub fn remove_widget_by_id(
+    widgets: Vec<Widget>,
+    widget_id: String,
+) -> Result<Vec<Widget>, String> {
+    Ok(widgets.into_iter().filter(|w| w.id != widget_id).collect())
+}
+
+// ============= Widget Creation =============
+
+use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Creates a new widget with a timestamp-based ID
+#[tauri::command]
+pub fn create_widget(caption: String, path: String) -> Result<Widget, String> {
+    let id = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis().to_string())
+        .unwrap_or_else(|_| "0".to_string());
+
+    Ok(Widget { id, caption, path })
+}
+
 // ============= Tests =============
 
 #[cfg(test)]
@@ -317,5 +407,107 @@ mod tests {
         assert_eq!(result[0].version, "10.4.0");
         assert_eq!(result[1].version, "2.0.0");
         assert_eq!(result[2].version, "1.0.0");
+    }
+
+    fn create_test_widget(id: &str, caption: &str) -> Widget {
+        Widget {
+            id: id.to_string(),
+            caption: caption.to_string(),
+            path: format!("C:\\widgets\\{}", id),
+        }
+    }
+
+    #[test]
+    fn test_filter_widgets_by_selected_ids() {
+        let widgets = vec![
+            create_test_widget("1", "Widget A"),
+            create_test_widget("2", "Widget B"),
+            create_test_widget("3", "Widget C"),
+        ];
+
+        let selected = vec!["1".to_string(), "3".to_string()];
+        let result = filter_widgets_by_selected_ids(widgets, selected).unwrap();
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].id, "1");
+        assert_eq!(result[1].id, "3");
+    }
+
+    #[test]
+    fn test_filter_apps_by_selected_paths() {
+        let apps = vec![
+            create_test_app("App1", Some("10.0.0"), true),
+            create_test_app("App2", Some("10.0.0"), true),
+            create_test_app("App3", Some("10.0.0"), true),
+        ];
+
+        let selected = vec![apps[0].path.clone(), apps[2].path.clone()];
+        let result = filter_apps_by_selected_paths(apps, selected).unwrap();
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].name, "App1");
+        assert_eq!(result[1].name, "App3");
+    }
+
+    #[test]
+    fn test_sort_widgets_by_order() {
+        let widgets = vec![
+            create_test_widget("1", "Widget A"),
+            create_test_widget("2", "Widget B"),
+            create_test_widget("3", "Widget C"),
+            create_test_widget("4", "Widget D"),
+        ];
+
+        // Order specifies: 3, 1, 2 (widget 4 is not in order)
+        let order = vec!["3".to_string(), "1".to_string(), "2".to_string()];
+        let result = sort_widgets_by_order(widgets, order).unwrap();
+
+        assert_eq!(result.len(), 4);
+        assert_eq!(result[0].id, "3");
+        assert_eq!(result[1].id, "1");
+        assert_eq!(result[2].id, "2");
+        assert_eq!(result[3].id, "4"); // Unordered widget at the end
+    }
+
+    #[test]
+    fn test_sort_widgets_by_order_empty() {
+        let widgets = vec![
+            create_test_widget("1", "Widget A"),
+            create_test_widget("2", "Widget B"),
+        ];
+
+        let order: Vec<String> = vec![];
+        let result = sort_widgets_by_order(widgets.clone(), order).unwrap();
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].id, "1");
+        assert_eq!(result[1].id, "2");
+    }
+
+    #[test]
+    fn test_remove_widget_by_id() {
+        let widgets = vec![
+            create_test_widget("1", "Widget A"),
+            create_test_widget("2", "Widget B"),
+            create_test_widget("3", "Widget C"),
+        ];
+
+        let result = remove_widget_by_id(widgets, "2".to_string()).unwrap();
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].id, "1");
+        assert_eq!(result[1].id, "3");
+    }
+
+    #[test]
+    fn test_remove_widget_by_id_not_found() {
+        let widgets = vec![
+            create_test_widget("1", "Widget A"),
+            create_test_widget("2", "Widget B"),
+        ];
+
+        let result = remove_widget_by_id(widgets, "99".to_string()).unwrap();
+
+        assert_eq!(result.len(), 2);
     }
 }

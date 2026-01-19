@@ -1,24 +1,9 @@
 import * as R from "ramda";
 
-const transformRustPropertyToEditorFormatInternal = (prop) => ({
-  key: R.prop("key", prop),
-  type: R.prop("property_type", prop),
-  caption: R.prop("caption", prop),
-  description: R.prop("description", prop),
-  defaultValue: R.prop("default_value", prop),
-  required: R.prop("required", prop),
-  options: R.prop("options", prop),
-});
-
-const transformPropertyGroupRecursivelyInternal = (group) => ({
-  caption: R.prop("caption", group),
-  properties: R.map(transformRustPropertyToEditorFormatInternal, R.prop("properties", group) || []),
-  propertyGroups: R.map(transformPropertyGroupRecursivelyInternal, R.prop("property_groups", group) || []),
-});
-
-const transformWidgetDefinitionToEditorFormatInternal = R.curry((widgetDefinition) => {
-  const propertyGroups = R.prop("property_groups", widgetDefinition) || [];
-  return R.map(transformPropertyGroupRecursivelyInternal, propertyGroups);
+// Properties are now received in spec format from backend (type, defaultValue, propertyGroups)
+// No transformation needed - just extract the property groups
+const extractPropertyGroupsFromDefinition = R.curry((widgetDefinition) => {
+  return R.propOr([], "propertyGroups", widgetDefinition);
 });
 
 const isPropertyKeyInGroupsInternal = R.curry((filteredGroups, propertyKey) => {
@@ -123,7 +108,7 @@ export const createEditorConfigHandler = (configContent) => {
         return null;
       }
 
-      const defaultProperties = transformWidgetDefinitionToEditorFormatInternal(widgetDefinition);
+      const defaultProperties = extractPropertyGroupsFromDefinition(widgetDefinition);
       return invokeGetPropertiesWithFallback(parsedConfig, values, defaultProperties);
     },
 
@@ -132,7 +117,7 @@ export const createEditorConfigHandler = (configContent) => {
         return null;
       }
 
-      const defaultProperties = transformWidgetDefinitionToEditorFormatInternal(widgetDefinition);
+      const defaultProperties = extractPropertyGroupsFromDefinition(widgetDefinition);
       const filteredProperties = invokeGetPropertiesWithFallback(parsedConfig, values, defaultProperties);
       return extractAllPropertyKeysFromGroupsInternal(filteredProperties);
     },
@@ -142,5 +127,3 @@ export const createEditorConfigHandler = (configContent) => {
     },
   };
 };
-
-export const widgetDefinitionToDefaultProperties = transformWidgetDefinitionToEditorFormatInternal;

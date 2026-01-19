@@ -2,7 +2,8 @@ import * as R from "ramda";
 import { memo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import { saveToStorage, STORAGE_KEYS } from "../../utils/functional";
+import { saveToStorage, STORAGE_KEYS, invokeCreateWidget } from "../../utils";
+import { extractFolderNameFromPath } from "../../utils/data-processing/pathUtils";
 
 const DISABLED_BUTTON_STYLE = {
   opacity: 0.5,
@@ -22,12 +23,6 @@ const isWidgetActionModalVisible = R.both(
   R.prop("showWidgetModal"),
   R.complement(R.prop("showAddWidgetForm")),
 );
-
-const createWidgetFromFormData = R.curry((caption, path) => ({
-  id: Date.now().toString(),
-  caption,
-  path,
-}));
 
 const hasValidCaptionAndPath = R.both(
   R.pipe(R.prop("newWidgetCaption"), R.complement(R.isEmpty)),
@@ -63,17 +58,13 @@ const handleAddWidgetSubmit = R.curry(async (props) => {
         return;
       }
 
-      R.pipe(
-        () => createWidgetFromFormData(newWidgetCaption, newWidgetPath),
-        (newWidget) =>
-          setWidgets((prev) => {
-            const newWidgets = [...prev, newWidget];
-            saveToStorage(STORAGE_KEYS.WIDGETS, newWidgets).catch(console.error);
-            return newWidgets;
-          }),
-        () => closeFormAndResetFields(props),
-        R.always(undefined),
-      )();
+      const newWidget = await invokeCreateWidget(newWidgetCaption, newWidgetPath);
+      setWidgets((prev) => {
+        const newWidgets = [...prev, newWidget];
+        saveToStorage(STORAGE_KEYS.WIDGETS, newWidgets).catch(console.error);
+        return newWidgets;
+      });
+      closeFormAndResetFields(props);
     } catch (error) {
       alert(
         `Validation Error: ${error}\n\n` +
@@ -98,8 +89,7 @@ const handleFolderBrowse = R.curry(async (props) => {
       setNewWidgetPath(folderPath);
 
       if (R.isEmpty(newWidgetCaption.trim())) {
-        const folderName =
-          folderPath.split(/[\\/]/).filter(Boolean).pop() || "";
+        const folderName = await extractFolderNameFromPath(folderPath);
         setNewWidgetCaption(folderName);
       }
     }

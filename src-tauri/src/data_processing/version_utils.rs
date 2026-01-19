@@ -245,13 +245,14 @@ mod tests {
     ) -> DownloadableVersion {
         DownloadableVersion {
             version: version.to_string(),
-            release_date: "2024-01-01".to_string(),
-            download_link: format!("https://example.com/{}", version),
+            release_date: Some("2024-01-01".to_string()),
+            download_url: format!("https://example.com/{}", version),
+            release_notes_url: None,
+            file_size: None,
             is_lts,
             is_mts,
             is_beta,
             is_latest: false,
-            build_number: None,
         }
     }
 

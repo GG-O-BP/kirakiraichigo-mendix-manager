@@ -1,7 +1,6 @@
 import * as R from "ramda";
-import { memo, useMemo, useState, useEffect } from "react";
+import { memo, useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import ListItem from "./ListItem";
 
 const UNINSTALL_BUTTON_GRADIENT = {
   background: "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",
@@ -9,32 +8,6 @@ const UNINSTALL_BUTTON_GRADIENT = {
 };
 
 const INLINE_FLEX_GAP = { display: "flex", gap: "8px" };
-
-export const invokeExtractSearchableText = async (label, version, name) =>
-  invoke("extract_searchable_text", { label, version, name });
-
-export const invokeTextMatchesSearch = async (searchableText, searchTerm) =>
-  invoke("text_matches_search", { searchableText, searchTerm });
-
-export const filterItemsBySearchTerm = async (items, searchTerm) => {
-  if (!searchTerm || searchTerm.trim() === "") {
-    return items;
-  }
-
-  const results = await Promise.all(
-    items.map(async (item) => {
-      const searchableText = await invokeExtractSearchableText(
-        item.label || item.caption,
-        item.version,
-        item.name
-      );
-      const matches = await invokeTextMatchesSearch(searchableText, searchTerm);
-      return matches ? item : null;
-    })
-  );
-
-  return results.filter(Boolean);
-};
 
 const joinTruthyClassNames = R.pipe(R.filter(R.identity), R.join(" "));
 
@@ -53,10 +26,6 @@ const executeWithStoppedPropagation = R.curry((onClick, e) =>
     R.tap(() => onClick()),
     R.always(undefined),
   )(e),
-);
-
-const renderSupportBadge = R.curry((badge, badgeClass) =>
-  badge ? <span className={`version-badge ${badgeClass}`}>{badge}</span> : null,
 );
 
 const renderLaunchButton = R.curry(
@@ -187,73 +156,3 @@ export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
 });
 
 MendixAppListItem.displayName = "MendixAppListItem";
-
-const renderDownloadProgressBar = R.curry((downloadProgress) => (
-  <div className="download-progress">
-    <div className="progress-bar">
-      <div
-        className="progress-fill"
-        style={{ width: `${downloadProgress}%` }}
-      />
-    </div>
-    <span className="progress-text">{Math.round(downloadProgress)}%</span>
-  </div>
-));
-
-const renderInstallButton = R.curry((onInstall, version) => (
-  <button
-    className="install-button"
-    onClick={executeWithStoppedPropagation(() => onInstall(version))}
-    disabled={false}
-  >
-    <span className="button-icon">💫</span>
-    Install
-  </button>
-));
-
-export const VersionListItem = memo(
-  ({ version, onInstall, isInstalling, downloadProgress }) => (
-    <div className="version-list-item">
-      <div className="version-info">
-        <span className="version-icon">📦</span>
-        <div className="version-details">
-          <span className="version-number">
-            {version.version}
-            {renderSupportBadge(version.is_lts && "LTS", "lts")}
-            {renderSupportBadge(version.is_mts && "MTS", "mts")}
-          </span>
-          <span className="version-date">{version.release_date}</span>
-        </div>
-      </div>
-      {R.ifElse(
-        R.identity,
-        () => renderDownloadProgressBar(downloadProgress),
-        () => renderInstallButton(onInstall, version),
-      )(isInstalling)}
-    </div>
-  ),
-);
-
-VersionListItem.displayName = "VersionListItem";
-
-const renderListItemWithHandler = R.curry((onItemClick, item) => (
-  <ListItem key={item.id} item={item} onClick={onItemClick} />
-));
-
-export const ListArea = memo(({ items, searchTerm, onItemClick }) => {
-  const [filteredItems, setFilteredItems] = useState(items);
-
-  useEffect(() => {
-    filterItemsBySearchTerm(items, searchTerm)
-      .then(setFilteredItems)
-      .catch(() => setFilteredItems(items));
-  }, [items, searchTerm]);
-
-  return (
-    <div className="list-area">
-      {R.map(renderListItemWithHandler(onItemClick), filteredItems)}
-    </div>
-  );
-});
-
-ListArea.displayName = "ListArea";
