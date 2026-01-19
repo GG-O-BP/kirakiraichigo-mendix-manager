@@ -1,44 +1,15 @@
 import * as R from "ramda";
-import React, {
-  useState,
-  useCallback,
-  useRef,
-  useMemo,
-  useEffect,
-} from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import catppuccinLogo from "./assets/catppuccin_circle.png";
-import catppuccinLatteLogo from "./assets/catppuccin_latte_circle.png";
 import "./styles/index.css";
-import { flavors } from "@catppuccin/palette";
 
 import {
   STORAGE_KEYS,
   ITEMS_PER_PAGE,
-  loadFromStorage,
   saveToStorage,
-  wrapAsync,
-  arrayToSet,
-  createWidget,
-  invokeValidateRequired,
-  setProperty,
-  updateVersionLoadingStates,
   getVersionLoadingState,
-  invokeValidateBuildDeploySelections,
-  createCatastrophicErrorResult,
-  invokeHasBuildFailures,
-  hasItems,
+  updateVersionLoadingStates,
 } from "./utils/functional";
-
-import {
-  filterMendixApps,
-  filterWidgets,
-  filterMendixVersions,
-  sortWidgetsByOrder,
-  removeWidgetById,
-  filterWidgetsBySelectedIds,
-  filterAppsBySelectedPaths,
-} from "./utils/dataProcessing";
 
 import { TabButton, ConfirmModal } from "./components/common";
 import {
@@ -52,7 +23,14 @@ import {
   DownloadModal,
 } from "./components/modals";
 
-const LAUNCH_LOADING_RESET_DELAY_MS = 60000;
+import {
+  useTheme,
+  useVersions,
+  useApps,
+  useWidgets,
+  useModals,
+  useBuildDeploy,
+} from "./hooks";
 
 const STUDIO_PRO_MANAGER_PROP_KEYS = [
   "searchTerm",
@@ -132,734 +110,63 @@ const WIDGET_PREVIEW_PROP_KEYS = [
   "handleWidgetDeleteClick",
 ];
 
-const createInitialState = () => ({
-  downloadableVersions: [],
-  isLoadingDownloadableVersions: false,
-  showOnlyDownloadableVersions: false,
-  showLTSOnly: false,
-  showMTSOnly: false,
-  showBetaOnly: false,
-  activeTab: "studio-pro",
-  currentTheme: "kiraichi",
-  versions: [],
-  apps: [],
-  widgets: [],
-  filteredVersions: [],
-  filteredApps: [],
-  filteredWidgets: [],
-  searchTerm: "",
-  appSearchTerm: "",
-  widgetSearchTerm: "",
-  widgetPreviewSearch: "",
-  selectedApps: new Set(),
-  selectedWidgets: new Set(),
-  selectedVersion: null,
-  versionFilter: "all",
-  isUninstalling: false,
-  downloadProgress: {},
-  currentPage: 1,
-  hasMore: true,
-  showUninstallModal: false,
-  versionToUninstall: null,
-  relatedApps: [],
-  showAppDeleteModal: false,
-  appToDelete: null,
-  showWidgetModal: false,
-  showAddWidgetForm: false,
-  showResultModal: false,
-  showDownloadModal: false,
-  versionToDownload: null,
-  showWidgetDeleteModal: false,
-  widgetToDelete: null,
-  newWidgetCaption: "",
-  newWidgetPath: "",
-  properties: {},
-  packageManager: "npm",
-  isInstalling: false,
-  isBuilding: false,
-  buildResults: {
-    successful: [],
-    failed: [],
-  },
-});
-
 function App() {
-  const initialState = useMemo(createInitialState, []);
-  const [currentTheme, setCurrentTheme] = useState(initialState.currentTheme);
+  const theme = useTheme();
+  const versions = useVersions();
+  const appsHook = useApps();
+  const widgetsHook = useWidgets();
+  const modals = useModals();
+  const buildDeploy = useBuildDeploy({
+    selectedWidgets: widgetsHook.selectedWidgets,
+    selectedApps: appsHook.selectedApps,
+    widgets: widgetsHook.widgets,
+    apps: appsHook.apps,
+    setShowResultModal: modals.setShowResultModal,
+  });
 
-  const currentCatppuccinLogo = ["latte", "kiraichi-light"].includes(
-    currentTheme,
-  )
-    ? catppuccinLatteLogo
-    : catppuccinLogo;
+  const [activeTab, setActiveTab] = useState("studio-pro");
 
-  const applyTheme = useCallback((themeName) => {
-    const root = document.documentElement;
-
-    root.classList.remove(
-      "theme-kiraichi",
-      "theme-kiraichi-light",
-      "theme-latte",
-      "theme-frappe",
-      "theme-macchiato",
-      "theme-mocha",
-    );
-
-    if (themeName === "kiraichi" || themeName === "kiraichi-light") {
-      root.classList.add(`theme-${themeName}`);
-    } else {
-      root.classList.add(`theme-${themeName}`);
-      const flavor = flavors[themeName];
-
-      if (flavor) {
-        root.style.setProperty(
-          "--catppuccin-rosewater",
-          flavor.colors.rosewater.hex,
-        );
-        root.style.setProperty(
-          "--catppuccin-flamingo",
-          flavor.colors.flamingo.hex,
-        );
-        root.style.setProperty("--catppuccin-pink", flavor.colors.pink.hex);
-        root.style.setProperty("--catppuccin-mauve", flavor.colors.mauve.hex);
-        root.style.setProperty("--catppuccin-red", flavor.colors.red.hex);
-        root.style.setProperty("--catppuccin-maroon", flavor.colors.maroon.hex);
-        root.style.setProperty("--catppuccin-peach", flavor.colors.peach.hex);
-        root.style.setProperty("--catppuccin-yellow", flavor.colors.yellow.hex);
-        root.style.setProperty("--catppuccin-green", flavor.colors.green.hex);
-        root.style.setProperty("--catppuccin-teal", flavor.colors.teal.hex);
-        root.style.setProperty("--catppuccin-sky", flavor.colors.sky.hex);
-        root.style.setProperty(
-          "--catppuccin-sapphire",
-          flavor.colors.sapphire.hex,
-        );
-        root.style.setProperty("--catppuccin-blue", flavor.colors.blue.hex);
-        root.style.setProperty(
-          "--catppuccin-lavender",
-          flavor.colors.lavender.hex,
-        );
-        root.style.setProperty("--catppuccin-text", flavor.colors.text.hex);
-        root.style.setProperty(
-          "--catppuccin-subtext1",
-          flavor.colors.subtext1.hex,
-        );
-        root.style.setProperty(
-          "--catppuccin-subtext0",
-          flavor.colors.subtext0.hex,
-        );
-        root.style.setProperty(
-          "--catppuccin-overlay2",
-          flavor.colors.overlay2.hex,
-        );
-        root.style.setProperty(
-          "--catppuccin-overlay1",
-          flavor.colors.overlay1.hex,
-        );
-        root.style.setProperty(
-          "--catppuccin-overlay0",
-          flavor.colors.overlay0.hex,
-        );
-        root.style.setProperty(
-          "--catppuccin-surface2",
-          flavor.colors.surface2.hex,
-        );
-        root.style.setProperty(
-          "--catppuccin-surface1",
-          flavor.colors.surface1.hex,
-        );
-        root.style.setProperty(
-          "--catppuccin-surface0",
-          flavor.colors.surface0.hex,
-        );
-        root.style.setProperty("--catppuccin-base", flavor.colors.base.hex);
-        root.style.setProperty("--catppuccin-mantle", flavor.colors.mantle.hex);
-        root.style.setProperty("--catppuccin-crust", flavor.colors.crust.hex);
-      }
-    }
-  }, []);
-
-  const handleThemeChange = useCallback(
-    (event) => {
-      const newTheme = event.target.value;
-      setCurrentTheme(newTheme);
-      saveToStorage(STORAGE_KEYS.THEME, newTheme).catch(console.error);
-      applyTheme(newTheme);
-    },
-    [applyTheme],
-  );
-
+  // Load initial data
   useEffect(() => {
-    applyTheme(currentTheme);
-  }, [applyTheme, currentTheme]);
-
-  const fetchVersionsFromDatagrid = useCallback(async (page = 1) => {
-    const isFirstPage = page === 1;
-
-    const updateVersions = (newVersions, prevVersions) =>
-      isFirstPage
-        ? newVersions
-        : R.concat(R.defaultTo([], prevVersions), newVersions);
-
-    try {
-      const processedPage = R.pipe(R.defaultTo(1), R.max(1))(page);
-
-      setIsLoadingDownloadableVersions(true);
-
-      const versions = await invoke("get_downloadable_versions_from_datagrid", {
-        page: processedPage,
-      });
-
-      setDownloadableVersions((prevVersions) =>
-        updateVersions(versions, prevVersions),
-      );
-
-      setIsLoadingDownloadableVersions(false);
-      return versions;
-    } catch (error) {
-      console.error("Failed to fetch versions from datagrid:", error);
-      setIsLoadingDownloadableVersions(false);
-      return [];
-    }
-  }, []);
-
-  const [activeTab, setActiveTab] = useState(initialState.activeTab);
-  const [versions, setVersions] = useState(initialState.versions);
-  const [apps, setApps] = useState(initialState.apps);
-  const [widgets, setWidgets] = useState(initialState.widgets);
-  const [downloadableVersions, setDownloadableVersions] = useState(
-    initialState.downloadableVersions,
-  );
-  const [isLoadingDownloadableVersions, setIsLoadingDownloadableVersions] =
-    useState(initialState.isLoadingDownloadableVersions);
-  const [showOnlyDownloadableVersions, setShowOnlyDownloadableVersions] =
-    useState(initialState.showOnlyDownloadableVersions);
-  const [showLTSOnly, setShowLTSOnly] = useState(initialState.showLTSOnly);
-  const [showMTSOnly, setShowMTSOnly] = useState(initialState.showMTSOnly);
-  const [showBetaOnly, setShowBetaOnly] = useState(initialState.showBetaOnly);
-
-  const [filteredVersions, setFilteredVersions] = useState(
-    initialState.filteredVersions,
-  );
-  const [filteredApps, setFilteredApps] = useState(initialState.filteredApps);
-  const [filteredWidgets, setFilteredWidgets] = useState(
-    initialState.filteredWidgets,
-  );
-
-  const [searchTerm, setSearchTerm] = useState(initialState.searchTerm);
-  const [appSearchTerm, setAppSearchTerm] = useState(
-    initialState.appSearchTerm,
-  );
-  const [widgetSearchTerm, setWidgetSearchTerm] = useState(
-    initialState.widgetSearchTerm,
-  );
-  const [widgetPreviewSearch, setWidgetPreviewSearch] = useState(
-    initialState.widgetPreviewSearch,
-  );
-
-  const [selectedApps, setSelectedApps] = useState(initialState.selectedApps);
-  const [selectedWidgets, setSelectedWidgets] = useState(
-    initialState.selectedWidgets,
-  );
-  const [selectedVersion, setSelectedVersion] = useState(
-    initialState.selectedVersion,
-  );
-
-  const [versionFilter, setVersionFilter] = useState(
-    initialState.versionFilter,
-  );
-  const [isUninstalling, setIsUninstalling] = useState(
-    initialState.isUninstalling,
-  );
-  const [versionLoadingStates, setVersionLoadingStates] = useState({});
-  const [currentPage, setCurrentPage] = useState(initialState.currentPage);
-  const [hasMore, setHasMore] = useState(initialState.hasMore);
-
-  const [showUninstallModal, setShowUninstallModal] = useState(
-    initialState.showUninstallModal,
-  );
-  const [versionToUninstall, setVersionToUninstall] = useState(
-    initialState.versionToUninstall,
-  );
-  const [relatedApps, setRelatedApps] = useState(initialState.relatedApps);
-  const [showAppDeleteModal, setShowAppDeleteModal] = useState(
-    initialState.showAppDeleteModal,
-  );
-  const [appToDelete, setAppToDelete] = useState(initialState.appToDelete);
-  const [showWidgetModal, setShowWidgetModal] = useState(
-    initialState.showWidgetModal,
-  );
-  const [showAddWidgetForm, setShowAddWidgetForm] = useState(
-    initialState.showAddWidgetForm,
-  );
-  const [showResultModal, setShowResultModal] = useState(
-    initialState.showResultModal,
-  );
-  const [showDownloadModal, setShowDownloadModal] = useState(
-    initialState.showDownloadModal,
-  );
-  const [versionToDownload, setVersionToDownload] = useState(
-    initialState.versionToDownload,
-  );
-  const [showWidgetDeleteModal, setShowWidgetDeleteModal] = useState(
-    initialState.showWidgetDeleteModal,
-  );
-  const [widgetToDelete, setWidgetToDelete] = useState(
-    initialState.widgetToDelete,
-  );
-  const [inlineResults, setInlineResults] = useState(null);
-
-  const [newWidgetCaption, setNewWidgetCaption] = useState(
-    initialState.newWidgetCaption,
-  );
-  const [newWidgetPath, setNewWidgetPath] = useState(
-    initialState.newWidgetPath,
-  );
-  const [properties, setProperties] = useState(initialState.properties);
-
-  const [selectedWidgetForPreview, setSelectedWidgetForPreview] =
-    useState(null);
-
-  useEffect(() => {
-    const saveWidgetsSequentially = async () => {
-      if (widgets.length > 0) {
-        try {
-          const widgetOrder = widgets.map((w) => w.id);
-          await saveToStorage(STORAGE_KEYS.WIDGET_ORDER, widgetOrder);
-          await saveToStorage(STORAGE_KEYS.WIDGETS, widgets);
-        } catch (error) {
-          console.error("Failed to save widgets:", error);
-        }
-      }
-    };
-    saveWidgetsSequentially();
-  }, [widgets]);
-
-  const [packageManager, setPackageManager] = useState(
-    initialState.packageManager,
-  );
-  const [isInstalling, setIsInstalling] = useState(initialState.isInstalling);
-  const [isBuilding, setIsBuilding] = useState(initialState.isBuilding);
-  const [buildResults, setBuildResults] = useState(initialState.buildResults);
-
-  const loadVersions = useCallback(
-    wrapAsync(
-      (error) => console.error("Failed to load versions:", error),
-      R.pipeWith(R.andThen, [
-        () => invoke("get_installed_mendix_versions"),
-        setVersions,
-      ]),
-    ),
-    [],
-  );
-
-  const handleDownloadVersion = useCallback((version) => {
-    if (!version || !version.version) {
-      alert("❌ Invalid version data");
-      return;
-    }
-
-    setVersionToDownload(version);
-    setShowDownloadModal(true);
-  }, []);
-
-  const handleModalDownload = useCallback(
-    async (version) => {
-      const versionId = version.version;
-      try {
-        setVersionLoadingStates((prev) =>
-          updateVersionLoadingStates(versionId, "download", true, prev),
-        );
-
-        const result = await invoke("download_and_install_mendix_version", {
-          version: version.version,
-        });
-
-        await loadVersions();
-
-        return result;
-      } catch (error) {
-        console.error("Error in download process:", error);
-        throw error;
-      } finally {
-        setVersionLoadingStates((prev) =>
-          updateVersionLoadingStates(versionId, "download", false, prev),
-        );
-      }
-    },
-    [loadVersions],
-  );
-
-  const handleDownloadModalClose = useCallback(() => {
-    setShowDownloadModal(false);
-    setVersionToDownload(null);
-  }, []);
-
-  const loadApps = useCallback(
-    wrapAsync(
-      (error) => console.error("Failed to load apps:", error),
-      R.pipeWith(R.andThen, [
-        () => invoke("get_installed_mendix_apps"),
-        setApps,
-      ]),
-    ),
-    [],
-  );
-
-  const loadWidgets = useCallback(async () => {
-    try {
-      const savedWidgets = await loadFromStorage(STORAGE_KEYS.WIDGETS, []);
-      const savedOrder = await loadFromStorage(STORAGE_KEYS.WIDGET_ORDER, []);
-
-      if (savedOrder.length > 0) {
-        const orderedWidgets = await sortWidgetsByOrder(savedWidgets, savedOrder);
-        setWidgets(orderedWidgets);
-      } else {
-        setWidgets(savedWidgets);
-      }
-    } catch (error) {
-      console.error("Failed to load widgets:", error);
-      setWidgets([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    const loadInitialState = async () => {
-      try {
-        const stateLoaders = R.juxt([
-          () => loadFromStorage(STORAGE_KEYS.THEME, "kiraichi"),
-          () => loadFromStorage(STORAGE_KEYS.PACKAGE_MANAGER, "npm"),
-          () => loadFromStorage(STORAGE_KEYS.SELECTED_APPS, []),
-          () => loadFromStorage(STORAGE_KEYS.SELECTED_WIDGETS, []),
-        ]);
-
-        const [theme, pkgManager, selectedAppsArray, selectedWidgetsArray] =
-          await Promise.all(stateLoaders());
-
-        setCurrentTheme(theme);
-        applyTheme(theme);
-        setPackageManager(pkgManager);
-        setSelectedApps(arrayToSet(selectedAppsArray));
-        setSelectedWidgets(arrayToSet(selectedWidgetsArray));
-      } catch (error) {
-        console.error("Failed to load initial state:", error);
-      }
-    };
-
-    loadInitialState();
-  }, []);
-
-  useEffect(() => {
-    const loadInitialData = R.juxt([loadVersions, loadApps, loadWidgets]);
+    const loadInitialData = R.juxt([
+      versions.loadVersions,
+      appsHook.loadApps,
+      widgetsHook.loadWidgets,
+    ]);
     loadInitialData();
-  }, [loadVersions, loadApps, loadWidgets]);
+  }, [versions.loadVersions, appsHook.loadApps, widgetsHook.loadWidgets]);
 
-  useEffect(() => {
-    const processVersions = async () => {
-      try {
-        const filtered = await filterMendixVersions(
-          versions,
-          searchTerm || null,
-          true,
-        );
-        setFilteredVersions(filtered);
-      } catch (error) {
-        console.error("Failed to filter versions:", error);
-        setFilteredVersions(versions);
-      }
-    };
-
-    if (versions && versions.length > 0) {
-      processVersions();
-    } else {
-      setFilteredVersions([]);
-    }
-  }, [versions, searchTerm]);
-
-  useEffect(() => {
-    const processApps = async () => {
-      try {
-        const targetVersion = versionFilter === "all" ? null : versionFilter;
-        const filtered = await filterMendixApps(
-          apps,
-          appSearchTerm || null,
-          targetVersion,
-          true,
-        );
-        setFilteredApps(filtered);
-        setHasMore(filtered.length > ITEMS_PER_PAGE);
-        setCurrentPage(1);
-      } catch (error) {
-        console.error("Failed to filter apps:", error);
-        setFilteredApps(apps);
-      }
-    };
-
-    if (apps && apps.length > 0) {
-      processApps();
-    } else {
-      setFilteredApps([]);
-    }
-  }, [apps, versionFilter, appSearchTerm]);
-
-  useEffect(() => {
-    const processWidgets = async () => {
-      try {
-        const filtered = await filterWidgets(widgets, widgetSearchTerm || null);
-        setFilteredWidgets(filtered);
-      } catch (error) {
-        console.error("Failed to filter widgets:", error);
-        setFilteredWidgets(widgets);
-      }
-    };
-
-    if (widgets && widgets.length > 0) {
-      processWidgets();
-    } else {
-      setFilteredWidgets([]);
-    }
-  }, [widgets, widgetSearchTerm]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.PACKAGE_MANAGER, packageManager).catch(
-      console.error,
-    );
-  }, [packageManager]);
-
-  const hasLoadedInitialVersions = useRef(false);
-
-  useEffect(() => {
-    if (hasLoadedInitialVersions.current) {
-      return;
-    }
-
-    const loadInitialDownloadableVersions = async () => {
-      try {
-        hasLoadedInitialVersions.current = true;
-        await fetchVersionsFromDatagrid(1);
-      } catch (error) {
-        console.error("Failed to load initial downloadable versions:", error);
-        hasLoadedInitialVersions.current = false;
-      }
-    };
-
-    loadInitialDownloadableVersions();
-  }, [fetchVersionsFromDatagrid]);
-
-  const handleAppClick = useCallback(
-    R.pipe(R.prop("path"), (appPath) => {
-      setSelectedApps((prev) => {
-        const currentSet = new Set(prev);
-        const newSet = new Set(currentSet);
-
-        if (currentSet.has(appPath)) {
-          newSet.delete(appPath);
-        } else {
-          newSet.add(appPath);
-        }
-
-        const newArray = Array.from(newSet);
-
-        saveToStorage(STORAGE_KEYS.SELECTED_APPS, newArray).catch(
-          console.error,
-        );
-
-        return newSet;
-      });
-    }),
-    [],
-  );
-
-  const handleInstall = useCallback(async () => {
-    if (!hasItems(selectedWidgets)) {
-      alert("Please select at least one widget to install");
-      return;
-    }
-
-    setIsInstalling(true);
-
-    const selectedIds = Array.from(selectedWidgets);
-    const widgetsList = await filterWidgetsBySelectedIds(widgets, selectedIds);
-
-    const createInstallOperation = R.curry((widget) =>
-      R.tryCatch(
-        async () => {
-          await invoke("run_package_manager_command", {
-            packageManager,
-            command: "install",
-            workingDirectory: R.prop("path", widget),
-          });
-          return R.assoc("success", true, widget);
-        },
-        (error) => {
-          alert(
-            `Failed to install dependencies for ${R.prop("caption", widget)}: ${error}`,
-          );
-          return R.assoc("success", false, widget);
-        },
-      )(),
-    );
-
-    const executeInstallations = R.pipe(
-      R.map(createInstallOperation),
-      (promises) => Promise.all(promises),
-    );
-
-    await executeInstallations(widgetsList);
-
-    setIsInstalling(false);
-  }, [selectedWidgets, widgets, packageManager]);
-
-  const handleBuildDeploy = useCallback(async () => {
-    const validationError = await invokeValidateBuildDeploySelections(
-      selectedWidgets,
-      selectedApps,
-    );
-
-    if (validationError) {
-      alert(validationError);
-      return;
-    }
-
-    const initializeBuildState = R.pipe(
-      R.tap(() => setShowResultModal(false)),
-      R.tap(() => setBuildResults({ successful: [], failed: [] })),
-      R.tap(() => setIsBuilding(true)),
-      R.always(null),
-    );
-
-    initializeBuildState();
-
-    const selectedWidgetIds = Array.from(selectedWidgets);
-    const selectedAppPaths = Array.from(selectedApps);
-
-    const widgetsList = await filterWidgetsBySelectedIds(widgets, selectedWidgetIds);
-    const appsList = await filterAppsBySelectedPaths(apps, selectedAppPaths);
-
-    const executeBuildDeploy = R.tryCatch(
-      async () =>
-        await invoke("build_and_deploy_from_selections", {
-          widgets: widgetsList,
-          apps: appsList,
-          packageManager,
-        }),
-      createCatastrophicErrorResult,
-    );
-
-    const results = await executeBuildDeploy();
-    setBuildResults(results);
-    setInlineResults(results);
-    setIsBuilding(false);
-
-    const hasFailures = await invokeHasBuildFailures(results);
-    if (hasFailures) {
-      setShowResultModal(true);
-    }
-  }, [selectedWidgets, selectedApps, widgets, apps, packageManager]);
-
-  const updateProperty = useCallback(
-    R.curry((key, value) => setProperties(setProperty(key, value))),
-    [],
-  );
-
-  const handleLaunchStudioPro = useCallback(
-    async (version) => {
-      const versionId = version.version;
-      const loadingState = getVersionLoadingState(
-        versionLoadingStates,
-        versionId,
-      );
-
-      if (loadingState.isLaunching || loadingState.isUninstalling) {
-        return;
-      }
-
-      setVersionLoadingStates((prev) =>
-        updateVersionLoadingStates(versionId, "launch", true, prev),
-      );
-
-      try {
-        await invoke("launch_studio_pro", {
-          version: version.version,
-        });
-        setTimeout(() => {
-          setVersionLoadingStates((prev) =>
-            updateVersionLoadingStates(versionId, "launch", false, prev),
-          );
-        }, LAUNCH_LOADING_RESET_DELAY_MS);
-      } catch (error) {
-        alert(`Failed to launch Studio Pro: ${error}`);
-        setVersionLoadingStates((prev) =>
-          updateVersionLoadingStates(versionId, "launch", false, prev),
-        );
-      }
-    },
-    [versionLoadingStates],
-  );
-
+  // Handle uninstall click - combines versions and modals
   const handleUninstallClick = useCallback(
-    wrapAsync(
-      R.pipe((error) => alert(`Failed to get related apps: ${error}`)),
-      async (version) => {
-        const relatedApps = await invoke("get_apps_by_version", {
-          version: version.version,
-        });
-        setShowUninstallModal(true);
-        setVersionToUninstall(version);
-        setRelatedApps(relatedApps);
-      },
-    ),
-    [],
+    (version) => modals.openUninstallModal(version),
+    [modals.openUninstallModal],
   );
 
-  const handleWidgetDeleteClick = useCallback((widget) => {
-    setShowWidgetDeleteModal(true);
-    setWidgetToDelete(widget);
-  }, []);
+  // Handle widget delete click
+  const handleWidgetDeleteClick = useCallback(
+    (widget) => modals.openWidgetDeleteModal(widget),
+    [modals.openWidgetDeleteModal],
+  );
 
-  const handleConfirmWidgetDelete = useCallback(async () => {
-    if (widgetToDelete) {
-      try {
-        const newWidgets = await removeWidgetById(widgets, widgetToDelete.id);
-        setWidgets(newWidgets);
-        saveToStorage(STORAGE_KEYS.WIDGETS, newWidgets).catch(console.error);
+  // Handle download version - opens download modal
+  const handleDownloadVersion = useCallback(
+    (version) => modals.openDownloadModal(version),
+    [modals.openDownloadModal],
+  );
 
-        setSelectedWidgets((prevSelected) => {
-          const newSet = new Set(prevSelected);
-          newSet.delete(widgetToDelete.id);
-          const newArray = Array.from(newSet);
-          saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS, newArray).catch(
-            console.error,
-          );
-          return newSet;
-        });
-
-        setShowWidgetDeleteModal(false);
-        setWidgetToDelete(null);
-      } catch (error) {
-        console.error("Failed to delete widget:", error);
-      }
-    }
-  }, [widgetToDelete, widgets]);
-
-  const handleCancelWidgetDelete = useCallback(() => {
-    setShowWidgetDeleteModal(false);
-    setWidgetToDelete(null);
-  }, []);
-
+  // Handle uninstall Studio Pro
   const handleUninstallStudioPro = useCallback(
     async (version, deleteApps = false, relatedAppsList = []) => {
       const versionId = version.version;
-      setVersionLoadingStates((prev) =>
+      versions.setVersionLoadingStates((prev) =>
         updateVersionLoadingStates(versionId, "uninstall", true, prev),
       );
 
       const cleanupUninstallState = () => {
-        setVersionLoadingStates((prev) =>
+        versions.setVersionLoadingStates((prev) =>
           updateVersionLoadingStates(versionId, "uninstall", false, prev),
         );
-        setShowUninstallModal(false);
-        setVersionToUninstall(null);
-        setRelatedApps([]);
+        modals.closeUninstallModal();
       };
 
       try {
@@ -876,9 +183,9 @@ function App() {
           timeoutSeconds: 60,
         });
 
-        await loadVersions();
+        await versions.loadVersions();
         if (deleteApps) {
-          await loadApps();
+          await appsHook.loadApps();
         }
 
         if (result.timed_out) {
@@ -896,26 +203,140 @@ function App() {
         cleanupUninstallState();
       }
     },
-    [loadVersions, loadApps],
+    [versions.loadVersions, appsHook.loadApps, versions.setVersionLoadingStates, modals.closeUninstallModal],
   );
 
-  const handleModalCancel = useCallback(
-    R.pipe(
-      () => setShowUninstallModal(false),
-      () => setVersionToUninstall(null),
-      () => setRelatedApps([]),
-    ),
-    [],
-  );
+  // Handle confirm widget delete
+  const handleConfirmWidgetDelete = useCallback(async () => {
+    const success = await widgetsHook.handleWidgetDelete(modals.widgetToDelete);
+    if (success) {
+      modals.closeWidgetDeleteModal();
+    }
+  }, [widgetsHook.handleWidgetDelete, modals.widgetToDelete, modals.closeWidgetDeleteModal]);
 
-  const handleVersionClick = useCallback((version) => {
-    setSelectedVersion((prevSelected) => {
-      if (prevSelected && prevSelected.version === version.version) {
-        return null;
+  // Handle app delete
+  const handleConfirmAppDelete = useCallback(async () => {
+    if (modals.appToDelete) {
+      buildDeploy.setIsUninstalling(true);
+      try {
+        await invoke("delete_mendix_app", { appPath: modals.appToDelete.path });
+        await appsHook.loadApps();
+
+        appsHook.setSelectedApps((prev) => {
+          const newSet = new Set(prev);
+          if (newSet.has(modals.appToDelete.path)) {
+            newSet.delete(modals.appToDelete.path);
+            const selectedAppsArray = Array.from(newSet);
+            saveToStorage(STORAGE_KEYS.SELECTED_APPS, selectedAppsArray).catch(
+              console.error,
+            );
+          }
+          return newSet;
+        });
+
+        buildDeploy.setIsUninstalling(false);
+        modals.closeAppDeleteModal();
+      } catch (error) {
+        alert(`Failed to delete app: ${error}`);
+        buildDeploy.setIsUninstalling(false);
+        modals.closeAppDeleteModal();
       }
-      return version;
+    }
+  }, [modals.appToDelete, appsHook.loadApps, appsHook.setSelectedApps, buildDeploy.setIsUninstalling, modals.closeAppDeleteModal]);
+
+  // Handle add widget
+  const handleAddWidget = useCallback(() => {
+    widgetsHook.handleAddWidget(() => {
+      modals.setShowAddWidgetForm(false);
+      modals.setShowWidgetModal(false);
     });
-  }, []);
+  }, [widgetsHook.handleAddWidget, modals.setShowAddWidgetForm, modals.setShowWidgetModal]);
+
+  // Create state object for tab props
+  const stateObject = useMemo(
+    () => ({
+      // Versions
+      searchTerm: versions.searchTerm,
+      setSearchTerm: versions.setSearchTerm,
+      versions: versions.versions,
+      filteredVersions: versions.filteredVersions,
+      selectedVersion: versions.selectedVersion,
+      handleVersionClick: versions.handleVersionClick,
+      versionLoadingStates: versions.versionLoadingStates,
+      handleLaunchStudioPro: versions.handleLaunchStudioPro,
+      fetchVersionsFromDatagrid: versions.fetchVersionsFromDatagrid,
+      downloadableVersions: versions.downloadableVersions,
+      isLoadingDownloadableVersions: versions.isLoadingDownloadableVersions,
+      showOnlyDownloadableVersions: versions.showOnlyDownloadableVersions,
+      setShowOnlyDownloadableVersions: versions.setShowOnlyDownloadableVersions,
+      showLTSOnly: versions.showLTSOnly,
+      setShowLTSOnly: versions.setShowLTSOnly,
+      showMTSOnly: versions.showMTSOnly,
+      setShowMTSOnly: versions.setShowMTSOnly,
+      showBetaOnly: versions.showBetaOnly,
+      setShowBetaOnly: versions.setShowBetaOnly,
+
+      // Apps
+      apps: appsHook.apps,
+      versionFilter: appsHook.versionFilter,
+      setVersionFilter: appsHook.setVersionFilter,
+      appSearchTerm: appsHook.appSearchTerm,
+      setAppSearchTerm: appsHook.setAppSearchTerm,
+      filteredApps: appsHook.filteredApps,
+      currentPage: appsHook.currentPage,
+      setCurrentPage: appsHook.setCurrentPage,
+      hasMore: appsHook.hasMore,
+      selectedApps: appsHook.selectedApps,
+      handleAppClick: appsHook.handleAppClick,
+
+      // Widgets
+      widgets: widgetsHook.widgets,
+      setWidgets: widgetsHook.setWidgets,
+      filteredWidgets: widgetsHook.filteredWidgets,
+      widgetSearchTerm: widgetsHook.widgetSearchTerm,
+      setWidgetSearchTerm: widgetsHook.setWidgetSearchTerm,
+      widgetPreviewSearch: widgetsHook.widgetPreviewSearch,
+      setWidgetPreviewSearch: widgetsHook.setWidgetPreviewSearch,
+      selectedWidgets: widgetsHook.selectedWidgets,
+      setSelectedWidgets: widgetsHook.setSelectedWidgets,
+      selectedWidgetForPreview: widgetsHook.selectedWidgetForPreview,
+      setSelectedWidgetForPreview: widgetsHook.setSelectedWidgetForPreview,
+      setNewWidgetCaption: widgetsHook.setNewWidgetCaption,
+      setNewWidgetPath: widgetsHook.setNewWidgetPath,
+      properties: widgetsHook.properties,
+      updateProperty: widgetsHook.updateProperty,
+
+      // Modals
+      setShowWidgetModal: modals.setShowWidgetModal,
+      setShowAddWidgetForm: modals.setShowAddWidgetForm,
+
+      // Build/Deploy
+      packageManager: buildDeploy.packageManager,
+      setPackageManager: buildDeploy.setPackageManager,
+      handleInstall: buildDeploy.handleInstall,
+      handleBuildDeploy: buildDeploy.handleBuildDeploy,
+      isInstalling: buildDeploy.isInstalling,
+      isBuilding: buildDeploy.isBuilding,
+      inlineResults: buildDeploy.inlineResults,
+      setInlineResults: buildDeploy.setInlineResults,
+
+      // Handlers
+      handleUninstallClick,
+      handleDownloadVersion,
+      handleWidgetDeleteClick,
+    }),
+    [
+      versions,
+      appsHook,
+      widgetsHook,
+      modals.setShowWidgetModal,
+      modals.setShowAddWidgetForm,
+      buildDeploy,
+      handleUninstallClick,
+      handleDownloadVersion,
+      handleWidgetDeleteClick,
+    ],
+  );
 
   const createTabPropsFromState = R.applySpec({
     studioProManager: R.pick(STUDIO_PRO_MANAGER_PROP_KEYS),
@@ -926,110 +347,9 @@ function App() {
     widgetPreview: R.pick(WIDGET_PREVIEW_PROP_KEYS),
   });
 
-  const stateObject = {
-    searchTerm,
-    setSearchTerm,
-    versions,
-    filteredVersions,
-    selectedVersion,
-    handleVersionClick,
-    apps,
-    versionLoadingStates,
-    handleLaunchStudioPro,
-    handleUninstallClick,
-    fetchVersionsFromDatagrid,
-    downloadableVersions,
-    isLoadingDownloadableVersions,
-    handleDownloadVersion,
-    showOnlyDownloadableVersions,
-    setShowOnlyDownloadableVersions,
-    showLTSOnly,
-    setShowLTSOnly,
-    showMTSOnly,
-    setShowMTSOnly,
-    showBetaOnly,
-    setShowBetaOnly,
-    versionFilter,
-    setVersionFilter,
-    appSearchTerm,
-    setAppSearchTerm,
-    filteredApps,
-    currentPage,
-    setCurrentPage,
-    hasMore,
-    selectedApps,
-    handleAppClick,
-    packageManager,
-    setPackageManager,
-    handleInstall,
-    handleBuildDeploy,
-    isInstalling,
-    isBuilding,
-    selectedWidgets,
-    setSelectedWidgets,
-    widgets,
-    filteredWidgets,
-    widgetSearchTerm,
-    setWidgetSearchTerm,
-    setShowWidgetModal,
-    setShowAddWidgetForm,
-    setNewWidgetCaption,
-    setNewWidgetPath,
-    setWidgets,
-    widgetPreviewSearch,
-    setWidgetPreviewSearch,
-    properties,
-    updateProperty,
-    selectedWidgetForPreview,
-    setSelectedWidgetForPreview,
-    inlineResults,
-    setInlineResults,
-    handleWidgetDeleteClick,
-  };
-
   const createTabProps = useMemo(
     () => createTabPropsFromState(stateObject),
-    [
-      searchTerm,
-      versions,
-      filteredVersions,
-      selectedVersion,
-      handleVersionClick,
-      apps,
-      handleLaunchStudioPro,
-      handleUninstallClick,
-      fetchVersionsFromDatagrid,
-      downloadableVersions,
-      isLoadingDownloadableVersions,
-      versionFilter,
-      filteredApps,
-      currentPage,
-      hasMore,
-      selectedApps,
-      handleAppClick,
-      packageManager,
-      handleInstall,
-      handleBuildDeploy,
-      isInstalling,
-      isBuilding,
-      selectedWidgets,
-      widgets,
-      filteredWidgets,
-      widgetSearchTerm,
-      widgetPreviewSearch,
-      properties,
-      updateProperty,
-      selectedWidgetForPreview,
-      inlineResults,
-      showOnlyDownloadableVersions,
-      setShowOnlyDownloadableVersions,
-      showLTSOnly,
-      setShowLTSOnly,
-      showMTSOnly,
-      setShowMTSOnly,
-      showBetaOnly,
-      setShowBetaOnly,
-    ],
+    [stateObject],
   );
 
   const tabConfigurations = [
@@ -1066,28 +386,6 @@ function App() {
     />
   ));
 
-  const handleAddWidget = useCallback(() => {
-    if (
-      invokeValidateRequired(["caption", "path"], {
-        caption: newWidgetCaption,
-        path: newWidgetPath,
-      })
-    ) {
-      const newWidget = createWidget(newWidgetCaption, newWidgetPath);
-      const updatedWidgets = [...widgets, newWidget];
-
-      saveToStorage(STORAGE_KEYS.WIDGETS, updatedWidgets)
-        .then(() => {
-          setWidgets(updatedWidgets);
-          setShowAddWidgetForm(false);
-          setShowWidgetModal(false);
-          setNewWidgetCaption("");
-          setNewWidgetPath("");
-        })
-        .catch(console.error);
-    }
-  }, [newWidgetCaption, newWidgetPath, widgets]);
-
   return (
     <main className="app-container">
       <div className="app-header">
@@ -1099,7 +397,7 @@ function App() {
         <div className="theme-selector">
           <div className="catppuccin-banner">
             <img
-              src={currentCatppuccinLogo}
+              src={theme.currentLogo}
               alt="Catppuccin"
               className="catppuccin-logo"
             />
@@ -1123,8 +421,8 @@ function App() {
                 type="radio"
                 name="theme"
                 value="kiraichi"
-                checked={currentTheme === "kiraichi"}
-                onChange={handleThemeChange}
+                checked={theme.currentTheme === "kiraichi"}
+                onChange={theme.handleThemeChange}
               />
               <span>KiraIchi Dark</span>
             </label>
@@ -1133,19 +431,18 @@ function App() {
                 type="radio"
                 name="theme"
                 value="kiraichi-light"
-                checked={currentTheme === "kiraichi-light"}
-                onChange={handleThemeChange}
+                checked={theme.currentTheme === "kiraichi-light"}
+                onChange={theme.handleThemeChange}
               />
               <span>KiraIchi Light</span>
             </label>
-
             <label className="theme-option catppuccin-theme catppuccin-latte-theme">
               <input
                 type="radio"
                 name="theme"
                 value="latte"
-                checked={currentTheme === "latte"}
-                onChange={handleThemeChange}
+                checked={theme.currentTheme === "latte"}
+                onChange={theme.handleThemeChange}
               />
               <span>Latte</span>
             </label>
@@ -1154,8 +451,8 @@ function App() {
                 type="radio"
                 name="theme"
                 value="frappe"
-                checked={currentTheme === "frappe"}
-                onChange={handleThemeChange}
+                checked={theme.currentTheme === "frappe"}
+                onChange={theme.handleThemeChange}
               />
               <span>Frappé</span>
             </label>
@@ -1164,8 +461,8 @@ function App() {
                 type="radio"
                 name="theme"
                 value="macchiato"
-                checked={currentTheme === "macchiato"}
-                onChange={handleThemeChange}
+                checked={theme.currentTheme === "macchiato"}
+                onChange={theme.handleThemeChange}
               />
               <span>Macchiato</span>
             </label>
@@ -1174,8 +471,8 @@ function App() {
                 type="radio"
                 name="theme"
                 value="mocha"
-                checked={currentTheme === "mocha"}
-                onChange={handleThemeChange}
+                checked={theme.currentTheme === "mocha"}
+                onChange={theme.handleThemeChange}
               />
               <span>Mocha</span>
             </label>
@@ -1190,135 +487,105 @@ function App() {
       <div className="tab-content">{activeTabContent}</div>
 
       <WidgetModal
-        showWidgetModal={showWidgetModal}
-        showAddWidgetForm={showAddWidgetForm}
-        setShowWidgetModal={setShowWidgetModal}
-        setShowAddWidgetForm={setShowAddWidgetForm}
-        newWidgetCaption={newWidgetCaption}
-        setNewWidgetCaption={setNewWidgetCaption}
-        newWidgetPath={newWidgetPath}
-        setNewWidgetPath={setNewWidgetPath}
-        setWidgets={setWidgets}
+        showWidgetModal={modals.showWidgetModal}
+        showAddWidgetForm={modals.showAddWidgetForm}
+        setShowWidgetModal={modals.setShowWidgetModal}
+        setShowAddWidgetForm={modals.setShowAddWidgetForm}
+        newWidgetCaption={widgetsHook.newWidgetCaption}
+        setNewWidgetCaption={widgetsHook.setNewWidgetCaption}
+        newWidgetPath={widgetsHook.newWidgetPath}
+        setNewWidgetPath={widgetsHook.setNewWidgetPath}
+        setWidgets={widgetsHook.setWidgets}
       />
 
       <ConfirmModal
-        isOpen={showUninstallModal}
+        isOpen={modals.showUninstallModal}
         title="🍓 Say Goodbye to Studio Pro?"
         message={
-          versionToUninstall
-            ? `Are you really really sure you want to uninstall Studio Pro ${versionToUninstall.version}? ✨\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay? 💝`
+          modals.versionToUninstall
+            ? `Are you really really sure you want to uninstall Studio Pro ${modals.versionToUninstall.version}? ✨\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay? 💝`
             : ""
         }
         onConfirm={async () => {
-          if (versionToUninstall) {
+          if (modals.versionToUninstall) {
             await handleUninstallStudioPro(
-              versionToUninstall,
+              modals.versionToUninstall,
               false,
-              relatedApps,
+              modals.relatedApps,
             );
           }
         }}
         onConfirmWithApps={
-          relatedApps.length > 0
+          modals.relatedApps.length > 0
             ? async () => {
-                if (versionToUninstall) {
+                if (modals.versionToUninstall) {
                   await handleUninstallStudioPro(
-                    versionToUninstall,
+                    modals.versionToUninstall,
                     true,
-                    relatedApps,
+                    modals.relatedApps,
                   );
                 }
               }
             : null
         }
-        onCancel={handleModalCancel}
+        onCancel={modals.closeUninstallModal}
         isLoading={
-          versionToUninstall
-            ? getVersionLoadingState(versionLoadingStates, versionToUninstall.version).isUninstalling
+          modals.versionToUninstall
+            ? getVersionLoadingState(
+                versions.versionLoadingStates,
+                modals.versionToUninstall.version,
+              ).isUninstalling
             : false
         }
-        relatedApps={relatedApps}
+        relatedApps={modals.relatedApps}
       />
 
       <ConfirmModal
-        isOpen={showAppDeleteModal}
+        isOpen={modals.showAppDeleteModal}
         title="🍓 Delete This App?"
         message={
-          appToDelete
-            ? `Do you really want to delete ${appToDelete.name}? 🥺\n\nI can't undo this once it's done! Are you absolutely sure? 💕`
+          modals.appToDelete
+            ? `Do you really want to delete ${modals.appToDelete.name}? 🥺\n\nI can't undo this once it's done! Are you absolutely sure? 💕`
             : ""
         }
-        onConfirm={async () => {
-          if (appToDelete) {
-            setIsUninstalling(true);
-            try {
-              await invoke("delete_mendix_app", { appPath: appToDelete.path });
-              await loadApps();
-
-              setSelectedApps((prev) => {
-                const newSet = new Set(prev);
-                if (newSet.has(appToDelete.path)) {
-                  newSet.delete(appToDelete.path);
-                  const selectedAppsArray = Array.from(newSet);
-                  saveToStorage(
-                    STORAGE_KEYS.SELECTED_APPS,
-                    selectedAppsArray,
-                  ).catch(console.error);
-                }
-                return newSet;
-              });
-
-              setIsUninstalling(false);
-              setShowAppDeleteModal(false);
-              setAppToDelete(null);
-            } catch (error) {
-              alert(`Failed to delete app: ${error}`);
-              setIsUninstalling(false);
-              setShowAppDeleteModal(false);
-              setAppToDelete(null);
-            }
-          }
-        }}
-        onCancel={() => {
-          setShowAppDeleteModal(false);
-          setAppToDelete(null);
-        }}
-        isLoading={isUninstalling}
+        onConfirm={handleConfirmAppDelete}
+        onCancel={modals.closeAppDeleteModal}
+        isLoading={buildDeploy.isUninstalling}
         relatedApps={[]}
       />
 
       <ConfirmModal
-        isOpen={showWidgetDeleteModal}
+        isOpen={modals.showWidgetDeleteModal}
         title="🍓 Remove Widget from List?"
         message={
-          widgetToDelete
-            ? `Should I remove "${widgetToDelete.caption}" from your widget list? 🎀\n\nDon't worry! This only removes it from my list - your files will stay safe and sound! 🌟`
+          modals.widgetToDelete
+            ? `Should I remove "${modals.widgetToDelete.caption}" from your widget list? 🎀\n\nDon't worry! This only removes it from my list - your files will stay safe and sound! 🌟`
             : ""
         }
         onConfirm={handleConfirmWidgetDelete}
-        onCancel={handleCancelWidgetDelete}
+        onCancel={modals.closeWidgetDeleteModal}
         isLoading={false}
         relatedApps={[]}
       />
 
       <BuildResultModal
-        showResultModal={showResultModal}
-        buildResults={buildResults}
-        setShowResultModal={setShowResultModal}
-        setBuildResults={setBuildResults}
+        showResultModal={modals.showResultModal}
+        buildResults={buildDeploy.buildResults}
+        setShowResultModal={modals.setShowResultModal}
+        setBuildResults={buildDeploy.setBuildResults}
       />
 
       <DownloadModal
-        isOpen={showDownloadModal}
-        version={versionToDownload}
-        onDownload={handleModalDownload}
-        onClose={handleDownloadModalClose}
-        onCancel={handleDownloadModalClose}
+        isOpen={modals.showDownloadModal}
+        version={modals.versionToDownload}
+        onDownload={versions.handleModalDownload}
+        onClose={modals.closeDownloadModal}
+        onCancel={modals.closeDownloadModal}
         isLoading={
-          versionToDownload
+          modals.versionToDownload
             ? getVersionLoadingState(
-                versionLoadingStates,
-                versionToDownload.version,
+                versions.versionLoadingStates,
+                modals.versionToDownload.version,
               ).isDownloading
             : false
         }

@@ -14,6 +14,7 @@ KiraKira Ichigo ("KiraIchi") is a Tauri-based desktop application for managing M
 - `bun run preview` - Preview production build
 - `bun test` - Run Vitest tests once
 - `bun test:watch` - Run Vitest in watch mode
+- `bun test src/path/to/file.test.js` - Run a specific test file
 
 ### Tauri Application
 - `bun tauri dev` - Start Tauri app in development mode (auto-runs `bun dev`)
@@ -37,25 +38,33 @@ The frontend follows **functional programming** patterns using Ramda.js:
 - **Composition**: Complex operations built from composing simple, reusable functions
 
 **Component Structure**:
-- `src/App.jsx` - Main application state and orchestration
+- `src/App.jsx` - Main application orchestration, hook composition, prop distribution
+- `src/hooks/` - Custom React hooks for domain-specific state management
 - `src/components/tabs/` - Main feature tabs (StudioProManager, WidgetManager, WidgetPreview)
 - `src/components/modals/` - Modal dialogs (WidgetModal, BuildResultModal, DownloadModal)
 - `src/components/common/` - Reusable UI components (TabButton, ConfirmModal, etc.)
 - `src/components/functional/` - Exported functional components index
 
 **State Management**:
-- Single state object in App.jsx using React useState
-- State updates via Ramda lenses (e.g., `R.set`, `R.over`, `R.lensPath`)
+- State organized into domain-specific custom hooks (`src/hooks/`):
+  - `useTheme` - Theme selection and persistence
+  - `useVersions` - Studio Pro versions, filtering, loading states, downloads
+  - `useApps` - Mendix apps, filtering, pagination, selection
+  - `useWidgets` - Widget management, properties, preview selection
+  - `useModals` - Modal dialog states (uninstall, delete, download, widget)
+  - `useBuildDeploy` - Build/deploy operations, package manager selection
+- App.jsx orchestrates hooks and distributes props to tabs via `R.pick` and `R.applySpec`
+- State updates use Ramda lenses (e.g., `R.set`, `R.over`, `R.lensPath`)
 - Persistent state saved to Tauri storage via `save_to_storage` command
 - Storage keys defined in `STORAGE_KEYS` constant
 - Drag-and-drop reordering uses `@formkit/drag-and-drop` (widget/app list ordering persisted to storage)
 
 **Data Flow**:
-1. User action triggers event handler
+1. User action triggers event handler from domain hook (useVersions, useApps, etc.)
 2. Handler uses pure functions from `src/utils/functional.js`
 3. Result invokes Rust backend via Tauri `invoke()`
 4. Response processed through pure transformations
-5. State updated immutably via Ramda
+5. Hook state updated immutably via Ramda
 
 ### Backend Architecture (Rust + Tauri)
 
@@ -70,6 +79,8 @@ The Rust backend is organized into **domain modules**, each exposing Tauri comma
 - `package_manager/` - Runs npm/pnpm/yarn commands for widget builds
 - `storage/` - Persistent app state using Tauri's fs plugin
 - `data_processing/` - Filtering, pagination, sorting for frontend data
+- `validation/` - Input validation (required fields, build/deploy selection checks)
+- `formatting/` - Date formatting and text transformations
 - `config/` - Configuration types and defaults
 - `utils/` - Shared utilities (file operations, etc.)
 
