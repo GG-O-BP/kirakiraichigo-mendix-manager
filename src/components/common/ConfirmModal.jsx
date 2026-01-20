@@ -1,22 +1,18 @@
 import * as R from "ramda";
 import { memo } from "react";
 
-// Check if modal should be visible
-const shouldShowModal = R.prop("isOpen");
+const isModalOpen = R.prop("isOpen");
 
-// Check if has related apps
 const hasRelatedApps = R.pipe(
   R.prop("relatedApps"),
   R.both(R.is(Array), R.complement(R.isEmpty)),
 );
 
-// Get button text based on loading state
-const getButtonText = R.curry((loadingText, defaultText, isLoading) =>
+const getLoadingOrDefaultText = R.curry((loadingText, defaultText, isLoading) =>
   isLoading ? loadingText : defaultText,
 );
 
-// Render related app item
-const renderRelatedAppItem = (app) => (
+const RelatedAppItem = (app) => (
   <li key={R.prop("name", app)} className="related-app-item">
     <span className="app-icon">📱</span>
     <span className="app-name">{R.prop("name", app)}</span>
@@ -24,10 +20,9 @@ const renderRelatedAppItem = (app) => (
   </li>
 );
 
-// Render related apps list
-const renderRelatedAppsList = R.ifElse(
+const RelatedAppsList = R.ifElse(
   R.identity,
-  R.pipe(R.map(renderRelatedAppItem), (items) => (
+  R.pipe(R.map(RelatedAppItem), (items) => (
     <div className="related-apps-section">
       <h4>Related Apps that will be deleted:</h4>
       <ul className="related-apps-list">{items}</ul>
@@ -36,8 +31,7 @@ const renderRelatedAppsList = R.ifElse(
   R.always(null),
 );
 
-// Render confirm with apps button
-const renderConfirmWithAppsButton = R.curry(
+const ConfirmWithAppsButton = R.curry(
   (onConfirmWithApps, isLoading, relatedApps) =>
     R.both(R.identity, () => hasRelatedApps({ relatedApps }))(
       onConfirmWithApps,
@@ -47,13 +41,12 @@ const renderConfirmWithAppsButton = R.curry(
         onClick={onConfirmWithApps}
         disabled={isLoading}
       >
-        {getButtonText("Processing...", "Uninstall + Delete Apps", isLoading)}
+        {getLoadingOrDefaultText("Processing...", "Uninstall + Delete Apps", isLoading)}
       </button>
     ) : null,
 );
 
-// Modal content renderer
-const renderModalContent = ({
+const ModalContent = ({
   title,
   message,
   onConfirm,
@@ -69,7 +62,7 @@ const renderModalContent = ({
       </div>
       <div className="modal-body">
         <p style={{ whiteSpace: "pre-line" }}>{message}</p>
-        {renderRelatedAppsList(relatedApps)}
+        {RelatedAppsList(relatedApps)}
       </div>
       <div className="modal-footer">
         <button
@@ -84,17 +77,16 @@ const renderModalContent = ({
           onClick={onConfirm}
           disabled={isLoading}
         >
-          {getButtonText("Processing...", "Uninstall Only", isLoading)}
+          {getLoadingOrDefaultText("Processing...", "Uninstall Only", isLoading)}
         </button>
-        {renderConfirmWithAppsButton(onConfirmWithApps, isLoading, relatedApps)}
+        {ConfirmWithAppsButton(onConfirmWithApps, isLoading, relatedApps)}
       </div>
     </div>
   </div>
 );
 
-// ConfirmModal component with functional approach
 const ConfirmModal = memo(
-  R.ifElse(shouldShowModal, renderModalContent, R.always(null)),
+  R.ifElse(isModalOpen, ModalContent, R.always(null)),
 );
 
 ConfirmModal.displayName = "ConfirmModal";

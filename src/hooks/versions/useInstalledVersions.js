@@ -4,10 +4,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { wrapAsync } from "../../utils";
 import { filterMendixVersions } from "../../utils/data-processing/versionFiltering";
 
-/**
- * useInstalledVersions - Manages installed Mendix version loading and filtering
- * @param {string} searchTerm - Search term for filtering versions
- */
 export function useInstalledVersions(searchTerm = "") {
   const [versions, setVersions] = useState([]);
   const [filteredVersions, setFilteredVersions] = useState([]);
@@ -23,7 +19,6 @@ export function useInstalledVersions(searchTerm = "") {
     [],
   );
 
-  // Filter versions when versions or searchTerm changes
   useEffect(() => {
     const processVersions = async () => {
       try {

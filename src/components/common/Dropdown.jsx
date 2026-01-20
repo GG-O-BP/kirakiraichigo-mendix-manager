@@ -2,23 +2,15 @@ import * as R from "ramda";
 import { memo } from "react";
 import { createChangeHandler } from "../../utils";
 
-// Get option value
-const getOptionValue = R.prop("value");
+const extractOptionValue = R.prop("value");
+const extractOptionLabel = R.prop("label");
 
-// Get option label
-const getOptionLabel = R.prop("label");
-
-// Render single option
-const renderOption = (option) => (
-  <option key={getOptionValue(option)} value={getOptionValue(option)}>
-    {getOptionLabel(option)}
+const Option = (option) => (
+  <option key={extractOptionValue(option)} value={extractOptionValue(option)}>
+    {extractOptionLabel(option)}
   </option>
 );
 
-// Render all options
-const renderOptions = R.map(renderOption);
-
-// Dropdown component with functional approach
 const Dropdown = memo(({ value, onChange, options }) => (
   <div className="dropdown-container">
     <select
@@ -26,7 +18,7 @@ const Dropdown = memo(({ value, onChange, options }) => (
       value={value}
       onChange={createChangeHandler(onChange)}
     >
-      {renderOptions(options)}
+      {R.map(Option, options)}
     </select>
     <span className="dropdown-icon">🍓</span>
   </div>

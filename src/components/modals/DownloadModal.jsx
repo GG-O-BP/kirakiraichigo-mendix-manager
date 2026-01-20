@@ -2,7 +2,6 @@ import * as R from "ramda";
 import { memo, useState, useEffect, useRef, useCallback } from "react";
 import "../../styles/components/download-modal.css";
 
-// Pure data types - immutable by design
 const DOWNLOAD_STEPS = {
   CONFIRM: "confirm",
   EXTRACTING_BUILD: "extracting_build",
@@ -13,12 +12,6 @@ const DOWNLOAD_STEPS = {
   ERROR: "error",
 };
 
-// Step configuration with time-based progress ranges
-// Progress ranges are based on actual time distribution:
-// - EXTRACTING_BUILD: ~1.2s
-// - SETTING_PATH: ~0.8s
-// - DOWNLOADING: ~220s (variable, majority of time)
-// - LAUNCHING: ~1.5s
 const STEP_CONFIG = {
   [DOWNLOAD_STEPS.CONFIRM]: {
     title: "Confirm Installation",
@@ -46,7 +39,7 @@ const STEP_CONFIG = {
     icon: "⬇️",
     startProgress: 5,
     endProgress: 95,
-    estimatedDuration: 250000, // ~250 seconds estimated
+    estimatedDuration: 250000,
   },
   [DOWNLOAD_STEPS.LAUNCHING]: {
     title: "Launching Installer",
@@ -71,24 +64,20 @@ const STEP_CONFIG = {
   },
 };
 
-// Pure utility functions
 const getStepConfig = (step) =>
   STEP_CONFIG[step] || STEP_CONFIG[DOWNLOAD_STEPS.CONFIRM];
 
-const canCancel = (step) =>
+const isCancellableStep = (step) =>
   R.includes(step, [DOWNLOAD_STEPS.CONFIRM, DOWNLOAD_STEPS.ERROR]);
 
-const shouldShowProgress = (step) =>
+const isProgressVisibleStep = (step) =>
   !R.includes(step, [DOWNLOAD_STEPS.CONFIRM, DOWNLOAD_STEPS.ERROR]);
 
-// Calculate animated progress target (100% of step range)
-const calculateAnimationTarget = (config) => config.endProgress;
+const getAnimationTargetProgress = (config) => config.endProgress;
 
-// Easing function for smooth animation (ease-out cubic)
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
-// Enhanced error message renderer
-const renderErrorMessage = (error) => (
+const ErrorMessage = (error) => (
   <div className="error-container">
     <div className="error-icon">⚠️</div>
     <div className="error-content">
@@ -98,10 +87,9 @@ const renderErrorMessage = (error) => (
   </div>
 );
 
-// Enhanced action buttons renderer with functional composition
-const renderActionButtons = R.curry(
+const ActionButtons = R.curry(
   (currentStep, onConfirm, onCancel, onClose) => {
-    const showCancel = canCancel(currentStep);
+    const showCancel = isCancellableStep(currentStep);
     const showConfirm = currentStep === DOWNLOAD_STEPS.CONFIRM;
     const showClose = R.includes(currentStep, [
       DOWNLOAD_STEPS.COMPLETED,
@@ -131,14 +119,12 @@ const renderActionButtons = R.curry(
   },
 );
 
-// Custom hook for animated progress
 const useAnimatedProgress = (currentStep, isProcessing) => {
   const [progress, setProgress] = useState(0);
   const animationRef = useRef(null);
   const stepStartTimeRef = useRef(null);
 
   useEffect(() => {
-    // Cancel any existing animation
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
@@ -146,13 +132,11 @@ const useAnimatedProgress = (currentStep, isProcessing) => {
 
     const config = getStepConfig(currentStep);
 
-    // For COMPLETED step, immediately set to 100%
     if (currentStep === DOWNLOAD_STEPS.COMPLETED) {
       setProgress(100);
       return;
     }
 
-    // For ERROR or CONFIRM, set to start progress
     if (
       currentStep === DOWNLOAD_STEPS.ERROR ||
       currentStep === DOWNLOAD_STEPS.CONFIRM
@@ -161,16 +145,14 @@ const useAnimatedProgress = (currentStep, isProcessing) => {
       return;
     }
 
-    // If not processing, just set to start progress
     if (!isProcessing) {
       setProgress(config.startProgress);
       return;
     }
 
-    // Start animation
     stepStartTimeRef.current = performance.now();
     const startProgress = config.startProgress;
-    const targetProgress = calculateAnimationTarget(config);
+    const targetProgress = getAnimationTargetProgress(config);
     const duration = config.estimatedDuration;
 
     const animate = (currentTime) => {
@@ -182,7 +164,6 @@ const useAnimatedProgress = (currentStep, isProcessing) => {
         startProgress + (targetProgress - startProgress) * easedProgress;
       setProgress(newProgress);
 
-      // Continue animation if not reached 90% of duration
       if (rawProgress < 1) {
         animationRef.current = requestAnimationFrame(animate);
       }
@@ -197,22 +178,17 @@ const useAnimatedProgress = (currentStep, isProcessing) => {
     };
   }, [currentStep, isProcessing]);
 
-  // Return both raw value for smooth bar and rounded for display
   return progress;
 };
 
-// Main DownloadModal component with functional approach
 const DownloadModal = memo(
   ({ isOpen, version, onDownload, onClose, onCancel }) => {
-    // Local state for modal-specific operations
     const [currentStep, setCurrentStep] = useState(DOWNLOAD_STEPS.CONFIRM);
     const [error, setError] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // Animated progress
     const animatedProgress = useAnimatedProgress(currentStep, isProcessing);
 
-    // Reset modal state when opened
     useEffect(() => {
       if (isOpen) {
         setCurrentStep(DOWNLOAD_STEPS.CONFIRM);
@@ -263,7 +239,7 @@ const DownloadModal = memo(
     }, [isProcessing, onClose]);
 
     const handleCancel = useCallback(() => {
-      if (canCancel(currentStep)) {
+      if (isCancellableStep(currentStep)) {
         onCancel();
       }
     }, [currentStep, onCancel]);
@@ -273,7 +249,7 @@ const DownloadModal = memo(
     }
 
     const stepConfig = getStepConfig(currentStep);
-    const showProgressBar = shouldShowProgress(currentStep);
+    const showProgressBar = isProgressVisibleStep(currentStep);
 
     return (
       <div className="modal-overlay">
@@ -317,7 +293,7 @@ const DownloadModal = memo(
 
             {currentStep === DOWNLOAD_STEPS.ERROR &&
               error &&
-              renderErrorMessage(error)}
+              ErrorMessage(error)}
 
             {showProgressBar && (
               <>
@@ -412,7 +388,7 @@ const DownloadModal = memo(
           </div>
 
           <div className="modal-footer">
-            {renderActionButtons(
+            {ActionButtons(
               currentStep,
               handleDownload,
               handleCancel,

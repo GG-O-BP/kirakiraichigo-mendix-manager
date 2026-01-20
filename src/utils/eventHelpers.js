@@ -1,32 +1,26 @@
 import * as R from "ramda";
 
-// Extract value from input event target (internal use only)
-const getEventValue = R.path(["target", "value"]);
+const extractEventValue = R.path(["target", "value"]);
+const extractEventChecked = R.path(["target", "checked"]);
 
-// Extract checked state from checkbox event target (internal use only)
-const getEventChecked = R.path(["target", "checked"]);
+const parseIntegerOrEmpty = (value) => (value === "" ? "" : parseInt(value, 10));
+const parseDecimalOrEmpty = (value) => (value === "" ? "" : parseFloat(value));
 
-// Create a simple change handler that extracts value and passes to callback
 export const createChangeHandler = R.curry((onChange, event) =>
-  R.pipe(getEventValue, onChange)(event),
+  R.pipe(extractEventValue, onChange)(event),
 );
 
-// Create a typed change handler for different input types (string, integer, decimal, boolean, enumeration)
-export const createTypedChangeHandler = R.curry((onChange, type, event) => {
-  const rawValue = getEventValue(event);
-
-  const parseIntegerOrEmpty = (value) =>
-    value === "" ? "" : parseInt(value, 10);
-
-  const parseDecimalOrEmpty = (value) =>
-    value === "" ? "" : parseFloat(value);
-
-  const value = R.cond([
-    [R.equals("boolean"), R.always(getEventChecked(event))],
+const parseValueByType = R.curry((event, rawValue, type) =>
+  R.cond([
+    [R.equals("boolean"), R.always(extractEventChecked(event))],
     [R.equals("integer"), R.always(parseIntegerOrEmpty(rawValue))],
     [R.equals("decimal"), R.always(parseDecimalOrEmpty(rawValue))],
     [R.T, R.always(rawValue)],
-  ])(type);
+  ])(type),
+);
 
-  return onChange(value);
+export const createTypedChangeHandler = R.curry((onChange, type, event) => {
+  const rawValue = extractEventValue(event);
+  const parsedValue = parseValueByType(event, rawValue, type);
+  return onChange(parsedValue);
 });
