@@ -185,6 +185,25 @@ where
     items.into_iter().filter(is_valid_extractor).collect()
 }
 
+/// Filter items by a set of keys using a key extractor function
+pub fn filter_by_key_set<T, K>(
+    items: &[T],
+    keys: &[K],
+    key_extractor: fn(&T) -> &K,
+) -> Vec<T>
+where
+    T: Clone,
+    K: std::hash::Hash + Eq,
+{
+    use std::collections::HashSet;
+    let key_set: HashSet<&K> = keys.iter().collect();
+    items
+        .iter()
+        .filter(|item| key_set.contains(key_extractor(item)))
+        .cloned()
+        .collect()
+}
+
 pub fn apply_filters_and_sort<F>(
     items: Vec<F>,
     filter_options: &FilterOptions,

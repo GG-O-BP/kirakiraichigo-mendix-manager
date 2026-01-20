@@ -1,3 +1,4 @@
+use crate::data_processing::filter_by_key_set;
 use crate::package_manager::widget_operations::install_and_build_widget;
 use crate::utils::copy_widget_to_apps as copy_widget_to_apps_util;
 use rayon::prelude::*;
@@ -62,6 +63,12 @@ pub struct FailedDeployment {
     pub error: String,
 }
 
+/// Deploy result for a single app
+struct AppDeployResult {
+    app_name: String,
+    result: Result<Vec<String>, String>,
+}
+
 #[tauri::command]
 pub async fn build_and_deploy_widgets(
     widgets: Vec<WidgetBuildRequest>,
@@ -75,23 +82,20 @@ pub async fn build_and_deploy_widgets(
         app_paths.len()
     );
 
+    // Zip paths and names together for safe iteration
+    let apps: Vec<_> = app_paths.into_iter().zip(app_names).collect();
+
     let results: Vec<Result<SuccessfulDeployment, FailedDeployment>> = widgets
         .into_iter()
-        .map(|widget| {
-            process_widget_build_and_deploy(widget, &app_paths, &app_names, &package_manager)
-        })
+        .map(|widget| process_widget_build_and_deploy(widget, &apps, &package_manager))
         .collect();
 
-    // Separate successful and failed deployments
-    let mut successful = Vec::new();
-    let mut failed = Vec::new();
+    // Partition results into successful and failed
+    let (successful, failed): (Vec<_>, Vec<_>) =
+        results.into_iter().partition(Result::is_ok);
 
-    for result in results {
-        match result {
-            Ok(success) => successful.push(success),
-            Err(failure) => failed.push(failure),
-        }
-    }
+    let successful: Vec<_> = successful.into_iter().filter_map(Result::ok).collect();
+    let failed: Vec<_> = failed.into_iter().filter_map(Result::err).collect();
 
     println!(
         "[Build & Deploy] Completed: {} successful, {} failed",
@@ -104,8 +108,7 @@ pub async fn build_and_deploy_widgets(
 
 fn process_widget_build_and_deploy(
     widget: WidgetBuildRequest,
-    app_paths: &[String],
-    app_names: &[String],
+    apps: &[(String, String)], // (path, name) pairs
     package_manager: &str,
 ) -> Result<SuccessfulDeployment, FailedDeployment> {
     let widget_caption = widget.caption.clone();
@@ -124,44 +127,49 @@ fn process_widget_build_and_deploy(
     println!(
         "[Build & Deploy] Deploying {} to {} apps in parallel",
         widget_caption,
-        app_paths.len()
+        apps.len()
     );
 
-    let deploy_results: Vec<Result<(), String>> = app_paths
+    // Deploy to all apps in parallel, using zip for safe path-name association
+    let deploy_results: Vec<AppDeployResult> = apps
         .par_iter()
-        .map(|app_path| {
+        .map(|(app_path, app_name)| {
             println!(
                 "[Build & Deploy] Deploying {} to {}",
                 widget_caption, app_path
             );
 
-            match copy_widget_to_apps_util(widget_path.clone(), vec![app_path.clone()]) {
-                Ok(_) => {
-                    println!(
-                        "[Build & Deploy] Successfully deployed {} to {}",
-                        widget_caption, app_path
-                    );
-                    Ok(())
-                }
-                Err(e) => {
-                    println!(
-                        "[Build & Deploy] Failed to deploy {} to {}: {}",
-                        widget_caption, app_path, e
-                    );
-                    Err(e)
-                }
+            let result = copy_widget_to_apps_util(widget_path.clone(), vec![app_path.clone()]);
+
+            match &result {
+                Ok(_) => println!(
+                    "[Build & Deploy] Successfully deployed {} to {}",
+                    widget_caption, app_path
+                ),
+                Err(e) => println!(
+                    "[Build & Deploy] Failed to deploy {} to {}: {}",
+                    widget_caption, app_path, e
+                ),
+            }
+
+            AppDeployResult {
+                app_name: app_name.clone(),
+                result,
             }
         })
         .collect();
 
-    let mut failed_apps = Vec::new();
-    for (i, result) in deploy_results.iter().enumerate() {
-        if let Err(e) = result {
-            if let Some(app_name) = app_names.get(i) {
-                failed_apps.push(format!("{}: {}", app_name, e));
-            }
-        }
-    }
+    // Collect failed apps using the zip pattern (safe - no index mismatch possible)
+    let failed_apps: Vec<String> = deploy_results
+        .iter()
+        .filter_map(|deploy| {
+            deploy
+                .result
+                .as_ref()
+                .err()
+                .map(|e| format!("{}: {}", deploy.app_name, e))
+        })
+        .collect();
 
     if !failed_apps.is_empty() {
         return Err(FailedDeployment {
@@ -170,29 +178,26 @@ fn process_widget_build_and_deploy(
         });
     }
 
+    let successful_app_names: Vec<String> = deploy_results
+        .into_iter()
+        .filter(|r| r.result.is_ok())
+        .map(|r| r.app_name)
+        .collect();
+
     Ok(SuccessfulDeployment {
         widget: widget_caption,
-        apps: app_names.to_vec(),
+        apps: successful_app_names,
     })
 }
 
-fn filter_widgets_by_ids(widgets: &[WidgetInput], selected_ids: &[String]) -> Vec<WidgetInput> {
-    use std::collections::HashSet;
-    let id_set: HashSet<&String> = selected_ids.iter().collect();
-    widgets
-        .iter()
-        .filter(|w| id_set.contains(&w.id))
-        .cloned()
-        .collect()
+/// Key extractor for widget id
+fn widget_id_extractor(widget: &WidgetInput) -> &String {
+    &widget.id
 }
 
-fn filter_apps_by_paths(apps: &[AppInput], selected_paths: &[String]) -> Vec<AppInput> {
-    use std::collections::HashSet;
-    let path_set: HashSet<&String> = selected_paths.iter().collect();
-    apps.iter()
-        .filter(|a| path_set.contains(&a.path))
-        .cloned()
-        .collect()
+/// Key extractor for app path
+fn app_path_extractor(app: &AppInput) -> &String {
+    &app.path
 }
 
 #[tauri::command]
@@ -205,12 +210,12 @@ pub async fn build_and_deploy_from_selections(
 ) -> Result<BuildDeployResult, String> {
     // Filter widgets and apps if selection IDs/paths are provided
     let filtered_widgets = match selected_widget_ids {
-        Some(ids) if !ids.is_empty() => filter_widgets_by_ids(&widgets, &ids),
+        Some(ids) if !ids.is_empty() => filter_by_key_set(&widgets, &ids, widget_id_extractor),
         _ => widgets,
     };
 
     let filtered_apps = match selected_app_paths {
-        Some(paths) if !paths.is_empty() => filter_apps_by_paths(&apps, &paths),
+        Some(paths) if !paths.is_empty() => filter_by_key_set(&apps, &paths, app_path_extractor),
         _ => apps,
     };
 

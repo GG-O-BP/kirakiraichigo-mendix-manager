@@ -1,4 +1,6 @@
 use crate::package_manager::widget_operations::install_and_build_widget;
+use quick_xml::events::Event;
+use quick_xml::Reader;
 use serde::Serialize;
 use std::path::Path;
 
@@ -163,31 +165,53 @@ fn parse_widget_metadata(widget_path: &Path) -> Result<WidgetMetadata, String> {
         .to_string();
 
     let src_dir = widget_path.join("src");
-    let mut widget_id = String::new();
-
-    if let Ok(entries) = std::fs::read_dir(&src_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) == Some("xml") {
-                if let Ok(xml_content) = std::fs::read_to_string(&path) {
-                    if let Some(id_start) = xml_content.find(r#"id=""#) {
-                        let id_content = &xml_content[id_start + 4..];
-                        if let Some(id_end) = id_content.find('"') {
-                            widget_id = id_content[..id_end].to_string();
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if widget_id.is_empty() {
-        widget_id = widget_name.clone();
-    }
+    let widget_id = find_widget_id_in_directory(&src_dir).unwrap_or_else(|| widget_name.clone());
 
     Ok(WidgetMetadata {
         name: widget_name,
         id: widget_id,
     })
+}
+
+/// Find widget id from XML files in the source directory using proper XML parsing
+fn find_widget_id_in_directory(src_dir: &Path) -> Option<String> {
+    let entries = std::fs::read_dir(src_dir).ok()?;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) == Some("xml") {
+            if let Some(id) = extract_widget_id_from_xml(&path) {
+                return Some(id);
+            }
+        }
+    }
+
+    None
+}
+
+/// Extract widget id attribute from XML file using quick_xml
+fn extract_widget_id_from_xml(xml_path: &Path) -> Option<String> {
+    let xml_content = std::fs::read_to_string(xml_path).ok()?;
+    let mut reader = Reader::from_str(&xml_content);
+    reader.config_mut().trim_text(true);
+
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) => {
+                // Look for 'widget' element and extract 'id' attribute
+                if e.name().as_ref() == b"widget" {
+                    for attr in e.attributes().flatten() {
+                        if attr.key.as_ref() == b"id" {
+                            return attr.unescape_value().ok().map(|v| v.into_owned());
+                        }
+                    }
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(_) => break,
+            _ => {}
+        }
+    }
+
+    None
 }

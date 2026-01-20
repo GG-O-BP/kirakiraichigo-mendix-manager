@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KiraKira Ichigo ("KiraIchi") is a Tauri-based desktop application for managing Mendix Studio Pro versions, local apps, and widget development. The project combines a Rust backend (via Tauri) with a React frontend using functional programming principles.
+KiraKira Ichigo ("KiraIchi") is a **Windows-only** Tauri-based desktop application for managing Mendix Studio Pro versions, local apps, and widget development. The project combines a Rust backend (via Tauri) with a React frontend using functional programming principles.
 
 ## Build & Development Commands
 
@@ -40,7 +40,9 @@ KiraKira Ichigo ("KiraIchi") is a Tauri-based desktop application for managing M
 
 **Data Flow**:
 1. `App.jsx` initializes hooks via `useAppInitialization()` and `useContextValues()`
-2. Context providers wrap the app (ModalProvider → VersionsProvider → AppProvider → etc.)
+2. Context providers wrap the app in this order:
+   - Modal contexts (ModalProvider → StudioProModalProvider → AppModalProvider → WidgetModalProvider → BuildModalProvider)
+   - Data contexts (VersionsProvider → AppProvider → WidgetCollectionProvider → WidgetPreviewProvider → WidgetFormProvider → BuildDeployProvider)
 3. Components consume context via hooks like `useVersionsContext()`, `useAppContext()`
 4. Handlers invoke Rust backend via Tauri `invoke()`
 
@@ -141,5 +143,5 @@ R.propOr([], "items", data)
 - **Async invoke**: Always `await` Tauri invoke calls; use `wrapAsync` helper for error handling.
 - **LightningCSS**: Don't use PostCSS plugins - Vite config uses lightningcss as CSS transformer.
 - **React 19**: Frontend uses React 19.x with concurrent features.
-- **Tauri plugins**: Import from `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@tauri-apps/plugin-shell`.
+- **Tauri plugins**: Import from `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@tauri-apps/plugin-shell`. Storage operations use `tauri-plugin-fs`.
 - **Package Manager**: Development uses Bun; widget builds support npm, pnpm, yarn, bun (user-selectable).

@@ -939,8 +939,8 @@ mod tests {
         assert_eq!(attribute_prop.data_source, Some("datasource".to_string()));
     }
 
-    fn create_test_editor_property(key: &str) -> EditorProperty {
-        EditorProperty {
+    fn create_test_property_spec(key: &str) -> PropertySpec {
+        PropertySpec {
             key: key.to_string(),
             property_type: "string".to_string(),
             caption: format!("Caption for {}", key),
@@ -952,55 +952,55 @@ mod tests {
         }
     }
 
-    fn create_test_editor_group(caption: &str, props: Vec<&str>, nested: Vec<EditorPropertyGroup>) -> EditorPropertyGroup {
-        EditorPropertyGroup {
+    fn create_test_property_group_spec(caption: &str, props: Vec<&str>, nested: Vec<PropertyGroupSpec>) -> PropertyGroupSpec {
+        PropertyGroupSpec {
             caption: caption.to_string(),
-            properties: props.into_iter().map(create_test_editor_property).collect(),
+            properties: props.into_iter().map(create_test_property_spec).collect(),
             property_groups: nested,
         }
     }
 
     #[test]
     fn test_count_visible_properties_no_filter() {
-        let group = create_test_editor_group("General", vec!["prop1", "prop2", "prop3"], vec![]);
-        let count = count_visible_properties_in_group_internal(&group, None);
+        let group = create_test_property_group_spec("General", vec!["prop1", "prop2", "prop3"], vec![]);
+        let count = count_visible_properties_in_spec_group_internal(&group, None);
         assert_eq!(count, 3);
     }
 
     #[test]
     fn test_count_visible_properties_with_filter() {
-        let group = create_test_editor_group("General", vec!["prop1", "prop2", "prop3"], vec![]);
+        let group = create_test_property_group_spec("General", vec!["prop1", "prop2", "prop3"], vec![]);
         let visible = vec!["prop1".to_string(), "prop3".to_string()];
-        let count = count_visible_properties_in_group_internal(&group, Some(&visible));
+        let count = count_visible_properties_in_spec_group_internal(&group, Some(&visible));
         assert_eq!(count, 2);
     }
 
     #[test]
     fn test_count_visible_properties_nested() {
-        let nested = create_test_editor_group("Nested", vec!["nested1", "nested2"], vec![]);
-        let group = create_test_editor_group("Parent", vec!["prop1"], vec![nested]);
+        let nested = create_test_property_group_spec("Nested", vec!["nested1", "nested2"], vec![]);
+        let group = create_test_property_group_spec("Parent", vec!["prop1"], vec![nested]);
 
-        let count = count_visible_properties_in_group_internal(&group, None);
+        let count = count_visible_properties_in_spec_group_internal(&group, None);
         assert_eq!(count, 3); // 1 from parent + 2 from nested
     }
 
     #[test]
     fn test_count_visible_properties_nested_with_filter() {
-        let nested = create_test_editor_group("Nested", vec!["nested1", "nested2"], vec![]);
-        let group = create_test_editor_group("Parent", vec!["prop1", "prop2"], vec![nested]);
+        let nested = create_test_property_group_spec("Nested", vec!["nested1", "nested2"], vec![]);
+        let group = create_test_property_group_spec("Parent", vec!["prop1", "prop2"], vec![nested]);
 
         let visible = vec!["prop1".to_string(), "nested2".to_string()];
-        let count = count_visible_properties_in_group_internal(&group, Some(&visible));
+        let count = count_visible_properties_in_spec_group_internal(&group, Some(&visible));
         assert_eq!(count, 2); // prop1 + nested2
     }
 
     #[test]
     fn test_count_visible_properties_deeply_nested() {
-        let deep = create_test_editor_group("Deep", vec!["deep1"], vec![]);
-        let nested = create_test_editor_group("Nested", vec!["nested1"], vec![deep]);
-        let group = create_test_editor_group("Parent", vec!["prop1"], vec![nested]);
+        let deep = create_test_property_group_spec("Deep", vec!["deep1"], vec![]);
+        let nested = create_test_property_group_spec("Nested", vec!["nested1"], vec![deep]);
+        let group = create_test_property_group_spec("Parent", vec!["prop1"], vec![nested]);
 
-        let count = count_visible_properties_in_group_internal(&group, None);
+        let count = count_visible_properties_in_spec_group_internal(&group, None);
         assert_eq!(count, 3); // 1 from each level
     }
 }
