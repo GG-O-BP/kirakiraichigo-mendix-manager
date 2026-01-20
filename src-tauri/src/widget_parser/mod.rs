@@ -528,6 +528,14 @@ pub struct EditorConfigResult {
     pub file_path: Option<String>,
 }
 
+// Combined widget data response type
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WidgetCompleteData {
+    pub definition: WidgetDefinitionSpec,
+    pub initial_values: HashMap<String, PropertyValue>,
+    pub editor_config: EditorConfigResult,
+}
+
 fn is_editor_config_file(path: &Path) -> bool {
     path.file_name()
         .and_then(|name| name.to_str())
@@ -552,7 +560,11 @@ fn find_editor_config_file(widget_path: &str) -> Option<String> {
 
 #[tauri::command]
 pub fn read_editor_config(widget_path: String) -> Result<EditorConfigResult, String> {
-    match find_editor_config_file(&widget_path) {
+    read_editor_config_internal(&widget_path)
+}
+
+fn read_editor_config_internal(widget_path: &str) -> Result<EditorConfigResult, String> {
+    match find_editor_config_file(widget_path) {
         Some(config_path) => {
             match read_file_content(&config_path) {
                 Ok(content) => Ok(EditorConfigResult {
@@ -569,6 +581,50 @@ pub fn read_editor_config(widget_path: String) -> Result<EditorConfigResult, Str
             file_path: None,
         }),
     }
+}
+
+fn initialize_property_values_internal(widget_path: &str) -> Result<HashMap<String, PropertyValue>, String> {
+    let definition = parse_widget_xml(widget_path).map_err(|e| e.to_string())?;
+    let properties = parse_widget_properties_enhanced(&definition);
+
+    let mut values: HashMap<String, PropertyValue> = HashMap::new();
+
+    for prop in properties {
+        let value = if let Some(default) = prop.default_value {
+            match prop.property_type.as_str() {
+                "boolean" => PropertyValue::Boolean(default == "true"),
+                "integer" => PropertyValue::Integer(default.parse().unwrap_or(0)),
+                "decimal" => PropertyValue::Decimal(default.parse().unwrap_or(0.0)),
+                _ => PropertyValue::String(default),
+            }
+        } else {
+            get_default_value_for_type_internal(&prop.property_type)
+        };
+
+        values.insert(prop.key, value);
+    }
+
+    Ok(values)
+}
+
+fn parse_widget_properties_as_spec_internal(widget_path: &str) -> Result<WidgetDefinitionSpec, String> {
+    let definition = parse_widget_xml(widget_path).map_err(|e| e.to_string())?;
+    Ok(transform_widget_definition_to_spec(&definition))
+}
+
+/// Combined command that loads all widget data in a single IPC call
+/// Replaces 3 separate calls: parse_widget_properties_as_spec, initialize_property_values, read_editor_config
+#[tauri::command]
+pub fn load_widget_complete_data(widget_path: String) -> Result<WidgetCompleteData, String> {
+    let definition = parse_widget_properties_as_spec_internal(&widget_path)?;
+    let initial_values = initialize_property_values_internal(&widget_path)?;
+    let editor_config = read_editor_config_internal(&widget_path)?;
+
+    Ok(WidgetCompleteData {
+        definition,
+        initial_values,
+        editor_config,
+    })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -668,28 +724,7 @@ fn parse_widget_properties_enhanced(definition: &WidgetDefinition) -> Vec<Parsed
 
 #[tauri::command]
 pub fn initialize_property_values(widget_path: String) -> Result<HashMap<String, PropertyValue>, String> {
-    let definition = parse_widget_xml(&widget_path).map_err(|e| e.to_string())?;
-    let properties = parse_widget_properties_enhanced(&definition);
-
-    let mut values: HashMap<String, PropertyValue> = HashMap::new();
-
-    for prop in properties {
-        let value = if let Some(default) = prop.default_value {
-            // Use default value based on type
-            match prop.property_type.as_str() {
-                "boolean" => PropertyValue::Boolean(default == "true"),
-                "integer" => PropertyValue::Integer(default.parse().unwrap_or(0)),
-                "decimal" => PropertyValue::Decimal(default.parse().unwrap_or(0.0)),
-                _ => PropertyValue::String(default),
-            }
-        } else {
-            get_default_value_for_type_internal(&prop.property_type)
-        };
-
-        values.insert(prop.key, value);
-    }
-
-    Ok(values)
+    initialize_property_values_internal(&widget_path)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -793,8 +828,7 @@ fn transform_widget_definition_to_spec(definition: &WidgetDefinition) -> WidgetD
 
 #[tauri::command]
 pub fn parse_widget_properties_as_spec(widget_path: String) -> Result<WidgetDefinitionSpec, String> {
-    let definition = parse_widget_xml(&widget_path).map_err(|e| e.to_string())?;
-    Ok(transform_widget_definition_to_spec(&definition))
+    parse_widget_properties_as_spec_internal(&widget_path)
 }
 
 fn count_visible_properties_in_spec_group_internal(

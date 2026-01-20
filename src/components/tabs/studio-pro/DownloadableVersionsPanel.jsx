@@ -13,8 +13,14 @@ const VERSION_SUPPORT_BADGES = {
   LATEST: { text: "LATEST", className: "latest" },
 };
 
+// Uses consolidated compare_versions command
 export const invokeCheckVersionInstalled = async (version, installedVersions) =>
-  invoke("is_version_in_installed_list", { version, installedVersions });
+  invoke("compare_versions", {
+    comparisonType: "installed",
+    value1: version,
+    value2: null,
+    installedVersions,
+  });
 
 const renderSupportTypeBadge = R.curry((badgeText, badgeClassName) =>
   badgeText ? (

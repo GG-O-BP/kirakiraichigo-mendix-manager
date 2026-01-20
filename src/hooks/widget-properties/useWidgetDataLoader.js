@@ -2,8 +2,11 @@ import * as R from "ramda";
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { createEditorConfigHandler } from "../../utils/editorConfigParser";
-import { initializePropertyValues } from "../../utils/data-processing/propertyCalculation";
 
+/**
+ * Hook for loading widget data using the consolidated load_widget_complete_data command.
+ * This replaces 3 separate IPC calls with a single call for better performance.
+ */
 export function useWidgetDataLoader(selectedWidget) {
   const [widgetDefinition, setWidgetDefinition] = useState(null);
   const [dynamicProperties, setDynamicProperties] = useState({});
@@ -32,26 +35,27 @@ export function useWidgetDataLoader(selectedWidget) {
 
     const loadWidgetData = async () => {
       try {
-        const [definition, initialValues, editorConfigResult] = await Promise.all([
-          invoke("parse_widget_properties_as_spec", { widgetPath }),
-          initializePropertyValues(widgetPath),
-          invoke("read_editor_config", { widgetPath }),
-        ]);
+        // Use consolidated command: 3 IPC calls → 1 IPC call
+        const { definition, initial_values, editor_config } = await invoke(
+          "load_widget_complete_data",
+          { widgetPath }
+        );
 
         setWidgetDefinition(definition);
-        setDynamicProperties(initialValues);
+        setDynamicProperties(initial_values);
 
-        if (editorConfigResult.found && editorConfigResult.content) {
-          const handler = createEditorConfigHandler(editorConfigResult.content);
-          setEditorConfigHandler(handler);
-        } else {
-          setEditorConfigHandler(null);
-        }
+        R.ifElse(
+          R.both(R.prop("found"), R.prop("content")),
+          R.pipe(
+            R.prop("content"),
+            createEditorConfigHandler,
+            setEditorConfigHandler
+          ),
+          R.always(setEditorConfigHandler(null))
+        )(editor_config);
       } catch (error) {
         console.error("Failed to load widget data:", error);
-        setWidgetDefinition(null);
-        setDynamicProperties({});
-        setEditorConfigHandler(null);
+        resetWidgetState();
       }
     };
 

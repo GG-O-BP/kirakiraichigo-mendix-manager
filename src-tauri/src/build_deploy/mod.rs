@@ -5,12 +5,21 @@ use crate::data_processing::filter_by_key_set;
 use crate::package_manager::widget_operations::install_and_build_widget;
 use crate::utils::copy_widget_to_apps as copy_widget_to_apps_util;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 // Re-export types for backward compatibility
 pub use types::{
     AppDeployResult, AppInput, BuildDeployResult, FailedDeployment, SuccessfulDeployment,
     WidgetBuildRequest, WidgetInput,
 };
+
+/// Combined response for validate_and_build_deploy command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidateAndBuildDeployResponse {
+    pub validation_error: Option<String>,
+    pub results: Option<BuildDeployResult>,
+    pub has_failures: bool,
+}
 
 // Re-export transform functions for backward compatibility
 pub use transform::{
@@ -173,5 +182,71 @@ pub fn create_catastrophic_error_result(error_message: String) -> Result<BuildDe
             widget: "All widgets".to_string(),
             error: error_message,
         }],
+    })
+}
+
+fn validate_selections_internal(
+    selected_widget_count: usize,
+    selected_app_count: usize,
+) -> Option<String> {
+    if selected_widget_count == 0 {
+        return Some("Please select at least one widget to build".to_string());
+    }
+    if selected_app_count == 0 {
+        return Some("Please select at least one app to deploy to".to_string());
+    }
+    None
+}
+
+fn has_failures_internal(results: &BuildDeployResult) -> bool {
+    !results.failed.is_empty()
+}
+
+/// Combined command that validates, builds, deploys, and checks for failures in a single IPC call
+/// Replaces 3 separate calls: validate_build_deploy_selections, build_and_deploy_from_selections, has_build_failures
+#[tauri::command]
+pub async fn validate_and_build_deploy(
+    widgets: Vec<WidgetInput>,
+    apps: Vec<AppInput>,
+    package_manager: String,
+    selected_widget_ids: Option<Vec<String>>,
+    selected_app_paths: Option<Vec<String>>,
+) -> Result<ValidateAndBuildDeployResponse, String> {
+    // Get counts for validation
+    let widget_count = selected_widget_ids
+        .as_ref()
+        .map(|ids| ids.len())
+        .unwrap_or(widgets.len());
+    let app_count = selected_app_paths
+        .as_ref()
+        .map(|paths| paths.len())
+        .unwrap_or(apps.len());
+
+    // Step 1: Validate selections
+    if let Some(error) = validate_selections_internal(widget_count, app_count) {
+        return Ok(ValidateAndBuildDeployResponse {
+            validation_error: Some(error),
+            results: None,
+            has_failures: false,
+        });
+    }
+
+    // Step 2: Build and deploy
+    let results = build_and_deploy_from_selections(
+        widgets,
+        apps,
+        package_manager,
+        selected_widget_ids,
+        selected_app_paths,
+    )
+    .await?;
+
+    // Step 3: Check for failures
+    let has_failures = has_failures_internal(&results);
+
+    Ok(ValidateAndBuildDeployResponse {
+        validation_error: None,
+        results: Some(results),
+        has_failures,
     })
 }

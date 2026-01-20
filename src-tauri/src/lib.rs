@@ -24,26 +24,27 @@ pub use web_scraper::{
     DownloadProgress, DownloadableVersion,
 };
 
-pub use build_deploy::{build_and_deploy_from_selections, create_catastrophic_error_result};
+pub use build_deploy::{build_and_deploy_from_selections, create_catastrophic_error_result, validate_and_build_deploy};
 pub use storage::{
     add_widget_and_save, delete_widget_and_save, load_from_storage, load_widgets_ordered,
     save_to_storage,
 };
 pub use widget_parser::{
     count_all_spec_groups_visible_properties, initialize_property_values,
-    parse_widget_properties_as_spec, read_editor_config, transform_properties_to_spec,
-    validate_mendix_widget,
+    load_widget_complete_data, parse_widget_properties_as_spec, read_editor_config,
+    transform_properties_to_spec, validate_mendix_widget,
 };
 pub use widget_preview::build_widget_for_preview;
 
 pub use data_processing::version_utils::{
-    calculate_next_page_number, create_version_options, exclude_installed_versions,
+    calculate_next_page_number, compare_versions, create_version_options, exclude_installed_versions,
     filter_by_version_support_type, filter_downloadable_versions, is_app_version_mismatch,
     is_version_currently_selected, is_version_in_installed_list,
 };
 
 pub use formatting::{
-    format_date, format_date_with_fallback, get_version_status_text, get_version_validity_badge,
+    format_apps_batch, format_date, format_date_with_fallback, format_versions_batch,
+    get_version_status_text, get_version_validity_badge,
 };
 
 pub use validation::{has_build_failures, validate_build_deploy_selections};
@@ -110,6 +111,9 @@ pub fn run() {
             format_date,
             get_version_validity_badge,
             get_version_status_text,
+            // Batch formatting (consolidated)
+            format_versions_batch,
+            format_apps_batch,
             // Path utilities
             extract_folder_name_from_path,
             // Selection filtering
@@ -126,7 +130,11 @@ pub fn run() {
             transform_properties_to_spec,
             parse_widget_properties_as_spec,
             // Property counting
-            count_all_spec_groups_visible_properties
+            count_all_spec_groups_visible_properties,
+            // Consolidated commands
+            load_widget_complete_data,
+            validate_and_build_deploy,
+            compare_versions
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

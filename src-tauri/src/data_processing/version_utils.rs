@@ -251,6 +251,36 @@ pub fn is_version_currently_selected(
     ))
 }
 
+/// Combined version comparison command
+/// Replaces 3 separate commands: is_version_currently_selected, is_version_in_installed_list, is_app_version_mismatch
+#[tauri::command]
+pub fn compare_versions(
+    comparison_type: String,
+    value1: Option<String>,
+    value2: Option<String>,
+    installed_versions: Option<Vec<MendixVersion>>,
+) -> Result<bool, String> {
+    match comparison_type.as_str() {
+        "selected" => {
+            let version = value2.ok_or("version is required for 'selected' comparison")?;
+            Ok(is_version_currently_selected_internal(
+                value1.as_deref(),
+                &version,
+            ))
+        }
+        "installed" => {
+            let version = value1.ok_or("version is required for 'installed' comparison")?;
+            let installed = installed_versions.ok_or("installed_versions is required for 'installed' comparison")?;
+            Ok(is_version_in_installed_list_internal(&version, &installed))
+        }
+        "mismatch" => Ok(is_app_version_mismatch_internal(
+            value1.as_deref(),
+            value2.as_deref(),
+        )),
+        _ => Err(format!("Unknown comparison_type: {}", comparison_type)),
+    }
+}
+
 #[tauri::command]
 pub fn calculate_next_page_number(
     total_items: usize,
@@ -509,5 +539,84 @@ mod tests {
             Some("10"),
         );
         assert_eq!(result.len(), 2); // 10.5.0 and 10.6.0 (10.4.0 is installed)
+    }
+
+    #[test]
+    fn test_compare_versions_selected() {
+        let result = compare_versions(
+            "selected".to_string(),
+            Some("10.4.0".to_string()),
+            Some("10.4.0".to_string()),
+            None,
+        );
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+
+        let result = compare_versions(
+            "selected".to_string(),
+            Some("10.4.0".to_string()),
+            Some("10.3.0".to_string()),
+            None,
+        );
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn test_compare_versions_installed() {
+        let installed = vec![
+            create_test_installed_version("10.4.0"),
+            create_test_installed_version("10.3.0"),
+        ];
+
+        let result = compare_versions(
+            "installed".to_string(),
+            Some("10.4.0".to_string()),
+            None,
+            Some(installed.clone()),
+        );
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+
+        let result = compare_versions(
+            "installed".to_string(),
+            Some("10.5.0".to_string()),
+            None,
+            Some(installed),
+        );
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn test_compare_versions_mismatch() {
+        let result = compare_versions(
+            "mismatch".to_string(),
+            Some("10.4.0".to_string()),
+            Some("10.3.0".to_string()),
+            None,
+        );
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+
+        let result = compare_versions(
+            "mismatch".to_string(),
+            Some("10.4.0".to_string()),
+            Some("10.4.0".to_string()),
+            None,
+        );
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn test_compare_versions_invalid_type() {
+        let result = compare_versions(
+            "invalid".to_string(),
+            Some("10.4.0".to_string()),
+            Some("10.4.0".to_string()),
+            None,
+        );
+        assert!(result.is_err());
     }
 }

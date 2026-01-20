@@ -19,19 +19,19 @@ pub struct WidgetBuildRequest {
     pub caption: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildDeployResult {
     pub successful: Vec<SuccessfulDeployment>,
     pub failed: Vec<FailedDeployment>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SuccessfulDeployment {
     pub widget: String,
     pub apps: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FailedDeployment {
     pub widget: String,
     pub error: String,

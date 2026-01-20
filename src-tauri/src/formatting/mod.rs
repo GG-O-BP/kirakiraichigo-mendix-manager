@@ -7,6 +7,33 @@ pub struct VersionValidityBadge {
     pub badge_class: Option<String>,
 }
 
+// Batch formatting types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VersionDisplayInput {
+    pub is_valid: bool,
+    pub is_lts: bool,
+    pub is_mts: bool,
+    pub is_launching: bool,
+    pub is_uninstalling: bool,
+    pub install_date: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VersionDisplayOutput {
+    pub badge: VersionValidityBadge,
+    pub status_text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppDisplayInput {
+    pub last_modified: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppDisplayOutput {
+    pub formatted_date: String,
+}
+
 fn parse_date_string(date_str: &str) -> Option<DateTime<Local>> {
     if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
         return Some(dt.with_timezone(&Local));
@@ -123,6 +150,41 @@ pub fn get_version_status_text(
     ))
 }
 
+// Batch formatting functions
+fn format_version_display_internal(input: &VersionDisplayInput) -> VersionDisplayOutput {
+    VersionDisplayOutput {
+        badge: get_version_validity_badge_internal(input.is_valid, input.is_lts, input.is_mts),
+        status_text: get_version_status_text_internal(
+            input.is_launching,
+            input.is_uninstalling,
+            input.install_date.as_deref(),
+        ),
+    }
+}
+
+fn format_app_display_internal(input: &AppDisplayInput) -> AppDisplayOutput {
+    AppDisplayOutput {
+        formatted_date: format_date_with_fallback_internal(
+            input.last_modified.as_deref(),
+            "Date unknown",
+        ),
+    }
+}
+
+#[tauri::command]
+pub fn format_versions_batch(
+    versions: Vec<VersionDisplayInput>,
+) -> Result<Vec<VersionDisplayOutput>, String> {
+    Ok(versions.iter().map(format_version_display_internal).collect())
+}
+
+#[tauri::command]
+pub fn format_apps_batch(
+    apps: Vec<AppDisplayInput>,
+) -> Result<Vec<AppDisplayOutput>, String> {
+    Ok(apps.iter().map(format_app_display_internal).collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -213,4 +275,51 @@ mod tests {
         assert_eq!(result, "Installation date unknown");
     }
 
+    #[test]
+    fn test_format_versions_batch() {
+        let inputs = vec![
+            VersionDisplayInput {
+                is_valid: true,
+                is_lts: false,
+                is_mts: false,
+                is_launching: false,
+                is_uninstalling: false,
+                install_date: Some("2024-01-15".to_string()),
+            },
+            VersionDisplayInput {
+                is_valid: false,
+                is_lts: true,
+                is_mts: false,
+                is_launching: true,
+                is_uninstalling: false,
+                install_date: Some("2024-01-16".to_string()),
+            },
+        ];
+
+        let results: Vec<VersionDisplayOutput> = inputs.iter().map(format_version_display_internal).collect();
+
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].badge.badge, Some("✓".to_string()));
+        assert_eq!(results[0].status_text, "2024-01-15");
+        assert_eq!(results[1].badge.badge, Some("LTS".to_string()));
+        assert_eq!(results[1].status_text, "Launching...");
+    }
+
+    #[test]
+    fn test_format_apps_batch() {
+        let inputs = vec![
+            AppDisplayInput {
+                last_modified: Some("2024-01-15".to_string()),
+            },
+            AppDisplayInput {
+                last_modified: None,
+            },
+        ];
+
+        let results: Vec<AppDisplayOutput> = inputs.iter().map(format_app_display_internal).collect();
+
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].formatted_date, "2024-01-15");
+        assert_eq!(results[1].formatted_date, "Date unknown");
+    }
 }

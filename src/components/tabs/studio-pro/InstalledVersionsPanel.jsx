@@ -6,8 +6,14 @@ import { renderPanel } from "../../common/Panel";
 import { MendixVersionListItem } from "../../common/ListItems";
 import { getVersionLoadingState } from "../../../utils";
 
+// Uses consolidated compare_versions command
 export const invokeCheckVersionSelected = async (selectedVersion, version) =>
-  invoke("is_version_currently_selected", { selectedVersion, version });
+  invoke("compare_versions", {
+    comparisonType: "selected",
+    value1: selectedVersion,
+    value2: version,
+    installedVersions: null,
+  });
 
 const createVersionSelectionHandler = R.curry(
   (handleClick, version) => () => handleClick(version),
