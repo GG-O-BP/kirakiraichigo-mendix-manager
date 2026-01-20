@@ -1,21 +1,11 @@
 export { filterMendixVersions } from "./versionFiltering";
 
-export {
-  filterMendixApps,
-  filterAndSortAppsWithPriority,
-  filterAppsBySelectedPaths,
-} from "./appFiltering";
+export { filterMendixApps, filterAndSortAppsWithPriority } from "./appFiltering";
 
-export {
-  filterWidgets,
-  filterWidgetsBySelectedIds,
-  sortWidgetsByOrder,
-  removeWidgetById,
-} from "./widgetFiltering";
+export { filterWidgets } from "./widgetFiltering";
 
 export {
   initializePropertyValues,
-  transformPropertiesToSpec,
   countAllSpecGroupsVisibleProperties,
 } from "./propertyCalculation";
 

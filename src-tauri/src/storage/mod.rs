@@ -1,5 +1,7 @@
+use crate::data_processing::mendix_filters::Widget;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -195,4 +197,146 @@ pub fn clear_app_state() -> Result<(), String> {
     }
 
     Ok(())
+}
+
+// ============================================================================
+// Widget Storage Management Functions
+// ============================================================================
+
+fn sort_widgets_by_order_internal(widgets: Vec<Widget>, order: &[String]) -> Vec<Widget> {
+    if order.is_empty() {
+        return widgets;
+    }
+
+    let order_map: HashMap<&String, usize> = order
+        .iter()
+        .enumerate()
+        .map(|(i, id)| (id, i))
+        .collect();
+
+    let (mut ordered, unordered): (Vec<_>, Vec<_>) = widgets
+        .into_iter()
+        .partition(|w| order_map.contains_key(&w.id));
+
+    ordered.sort_by_key(|w| order_map.get(&w.id).copied().unwrap_or(usize::MAX));
+    ordered.extend(unordered);
+
+    ordered
+}
+
+fn parse_widgets_from_value(value: &Value) -> Result<Vec<Widget>, String> {
+    serde_json::from_value(value.clone())
+        .map_err(|e| format!("Failed to parse widgets: {}", e))
+}
+
+fn parse_order_from_value(value: &Value) -> Vec<String> {
+    serde_json::from_value(value.clone()).unwrap_or_default()
+}
+
+fn widgets_to_value(widgets: &[Widget]) -> Result<Value, String> {
+    serde_json::to_value(widgets).map_err(|e| format!("Failed to serialize widgets: {}", e))
+}
+
+fn order_to_value(order: &[String]) -> Result<Value, String> {
+    serde_json::to_value(order).map_err(|e| format!("Failed to serialize order: {}", e))
+}
+
+#[tauri::command]
+pub fn load_widgets_ordered() -> Result<Vec<Widget>, String> {
+    let state = load_state_from_file().unwrap_or_default();
+
+    let widgets = match state.widgets {
+        Some(value) => parse_widgets_from_value(&value)?,
+        None => return Ok(Vec::new()),
+    };
+
+    let order = match state.widget_order {
+        Some(value) => parse_order_from_value(&value),
+        None => Vec::new(),
+    };
+
+    Ok(sort_widgets_by_order_internal(widgets, &order))
+}
+
+#[tauri::command]
+pub fn delete_widget_and_save(widget_id: String) -> Result<Vec<Widget>, String> {
+    let _lock = STORAGE_MUTEX
+        .lock()
+        .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
+
+    let mut state = load_state_from_file().unwrap_or_default();
+
+    let widgets = match &state.widgets {
+        Some(value) => parse_widgets_from_value(value)?,
+        None => return Ok(Vec::new()),
+    };
+
+    let order = match &state.widget_order {
+        Some(value) => parse_order_from_value(value),
+        None => Vec::new(),
+    };
+
+    // Remove the widget
+    let updated_widgets: Vec<Widget> = widgets
+        .into_iter()
+        .filter(|w| w.id != widget_id)
+        .collect();
+
+    // Update order to remove the deleted widget
+    let updated_order: Vec<String> = order
+        .into_iter()
+        .filter(|id| id != &widget_id)
+        .collect();
+
+    // Save updated state
+    state.widgets = Some(widgets_to_value(&updated_widgets)?);
+    state.widget_order = Some(order_to_value(&updated_order)?);
+    save_state_to_file(&state)?;
+
+    // Return sorted widgets
+    Ok(sort_widgets_by_order_internal(updated_widgets, &updated_order))
+}
+
+#[tauri::command]
+pub fn add_widget_and_save(caption: String, path: String) -> Result<Widget, String> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let _lock = STORAGE_MUTEX
+        .lock()
+        .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
+
+    let mut state = load_state_from_file().unwrap_or_default();
+
+    let mut widgets = match &state.widgets {
+        Some(value) => parse_widgets_from_value(value)?,
+        None => Vec::new(),
+    };
+
+    let mut order = match &state.widget_order {
+        Some(value) => parse_order_from_value(value),
+        None => Vec::new(),
+    };
+
+    // Create new widget
+    let id = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis().to_string())
+        .unwrap_or_else(|_| "0".to_string());
+
+    let new_widget = Widget {
+        id: id.clone(),
+        caption,
+        path,
+    };
+
+    // Add to widgets and order
+    widgets.push(new_widget.clone());
+    order.push(id);
+
+    // Save updated state
+    state.widgets = Some(widgets_to_value(&widgets)?);
+    state.widget_order = Some(order_to_value(&order)?);
+    save_state_to_file(&state)?;
+
+    Ok(new_widget)
 }

@@ -108,6 +108,51 @@ fn calculate_next_page_number_internal(total_items: usize, items_per_page: usize
     std::cmp::max(1, pages + 1)
 }
 
+fn filter_by_search_term_internal(
+    versions: Vec<DownloadableVersion>,
+    search_term: Option<&str>,
+) -> Vec<DownloadableVersion> {
+    match search_term {
+        None => versions,
+        Some(term) if term.trim().is_empty() => versions,
+        Some(term) => {
+            let normalized_term = term.to_lowercase();
+            versions
+                .into_iter()
+                .filter(|v| v.version.to_lowercase().contains(&normalized_term))
+                .collect()
+        }
+    }
+}
+
+fn filter_downloadable_versions_internal(
+    versions: Vec<DownloadableVersion>,
+    installed_versions: &[MendixVersion],
+    show_only_downloadable: bool,
+    show_lts_only: bool,
+    show_mts_only: bool,
+    show_beta_only: bool,
+    search_term: Option<&str>,
+) -> Vec<DownloadableVersion> {
+    // Step 1: Exclude installed versions if requested
+    let after_installed = exclude_installed_versions_internal(
+        versions,
+        installed_versions,
+        show_only_downloadable,
+    );
+
+    // Step 2: Filter by version support type
+    let after_support_type = filter_by_version_support_type_internal(
+        after_installed,
+        show_lts_only,
+        show_mts_only,
+        show_beta_only,
+    );
+
+    // Step 3: Filter by search term
+    filter_by_search_term_internal(after_support_type, search_term)
+}
+
 fn create_version_options_internal(versions: &[MendixVersion]) -> Vec<VersionOption> {
     let mut options: Vec<VersionOption> = vec![VersionOption {
         value: "all".to_string(),
@@ -149,6 +194,27 @@ pub fn filter_by_version_support_type(
         show_lts_only,
         show_mts_only,
         show_beta_only,
+    ))
+}
+
+#[tauri::command]
+pub fn filter_downloadable_versions(
+    versions: Vec<DownloadableVersion>,
+    installed_versions: Vec<MendixVersion>,
+    show_only_downloadable: bool,
+    show_lts_only: bool,
+    show_mts_only: bool,
+    show_beta_only: bool,
+    search_term: Option<String>,
+) -> Result<Vec<DownloadableVersion>, String> {
+    Ok(filter_downloadable_versions_internal(
+        versions,
+        &installed_versions,
+        show_only_downloadable,
+        show_lts_only,
+        show_mts_only,
+        show_beta_only,
+        search_term.as_deref(),
     ))
 }
 
@@ -363,5 +429,85 @@ mod tests {
         assert_eq!(options[0].label, "📦 All Versions");
         assert_eq!(options[1].value, "10.4.0");
         assert_eq!(options[1].label, "📦 10.4.0");
+    }
+
+    #[test]
+    fn test_filter_by_search_term() {
+        let versions = vec![
+            create_test_downloadable_version("10.4.0", true, false, false),
+            create_test_downloadable_version("10.5.0", false, true, false),
+            create_test_downloadable_version("9.24.0", false, false, false),
+        ];
+
+        // Search for "10.4"
+        let result = filter_by_search_term_internal(versions.clone(), Some("10.4"));
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].version, "10.4.0");
+
+        // Search for "10" (matches two)
+        let result = filter_by_search_term_internal(versions.clone(), Some("10"));
+        assert_eq!(result.len(), 2);
+
+        // Empty search term returns all
+        let result = filter_by_search_term_internal(versions.clone(), Some(""));
+        assert_eq!(result.len(), 3);
+
+        // None search term returns all
+        let result = filter_by_search_term_internal(versions.clone(), None);
+        assert_eq!(result.len(), 3);
+
+        // Case insensitive search
+        let result = filter_by_search_term_internal(versions, Some("10.4"));
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn test_filter_downloadable_versions_combined() {
+        let installed = vec![create_test_installed_version("10.4.0")];
+
+        let downloadable = vec![
+            create_test_downloadable_version("10.4.0", true, false, false),
+            create_test_downloadable_version("10.5.0", true, false, false),
+            create_test_downloadable_version("10.6.0", false, true, false),
+            create_test_downloadable_version("9.24.0", false, false, false),
+        ];
+
+        // Filter: exclude installed, LTS only
+        let result = filter_downloadable_versions_internal(
+            downloadable.clone(),
+            &installed,
+            true,  // show_only_downloadable (exclude installed)
+            true,  // show_lts_only
+            false, // show_mts_only
+            false, // show_beta_only
+            None,
+        );
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].version, "10.5.0");
+
+        // Filter: all versions with search term
+        let result = filter_downloadable_versions_internal(
+            downloadable.clone(),
+            &installed,
+            false, // don't exclude installed
+            false, // no LTS filter
+            false, // no MTS filter
+            false, // no beta filter
+            Some("10.5"),
+        );
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].version, "10.5.0");
+
+        // Filter: exclude installed + search term
+        let result = filter_downloadable_versions_internal(
+            downloadable,
+            &installed,
+            true,  // exclude installed
+            false, // no support type filter
+            false,
+            false,
+            Some("10"),
+        );
+        assert_eq!(result.len(), 2); // 10.5.0 and 10.6.0 (10.4.0 is installed)
     }
 }

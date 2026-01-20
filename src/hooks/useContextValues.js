@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { ITEMS_PER_PAGE } from "../utils";
 
 export function useContextValues({
   appsHook,
@@ -21,10 +20,6 @@ export function useContextValues({
       handleAppClick: appsHook.handleAppClick,
       handleDeleteApp: appsHook.handleDeleteApp,
       loadApps: appsHook.loadApps,
-      currentPage: appsHook.currentPage,
-      setCurrentPage: appsHook.setCurrentPage,
-      hasMore: appsHook.hasMore,
-      ITEMS_PER_PAGE,
     }),
     [appsHook],
   );

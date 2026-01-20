@@ -203,15 +203,47 @@ fn process_widget_build_and_deploy(
     })
 }
 
+fn filter_widgets_by_ids(widgets: &[WidgetInput], selected_ids: &[String]) -> Vec<WidgetInput> {
+    use std::collections::HashSet;
+    let id_set: HashSet<&String> = selected_ids.iter().collect();
+    widgets
+        .iter()
+        .filter(|w| id_set.contains(&w.id))
+        .cloned()
+        .collect()
+}
+
+fn filter_apps_by_paths(apps: &[AppInput], selected_paths: &[String]) -> Vec<AppInput> {
+    use std::collections::HashSet;
+    let path_set: HashSet<&String> = selected_paths.iter().collect();
+    apps.iter()
+        .filter(|a| path_set.contains(&a.path))
+        .cloned()
+        .collect()
+}
+
 #[tauri::command]
 pub async fn build_and_deploy_from_selections(
     widgets: Vec<WidgetInput>,
     apps: Vec<AppInput>,
     package_manager: String,
+    selected_widget_ids: Option<Vec<String>>,
+    selected_app_paths: Option<Vec<String>>,
 ) -> Result<BuildDeployResult, String> {
-    let widget_requests = transform_widgets_to_build_requests(&widgets);
-    let app_paths = extract_app_paths(&apps);
-    let app_names = extract_app_names(&apps);
+    // Filter widgets and apps if selection IDs/paths are provided
+    let filtered_widgets = match selected_widget_ids {
+        Some(ids) if !ids.is_empty() => filter_widgets_by_ids(&widgets, &ids),
+        _ => widgets,
+    };
+
+    let filtered_apps = match selected_app_paths {
+        Some(paths) if !paths.is_empty() => filter_apps_by_paths(&apps, &paths),
+        _ => apps,
+    };
+
+    let widget_requests = transform_widgets_to_build_requests(&filtered_widgets);
+    let app_paths = extract_app_paths(&filtered_apps);
+    let app_names = extract_app_names(&filtered_apps);
 
     build_and_deploy_widgets(widget_requests, app_paths, app_names, package_manager).await
 }

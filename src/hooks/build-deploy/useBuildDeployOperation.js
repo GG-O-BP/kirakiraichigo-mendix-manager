@@ -6,8 +6,6 @@ import {
   invokeCreateCatastrophicErrorResult,
   invokeHasBuildFailures,
 } from "../../utils";
-import { filterWidgetsBySelectedIds } from "../../utils/data-processing/widgetFiltering";
-import { filterAppsBySelectedPaths } from "../../utils/data-processing/appFiltering";
 
 /**
  * Build and deploy operation hook
@@ -51,15 +49,14 @@ export function useBuildDeployOperation({
       const selectedWidgetIds = Array.from(selectedWidgets);
       const selectedAppPaths = Array.from(selectedApps);
 
-      const widgetsList = await filterWidgetsBySelectedIds(widgets, selectedWidgetIds);
-      const appsList = await filterAppsBySelectedPaths(apps, selectedAppPaths);
-
       let results;
       try {
         results = await invoke("build_and_deploy_from_selections", {
-          widgets: widgetsList,
-          apps: appsList,
+          widgets,
+          apps,
           packageManager,
+          selectedWidgetIds,
+          selectedAppPaths,
         });
       } catch (error) {
         results = await invokeCreateCatastrophicErrorResult(error);

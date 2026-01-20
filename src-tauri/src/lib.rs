@@ -17,7 +17,7 @@ pub use mendix::{
     get_installed_mendix_versions, launch_studio_pro, uninstall_studio_pro,
     uninstall_studio_pro_and_wait, MendixApp, MendixVersion,
 };
-pub use package_manager::run_package_manager_command;
+pub use package_manager::{batch_install_widgets, run_package_manager_command};
 pub use utils::{copy_widget_to_apps, extract_folder_name_from_path, greet};
 pub use web_scraper::{
     debug_page_structure, download_and_install_mendix_version, extract_build_number,
@@ -30,7 +30,8 @@ pub use build_deploy::{
     build_and_deploy_from_selections, build_and_deploy_widgets, create_catastrophic_error_result,
 };
 pub use storage::{
-    clear_app_state, load_app_state, load_from_storage, save_app_state, save_to_storage,
+    add_widget_and_save, clear_app_state, delete_widget_and_save, load_app_state,
+    load_from_storage, load_widgets_ordered, save_app_state, save_to_storage,
 };
 pub use widget_parser::{
     count_all_groups_visible_properties, count_all_spec_groups_visible_properties,
@@ -47,8 +48,8 @@ pub use widget_preview::build_widget_for_preview;
 
 pub use data_processing::version_utils::{
     calculate_next_page_number, create_version_options, exclude_installed_versions,
-    filter_by_version_support_type, is_app_version_mismatch, is_version_currently_selected,
-    is_version_in_installed_list,
+    filter_by_version_support_type, filter_downloadable_versions, is_app_version_mismatch,
+    is_version_currently_selected, is_version_in_installed_list,
 };
 
 pub use formatting::{
@@ -85,6 +86,7 @@ pub fn run() {
             get_apps_by_version,
             get_installed_mendix_apps,
             run_package_manager_command,
+            batch_install_widgets,
             copy_widget_to_apps,
             parse_widget_properties,
             parse_widget_properties_to_parsed,
@@ -121,6 +123,9 @@ pub fn run() {
             save_app_state,
             load_app_state,
             clear_app_state,
+            load_widgets_ordered,
+            delete_widget_and_save,
+            add_widget_and_save,
             // Validation commands
             validate_build_deploy_selections,
             validate_required_fields,
@@ -128,6 +133,7 @@ pub fn run() {
             // Version utility commands
             exclude_installed_versions,
             filter_by_version_support_type,
+            filter_downloadable_versions,
             is_version_in_installed_list,
             is_app_version_mismatch,
             is_version_currently_selected,

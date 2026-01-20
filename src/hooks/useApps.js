@@ -1,7 +1,7 @@
 import * as R from "ramda";
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { STORAGE_KEYS, ITEMS_PER_PAGE, wrapAsync } from "../utils";
+import { STORAGE_KEYS, wrapAsync } from "../utils";
 import { filterMendixApps } from "../utils/data-processing/appFiltering";
 import { useCollection } from "./useCollection";
 
@@ -12,8 +12,6 @@ export function useApps() {
   });
 
   const [versionFilter, setVersionFilter] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
 
   const loadApps = useCallback(
     wrapAsync(
@@ -63,8 +61,6 @@ export function useApps() {
           true,
         );
         collection.setFilteredItems(filtered);
-        setHasMore(R.gt(R.length(filtered), ITEMS_PER_PAGE));
-        setCurrentPage(1);
       } catch (error) {
         console.error("Failed to filter apps:", error);
         collection.setFilteredItems(collection.items);
@@ -91,9 +87,6 @@ export function useApps() {
     setSelectedApps: collection.setSelectedItems,
     handleAppClick,
     handleDeleteApp,
-    currentPage,
-    setCurrentPage,
-    hasMore,
   };
 }
 
