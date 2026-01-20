@@ -150,25 +150,6 @@ where
     items
 }
 
-#[allow(dead_code)]
-pub fn sort_by_date<F>(
-    mut items: Vec<F>,
-    date_extractor: fn(&F) -> Option<chrono::DateTime<chrono::Local>>,
-) -> Vec<F>
-where
-    F: Clone,
-{
-    items.sort_by(|a, b| {
-        match (date_extractor(a), date_extractor(b)) {
-            (Some(date_a), Some(date_b)) => date_b.cmp(&date_a), // Descending
-            (Some(_), None) => std::cmp::Ordering::Less,
-            (None, Some(_)) => std::cmp::Ordering::Greater,
-            (None, None) => std::cmp::Ordering::Equal,
-        }
-    });
-    items
-}
-
 pub fn sort_by_version_with_date_fallback<F>(
     items: Vec<F>,
     version_extractor: fn(&F) -> Option<String>,

@@ -1,13 +1,6 @@
 use crate::package_manager::run_package_manager_command;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::path::Path;
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BuildWidgetRequest {
-    pub widget_path: String,
-    pub package_manager: String,
-}
 
 #[derive(Debug, Serialize)]
 pub struct BuildWidgetResponse {
@@ -200,8 +193,6 @@ fn parse_widget_metadata(widget_path: &Path) -> Result<WidgetMetadata, String> {
         .as_str()
         .ok_or("widgetName not found in package.json")?
         .to_string();
-
-    let _name = json["name"].as_str().unwrap_or(&widget_name).to_string();
 
     // widget.xml에서 id 추출
     let src_dir = widget_path.join("src");

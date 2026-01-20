@@ -40,11 +40,8 @@ pub struct DownloadProgress {
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct ScrapingConfig {
-    pub timeout_seconds: u64,
     pub wait_for_element_seconds: u64,
-    pub headless: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -64,9 +61,7 @@ pub struct VersionFlags {
 // Pure constructor functions
 const fn create_default_scraping_config() -> ScrapingConfig {
     ScrapingConfig {
-        timeout_seconds: 300,
         wait_for_element_seconds: 30,
-        headless: true,
     }
 }
 
