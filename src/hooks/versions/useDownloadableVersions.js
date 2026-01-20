@@ -2,10 +2,6 @@ import * as R from "ramda";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-/**
- * useDownloadableVersions - Manages downloadable Mendix version fetching
- * Handles pagination and initial load
- */
 export function useDownloadableVersions() {
   const [downloadableVersions, setDownloadableVersions] = useState([]);
   const [isLoadingDownloadableVersions, setIsLoadingDownloadableVersions] = useState(false);
@@ -42,7 +38,6 @@ export function useDownloadableVersions() {
     }
   }, []);
 
-  // Load initial downloadable versions on mount
   useEffect(() => {
     if (hasLoadedInitialVersions.current) {
       return;

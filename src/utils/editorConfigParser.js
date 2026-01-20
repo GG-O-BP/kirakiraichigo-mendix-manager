@@ -1,7 +1,5 @@
 import * as R from "ramda";
 
-// Properties are now received in spec format from backend (type, defaultValue, propertyGroups)
-// No transformation needed - just extract the property groups
 const extractPropertyGroupsFromDefinition = R.curry((widgetDefinition) => {
   return R.propOr([], "propertyGroups", widgetDefinition);
 });

@@ -20,5 +20,3 @@ export function useWidgetCollectionContext() {
   }
   return context;
 }
-
-export default WidgetCollectionContext;

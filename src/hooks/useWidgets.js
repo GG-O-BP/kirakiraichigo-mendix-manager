@@ -86,7 +86,6 @@ export function useWidgets() {
     [collection.items, collection.setItems, collection.removeFromSelection],
   );
 
-  // Save widgets when they change
   useEffect(() => {
     const saveWidgetsSequentially = async () => {
       if (R.complement(R.isEmpty)(collection.items)) {
@@ -102,9 +101,8 @@ export function useWidgets() {
     saveWidgetsSequentially();
   }, [collection.items]);
 
-  // Filter widgets effect
   useEffect(() => {
-    const processWidgets = async () => {
+    const filterWidgetsBySearchTerm = async () => {
       try {
         const searchTerm = R.defaultTo(null, collection.searchTerm);
         const filtered = await filterWidgets(collection.items, searchTerm);
@@ -117,7 +115,7 @@ export function useWidgets() {
 
     R.ifElse(
       R.complement(R.isEmpty),
-      processWidgets,
+      filterWidgetsBySearchTerm,
       () => collection.setFilteredItems([]),
     )(collection.items);
   }, [collection.items, collection.searchTerm]);

@@ -1,16 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-// ============= Validation Result Types =============
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildDeployValidationResult {
     pub is_valid: bool,
     pub error_message: Option<String>,
 }
 
-// ============= Pure Validation Functions =============
-
-/// Validates that at least one widget and one app are selected for build/deploy
 fn validate_build_deploy_selections_internal(
     selected_widget_count: usize,
     selected_app_count: usize,
@@ -35,7 +30,6 @@ fn validate_build_deploy_selections_internal(
     }
 }
 
-/// Validates that all required fields have non-empty values
 fn validate_required_fields_internal(
     required_fields: &[String],
     values: &std::collections::HashMap<String, String>,
@@ -48,12 +42,9 @@ fn validate_required_fields_internal(
     })
 }
 
-/// Checks if there are any build failures in the result
 fn has_build_failures_internal(failed: &[serde_json::Value]) -> bool {
     !failed.is_empty()
 }
-
-// ============= Tauri Commands =============
 
 #[tauri::command]
 pub fn validate_build_deploy_selections(
@@ -78,8 +69,6 @@ pub fn validate_required_fields(
 pub fn has_build_failures(failed: Vec<serde_json::Value>) -> Result<bool, String> {
     Ok(has_build_failures_internal(&failed))
 }
-
-// ============= Tests =============
 
 #[cfg(test)]
 mod tests {

@@ -2,16 +2,12 @@ use super::*;
 use crate::mendix::{MendixApp, MendixVersion};
 use serde::{Deserialize, Serialize};
 
-// ============= Widget Type =============
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Widget {
     pub id: String,
     pub caption: String,
     pub path: String,
 }
-
-// ============= Mendix Version Extractors =============
 
 pub fn version_extractor_for_version(item: &MendixVersion) -> Option<String> {
     Some(item.version.clone())
@@ -28,8 +24,6 @@ pub fn is_valid_version(item: &MendixVersion) -> bool {
 pub fn searchable_fields_version(item: &MendixVersion) -> Option<String> {
     Some(format!("{} {}", item.version, item.path))
 }
-
-// ============= Mendix App Extractors =============
 
 pub fn version_extractor_for_app(item: &MendixApp) -> Option<String> {
     item.version.clone()
@@ -52,13 +46,9 @@ pub fn searchable_fields_app(item: &MendixApp) -> Option<String> {
     ))
 }
 
-// ============= Widget Extractors =============
-
 pub fn searchable_fields_widget(item: &Widget) -> Option<String> {
     Some(format!("{} {}", item.caption, item.path))
 }
-
-// ============= Tauri Commands =============
 
 #[tauri::command]
 pub fn filter_mendix_versions(
@@ -165,7 +155,6 @@ pub fn filter_and_sort_apps_with_priority(
     search_term: Option<String>,
     priority_version: Option<String>,
 ) -> Result<Vec<MendixApp>, String> {
-    // First filter by search term
     let filtered = if let Some(term) = search_term {
         if !term.trim().is_empty() {
             let search_filter = SearchFilter {
@@ -180,14 +169,12 @@ pub fn filter_and_sort_apps_with_priority(
         apps
     };
 
-    // Sort by version and date
     let mut sorted = sort_by_version_with_date_fallback(
         filtered,
         version_extractor_for_app,
         date_extractor_for_app,
     );
 
-    // If priority version specified, partition: matching first, then others
     if let Some(priority_ver) = priority_version {
         let (matching, non_matching): (Vec<_>, Vec<_>) = sorted
             .into_iter()
@@ -225,12 +212,8 @@ pub fn filter_widgets(
     }
 }
 
-// ============= Selection Filtering =============
-
 use std::collections::HashSet;
 
-/// Filters widgets by a list of selected IDs
-/// Uses HashSet for O(n) performance
 #[tauri::command]
 pub fn filter_widgets_by_selected_ids(
     widgets: Vec<Widget>,
@@ -243,8 +226,6 @@ pub fn filter_widgets_by_selected_ids(
         .collect())
 }
 
-/// Filters apps by a list of selected paths
-/// Uses HashSet for O(n) performance
 #[tauri::command]
 pub fn filter_apps_by_selected_paths(
     apps: Vec<MendixApp>,
@@ -257,10 +238,6 @@ pub fn filter_apps_by_selected_paths(
         .collect())
 }
 
-// ============= Widget Ordering & Deletion =============
-
-/// Sorts widgets according to a saved order
-/// Widgets not in the order list are appended at the end
 #[tauri::command]
 pub fn sort_widgets_by_order(
     widgets: Vec<Widget>,
@@ -270,28 +247,22 @@ pub fn sort_widgets_by_order(
         return Ok(widgets);
     }
 
-    // Create a map for O(1) lookup of widget positions
     let order_map: std::collections::HashMap<&String, usize> = order
         .iter()
         .enumerate()
         .map(|(i, id)| (id, i))
         .collect();
 
-    // Partition widgets into ordered and unordered
     let (mut ordered, unordered): (Vec<_>, Vec<_>) = widgets
         .into_iter()
         .partition(|w| order_map.contains_key(&w.id));
 
-    // Sort ordered widgets by their position in the order list
     ordered.sort_by_key(|w| order_map.get(&w.id).copied().unwrap_or(usize::MAX));
-
-    // Append unordered widgets at the end
     ordered.extend(unordered);
 
     Ok(ordered)
 }
 
-/// Removes a widget by its ID
 #[tauri::command]
 pub fn remove_widget_by_id(
     widgets: Vec<Widget>,
@@ -300,11 +271,8 @@ pub fn remove_widget_by_id(
     Ok(widgets.into_iter().filter(|w| w.id != widget_id).collect())
 }
 
-// ============= Widget Creation =============
-
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Creates a new widget with a timestamp-based ID
 #[tauri::command]
 pub fn create_widget(caption: String, path: String) -> Result<Widget, String> {
     let id = SystemTime::now()
@@ -314,8 +282,6 @@ pub fn create_widget(caption: String, path: String) -> Result<Widget, String> {
 
     Ok(Widget { id, caption, path })
 }
-
-// ============= Tests =============
 
 #[cfg(test)]
 mod tests {

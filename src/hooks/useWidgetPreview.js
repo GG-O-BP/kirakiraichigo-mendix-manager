@@ -12,19 +12,13 @@ export function useWidgetPreview() {
     [],
   );
 
-  const resetProperties = useCallback(() => {
-    setProperties({});
-  }, []);
-
   return {
     widgetPreviewSearch,
     setWidgetPreviewSearch,
     selectedWidgetForPreview,
     setSelectedWidgetForPreview,
     properties,
-    setProperties,
     updateProperty,
-    resetProperties,
   };
 }
 

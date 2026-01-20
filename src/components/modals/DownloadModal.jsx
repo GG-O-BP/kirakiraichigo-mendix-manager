@@ -1,8 +1,7 @@
 import * as R from "ramda";
-import { memo, useState, useEffect } from "react";
+import { memo, useState, useEffect, useRef, useCallback } from "react";
 import "../../styles/components/download-modal.css";
 
-// Pure data types - immutable by design
 const DOWNLOAD_STEPS = {
   CONFIRM: "confirm",
   EXTRACTING_BUILD: "extracting_build",
@@ -13,64 +12,72 @@ const DOWNLOAD_STEPS = {
   ERROR: "error",
 };
 
-const STEP_INFO = {
+const STEP_CONFIG = {
   [DOWNLOAD_STEPS.CONFIRM]: {
     title: "Confirm Installation",
-    description: "Ready to download and install Mendix Studio Pro",
-    progress: 0,
     icon: "🤔",
+    startProgress: 0,
+    endProgress: 0,
+    estimatedDuration: 0,
   },
   [DOWNLOAD_STEPS.EXTRACTING_BUILD]: {
     title: "Extracting Build Number",
-    description: "Fetching build information from Mendix marketplace...",
-    progress: 20,
     icon: "🔍",
+    startProgress: 0,
+    endProgress: 2,
+    estimatedDuration: 1200,
   },
   [DOWNLOAD_STEPS.SETTING_PATH]: {
     title: "Setting Up Download",
-    description: "Preparing download directory and file path...",
-    progress: 30,
     icon: "📁",
+    startProgress: 2,
+    endProgress: 5,
+    estimatedDuration: 800,
   },
   [DOWNLOAD_STEPS.DOWNLOADING]: {
     title: "Downloading Installer",
-    description: "Downloading Mendix Studio Pro installer...",
-    progress: 70,
     icon: "⬇️",
+    startProgress: 5,
+    endProgress: 95,
+    estimatedDuration: 250000,
   },
   [DOWNLOAD_STEPS.LAUNCHING]: {
     title: "Launching Installer",
-    description: "Starting the installation process...",
-    progress: 90,
     icon: "🚀",
+    startProgress: 95,
+    endProgress: 99,
+    estimatedDuration: 1500,
   },
   [DOWNLOAD_STEPS.COMPLETED]: {
     title: "Setup File Launched Successfully",
-    description:
-      "The Mendix Studio Pro installer is now running. Please continue with the installation wizard.",
-    progress: 100,
     icon: "🎯",
+    startProgress: 100,
+    endProgress: 100,
+    estimatedDuration: 0,
   },
   [DOWNLOAD_STEPS.ERROR]: {
     title: "Installation Failed",
-    description: "An error occurred during the installation process",
-    progress: 0,
     icon: "❌",
+    startProgress: 0,
+    endProgress: 0,
+    estimatedDuration: 0,
   },
 };
 
-// Pure utility functions
-const getStepInfo = (step) =>
-  STEP_INFO[step] || STEP_INFO[DOWNLOAD_STEPS.CONFIRM];
+const getStepConfig = (step) =>
+  STEP_CONFIG[step] || STEP_CONFIG[DOWNLOAD_STEPS.CONFIRM];
 
-const canCancel = (step) =>
+const isCancellableStep = (step) =>
   R.includes(step, [DOWNLOAD_STEPS.CONFIRM, DOWNLOAD_STEPS.ERROR]);
 
-const shouldShowProgress = (step) =>
+const isProgressVisibleStep = (step) =>
   !R.includes(step, [DOWNLOAD_STEPS.CONFIRM, DOWNLOAD_STEPS.ERROR]);
 
-// Enhanced error message renderer
-const renderErrorMessage = (error) => (
+const getAnimationTargetProgress = (config) => config.endProgress;
+
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+const ErrorMessage = (error) => (
   <div className="error-container">
     <div className="error-icon">⚠️</div>
     <div className="error-content">
@@ -80,10 +87,9 @@ const renderErrorMessage = (error) => (
   </div>
 );
 
-// Enhanced action buttons renderer with functional composition
-const renderActionButtons = R.curry(
+const ActionButtons = R.curry(
   (currentStep, onConfirm, onCancel, onClose) => {
-    const showCancel = canCancel(currentStep);
+    const showCancel = isCancellableStep(currentStep);
     const showConfirm = currentStep === DOWNLOAD_STEPS.CONFIRM;
     const showClose = R.includes(currentStep, [
       DOWNLOAD_STEPS.COMPLETED,
@@ -113,15 +119,76 @@ const renderActionButtons = R.curry(
   },
 );
 
-// Main DownloadModal component with functional approach
+const useAnimatedProgress = (currentStep, isProcessing) => {
+  const [progress, setProgress] = useState(0);
+  const animationRef = useRef(null);
+  const stepStartTimeRef = useRef(null);
+
+  useEffect(() => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+
+    const config = getStepConfig(currentStep);
+
+    if (currentStep === DOWNLOAD_STEPS.COMPLETED) {
+      setProgress(100);
+      return;
+    }
+
+    if (
+      currentStep === DOWNLOAD_STEPS.ERROR ||
+      currentStep === DOWNLOAD_STEPS.CONFIRM
+    ) {
+      setProgress(config.startProgress);
+      return;
+    }
+
+    if (!isProcessing) {
+      setProgress(config.startProgress);
+      return;
+    }
+
+    stepStartTimeRef.current = performance.now();
+    const startProgress = config.startProgress;
+    const targetProgress = getAnimationTargetProgress(config);
+    const duration = config.estimatedDuration;
+
+    const animate = (currentTime) => {
+      const elapsed = currentTime - stepStartTimeRef.current;
+      const rawProgress = Math.min(elapsed / duration, 1);
+      const easedProgress = easeOutCubic(rawProgress);
+
+      const newProgress =
+        startProgress + (targetProgress - startProgress) * easedProgress;
+      setProgress(newProgress);
+
+      if (rawProgress < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [currentStep, isProcessing]);
+
+  return progress;
+};
+
 const DownloadModal = memo(
   ({ isOpen, version, onDownload, onClose, onCancel }) => {
-    // Local state for modal-specific operations
     const [currentStep, setCurrentStep] = useState(DOWNLOAD_STEPS.CONFIRM);
     const [error, setError] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // Reset modal state when opened
+    const animatedProgress = useAnimatedProgress(currentStep, isProcessing);
+
     useEffect(() => {
       if (isOpen) {
         setCurrentStep(DOWNLOAD_STEPS.CONFIRM);
@@ -130,7 +197,7 @@ const DownloadModal = memo(
       }
     }, [isOpen]);
 
-    const handleDownload = () => {
+    const handleDownload = useCallback(() => {
       if (!version?.version) {
         setError("Invalid version data");
         setCurrentStep(DOWNLOAD_STEPS.ERROR);
@@ -155,7 +222,6 @@ const DownloadModal = memo(
 
           setCurrentStep(DOWNLOAD_STEPS.COMPLETED);
         } catch (err) {
-          console.error("Download process failed:", err);
           setError(err.toString());
           setCurrentStep(DOWNLOAD_STEPS.ERROR);
         } finally {
@@ -164,26 +230,26 @@ const DownloadModal = memo(
       };
 
       executeDownload();
-    };
+    }, [version, onDownload]);
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
       if (!isProcessing) {
         onClose();
       }
-    };
+    }, [isProcessing, onClose]);
 
-    const handleCancel = () => {
-      if (canCancel(currentStep)) {
+    const handleCancel = useCallback(() => {
+      if (isCancellableStep(currentStep)) {
         onCancel();
       }
-    };
+    }, [currentStep, onCancel]);
 
     if (!isOpen) {
       return null;
     }
 
-    const stepInfo = getStepInfo(currentStep);
-    const showProgressBar = shouldShowProgress(currentStep);
+    const stepConfig = getStepConfig(currentStep);
+    const showProgressBar = isProgressVisibleStep(currentStep);
 
     return (
       <div className="modal-overlay">
@@ -227,14 +293,14 @@ const DownloadModal = memo(
 
             {currentStep === DOWNLOAD_STEPS.ERROR &&
               error &&
-              renderErrorMessage(error)}
+              ErrorMessage(error)}
 
             {showProgressBar && (
               <>
                 <span style={{ fontSize: "1.2rem", marginRight: "8px" }}>
                   {isProcessing && currentStep !== DOWNLOAD_STEPS.COMPLETED
                     ? "🍓"
-                    : stepInfo.icon}
+                    : stepConfig.icon}
                 </span>
                 <span
                   style={{
@@ -243,7 +309,7 @@ const DownloadModal = memo(
                     color: "var(--theme-primary)",
                   }}
                 >
-                  {stepInfo.title}
+                  {stepConfig.title}
                 </span>
                 <br />
                 <div
@@ -263,8 +329,7 @@ const DownloadModal = memo(
                       background:
                         "linear-gradient(90deg, var(--theme-primary), var(--theme-secondary))",
                       borderRadius: "2px",
-                      width: `${stepInfo.progress}%`,
-                      transition: "width 0.3s ease",
+                      width: `${animatedProgress}%`,
                       position: "relative",
                     }}
                   >
@@ -290,7 +355,7 @@ const DownloadModal = memo(
                     marginTop: "2px",
                   }}
                 >
-                  {stepInfo.progress}%
+                  {Math.round(animatedProgress)}%
                 </span>
                 <div style={{ clear: "both" }} />
               </>
@@ -323,7 +388,7 @@ const DownloadModal = memo(
           </div>
 
           <div className="modal-footer">
-            {renderActionButtons(
+            {ActionButtons(
               currentStep,
               handleDownload,
               handleCancel,

@@ -6,21 +6,21 @@ import { renderPropertyInputField } from "./propertyUtils";
 
 const renderNoConfigurableProperties = () => (
   <div className="no-properties">
-    <span className="info-icon">{"\u2139\ufe0f"}</span>
+    <span className="info-icon">ℹ️</span>
     <p>No configurable properties found</p>
   </div>
 );
 
 const renderPropertiesLoadingState = () => (
   <div className="property-loading">
-    <span className="loading-icon">{"\u23f3"}</span>
+    <span className="loading-icon">⏳</span>
     <p>Loading widget properties...</p>
   </div>
 );
 
 const renderNoWidgetSelectedState = () => (
   <div className="no-widget-selected">
-    <span className="no-widget-icon">{"\ud83e\udde9"}</span>
+    <span className="no-widget-icon">🧩</span>
     <p>Select a widget to view its properties</p>
   </div>
 );

@@ -1,13 +1,6 @@
 use crate::package_manager::run_package_manager_command;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::path::Path;
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BuildWidgetRequest {
-    pub widget_path: String,
-    pub package_manager: String,
-}
 
 #[derive(Debug, Serialize)]
 pub struct BuildWidgetResponse {
@@ -25,8 +18,6 @@ pub async fn build_widget_for_preview(
     package_manager: String,
 ) -> Result<BuildWidgetResponse, String> {
     let path = Path::new(&widget_path);
-
-    // 1. node_modules가 없으면 install 먼저 실행
     let node_modules = path.join("node_modules");
     if !node_modules.exists() {
         match run_package_manager_command(
@@ -48,17 +39,14 @@ pub async fn build_widget_for_preview(
         }
     }
 
-    // 2. build 실행
     match run_package_manager_command(
         package_manager,
         "run build".to_string(),
         widget_path.clone(),
     ) {
         Ok(_) => {
-            // 3. dist 폴더에서 번들 읽기
             match read_widget_bundle(path).await {
                 Ok((bundle, css)) => {
-                    // 4. 위젯 메타데이터 파싱
                     match parse_widget_metadata(path) {
                         Ok(metadata) => Ok(BuildWidgetResponse {
                             success: true,
@@ -184,7 +172,6 @@ struct WidgetMetadata {
 }
 
 fn parse_widget_metadata(widget_path: &Path) -> Result<WidgetMetadata, String> {
-    // package.json에서 widgetName 추출
     let package_json_path = widget_path.join("package.json");
     if !package_json_path.exists() {
         return Err("package.json not found".to_string());
@@ -201,9 +188,6 @@ fn parse_widget_metadata(widget_path: &Path) -> Result<WidgetMetadata, String> {
         .ok_or("widgetName not found in package.json")?
         .to_string();
 
-    let _name = json["name"].as_str().unwrap_or(&widget_name).to_string();
-
-    // widget.xml에서 id 추출
     let src_dir = widget_path.join("src");
     let mut widget_id = String::new();
 
@@ -212,7 +196,6 @@ fn parse_widget_metadata(widget_path: &Path) -> Result<WidgetMetadata, String> {
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("xml") {
                 if let Ok(xml_content) = std::fs::read_to_string(&path) {
-                    // Simple regex to extract widget id
                     if let Some(id_start) = xml_content.find(r#"id=""#) {
                         let id_content = &xml_content[id_start + 4..];
                         if let Some(id_end) = id_content.find('"') {

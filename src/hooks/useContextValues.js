@@ -78,7 +78,6 @@ export function useContextValues({
       setPackageManager: buildDeploy.setPackageManager,
       isInstalling: buildDeploy.isInstalling,
       isBuilding: buildDeploy.isBuilding,
-      // Handlers are already wrapped in useAppInitialization
       handleInstall: buildDeploy.handleInstall,
       handleBuildDeploy: buildDeploy.handleBuildDeploy,
       buildResults: buildDeploy.buildResults,
@@ -91,7 +90,6 @@ export function useContextValues({
     [buildDeploy],
   );
 
-  // Domain-specific modal context values
   const studioProModalContextValue = useMemo(
     () => ({
       showUninstallModal: modals.uninstall.showModal,
@@ -141,8 +139,7 @@ export function useContextValues({
     [modals.result],
   );
 
-  // Combined modal context for backward compatibility
-  const modalContextValue = useMemo(
+  const combinedModalContextValue = useMemo(
     () => ({
       ...studioProModalContextValue,
       ...appModalContextValue,
@@ -185,9 +182,8 @@ export function useContextValues({
     widgetPreviewContextValue,
     widgetFormContextValue,
     buildDeployContextValue,
-    modalContextValue,
+    modalContextValue: combinedModalContextValue,
     versionsContextValue,
-    // Domain-specific modal context values
     studioProModalContextValue,
     appModalContextValue,
     widgetModalContextValue,

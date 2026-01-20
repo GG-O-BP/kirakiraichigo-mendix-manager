@@ -10,9 +10,8 @@ use walkdir::WalkDir;
 use std::os::windows::process::CommandExt;
 
 #[cfg(target_os = "windows")]
-const CREATE_NO_WINDOW: u32 = 0x08000000;
+const CREATE_NO_WINDOW: u32 = 0x08000000; // Windows API flag to hide console window
 
-// Pure data types - immutable by design
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MendixVersion {
     pub version: String,
@@ -31,7 +30,6 @@ pub struct MendixApp {
     pub is_valid: bool,
 }
 
-// Pure data transformation functions
 fn create_mendix_version(version: String, path: String) -> MendixVersion {
     let exe_path = format!("{}\\modeler\\studiopro.exe", path);
     let is_valid = Path::new(&exe_path).exists();
@@ -65,7 +63,6 @@ fn create_mendix_app(name: String, path: String) -> MendixApp {
     }
 }
 
-// Pure utility functions
 fn extract_install_date(path: &str) -> Option<DateTime<Local>> {
     fs::metadata(path)
         .ok()
@@ -111,7 +108,6 @@ fn extract_version_from_project_settings(file_path: &str) -> Option<String> {
         })
 }
 
-// Pure sorting functions
 fn sort_versions_by_descending(versions: Vec<MendixVersion>) -> Vec<MendixVersion> {
     let mut sorted = versions;
     sorted.sort_by(|a, b| {
@@ -137,7 +133,6 @@ fn sort_apps_by_last_modified(apps: Vec<MendixApp>) -> Vec<MendixApp> {
     sorted
 }
 
-// Pure filtering functions
 fn filter_valid_versions(versions: Vec<MendixVersion>) -> Vec<MendixVersion> {
     versions.into_iter().filter(|v| v.is_valid).collect()
 }
@@ -152,7 +147,6 @@ fn filter_apps_by_version(apps: Vec<MendixApp>, target_version: &str) -> Vec<Men
         .collect()
 }
 
-// Pure directory scanning functions
 fn scan_mendix_directory(dir_path: &str) -> Result<Vec<(String, String)>, String> {
     if !Path::new(dir_path).exists() {
         return Ok(Vec::new());
@@ -181,7 +175,6 @@ fn extract_version_from_directory_name(dir_name: &str) -> Option<String> {
         .map(|m| m.as_str().to_string())
 }
 
-// Pure composition functions
 fn process_mendix_versions(directory_entries: Vec<(String, String)>) -> Vec<MendixVersion> {
     directory_entries
         .into_iter()
@@ -199,7 +192,6 @@ fn process_mendix_apps(directory_entries: Vec<(String, String)>) -> Vec<MendixAp
         .collect()
 }
 
-// Pure path construction functions
 fn construct_exe_path(mendix_dir: &str, version: &str) -> Option<String> {
     let entries = scan_mendix_directory(mendix_dir).ok()?;
 
@@ -220,7 +212,6 @@ fn construct_uninstall_path(mendix_data_dir: &str, version: &str) -> Option<Stri
         .map(|(_, path)| format!("{}\\uninst\\unins000.exe", path))
 }
 
-// IO wrapper functions - only these perform side effects
 fn get_home_directory() -> Result<String, String> {
     std::env::var("USERPROFILE")
         .or_else(|_| std::env::var("HOME"))
@@ -254,7 +245,6 @@ fn remove_directory(path: &str) -> Result<(), String> {
     fs::remove_dir_all(path_obj).map_err(|e| format!("Failed to delete directory: {}", e))
 }
 
-// Main API functions - compose pure functions with minimal IO
 #[tauri::command]
 pub fn get_installed_mendix_versions() -> Result<Vec<MendixVersion>, String> {
     let mendix_dir = "C:\\Program Files\\Mendix";
@@ -323,7 +313,6 @@ pub fn delete_mendix_app(app_path: String) -> Result<(), String> {
     remove_directory(&app_path)
 }
 
-// Result type for uninstall operation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UninstallResult {
     pub success: bool,
@@ -331,8 +320,6 @@ pub struct UninstallResult {
     pub timed_out: bool,
 }
 
-/// Uninstall Studio Pro and wait for the folder to be deleted
-/// This handles the polling internally with a configurable timeout
 #[tauri::command]
 pub async fn uninstall_studio_pro_and_wait(
     version: String,
@@ -341,16 +328,13 @@ pub async fn uninstall_studio_pro_and_wait(
     let timeout = timeout_seconds.unwrap_or(60);
     let mendix_dir = "C:\\Program Files\\Mendix";
 
-    // First, trigger the uninstallation
     uninstall_studio_pro(version.clone())?;
 
-    // Poll to check if the folder is deleted
     let poll_interval = std::time::Duration::from_secs(1);
     let start_time = std::time::Instant::now();
     let timeout_duration = std::time::Duration::from_secs(timeout);
 
     loop {
-        // Check if folder still exists
         let folder_exists = scan_mendix_directory(mendix_dir)
             .map(|entries| {
                 entries
@@ -367,7 +351,6 @@ pub async fn uninstall_studio_pro_and_wait(
             });
         }
 
-        // Check if we've timed out
         if start_time.elapsed() >= timeout_duration {
             return Ok(UninstallResult {
                 success: false,
@@ -376,7 +359,6 @@ pub async fn uninstall_studio_pro_and_wait(
             });
         }
 
-        // Wait before next poll
         tokio::time::sleep(poll_interval).await;
     }
 }

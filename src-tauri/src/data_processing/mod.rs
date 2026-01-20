@@ -3,8 +3,6 @@ pub mod version_utils;
 
 use serde::{Deserialize, Serialize};
 
-// ============= Pure Data Types =============
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchFilter {
     pub search_term: String,
@@ -22,8 +20,6 @@ pub struct FilterOptions {
     pub search: Option<SearchFilter>,
     pub version: Option<VersionFilter>,
 }
-
-// ============= Pure Search Functions =============
 
 fn normalize_text(text: &str, case_sensitive: bool) -> String {
     if case_sensitive {
@@ -90,8 +86,6 @@ where
         .collect()
 }
 
-// ============= Pure Version Parsing Functions =============
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SemanticVersion {
     pub major: u32,
@@ -136,8 +130,6 @@ fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
     }
 }
 
-// ============= Pure Sorting Functions =============
-
 pub fn sort_by_version<F>(mut items: Vec<F>, version_extractor: fn(&F) -> Option<String>) -> Vec<F>
 where
     F: Clone,
@@ -146,25 +138,6 @@ where
         let version_a = version_extractor(a).unwrap_or_default();
         let version_b = version_extractor(b).unwrap_or_default();
         compare_versions(&version_a, &version_b)
-    });
-    items
-}
-
-#[allow(dead_code)]
-pub fn sort_by_date<F>(
-    mut items: Vec<F>,
-    date_extractor: fn(&F) -> Option<chrono::DateTime<chrono::Local>>,
-) -> Vec<F>
-where
-    F: Clone,
-{
-    items.sort_by(|a, b| {
-        match (date_extractor(a), date_extractor(b)) {
-            (Some(date_a), Some(date_b)) => date_b.cmp(&date_a), // Descending
-            (Some(_), None) => std::cmp::Ordering::Less,
-            (None, Some(_)) => std::cmp::Ordering::Greater,
-            (None, None) => std::cmp::Ordering::Equal,
-        }
     });
     items
 }
@@ -199,8 +172,6 @@ where
     sorted_items
 }
 
-// ============= Pure Filtering Functions =============
-
 pub fn filter_by_version<F>(
     items: Vec<F>,
     target_version: &str,
@@ -228,8 +199,6 @@ where
         .filter(|item| is_valid_extractor(item))
         .collect()
 }
-
-// ============= Pure Pagination Functions =============
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaginationOptions {
@@ -274,8 +243,6 @@ where
     }
 }
 
-// ============= Composition Functions =============
-
 pub fn apply_filters_and_sort<F>(
     items: Vec<F>,
     filter_options: &FilterOptions,
@@ -308,8 +275,6 @@ where
     // Sort by version with date fallback
     sort_by_version_with_date_fallback(result, version_extractor, date_extractor)
 }
-
-// ============= Tests =============
 
 #[cfg(test)]
 mod tests {

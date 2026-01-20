@@ -40,7 +40,7 @@ const BuildDeploySection = memo(({
         selectedWidgets.size > 0 ? "button-enabled" : "button-disabled"
       }`}
     >
-      <span className="button-icon">{isInstalling ? "\u23f3" : "\ud83d\udce6"}</span>
+      <span className="button-icon">{isInstalling ? "⏳" : "📦"}</span>
       {isInstalling
         ? "Installing..."
         : `Install (${selectedWidgets.size} widgets)`}
@@ -59,15 +59,16 @@ const BuildDeploySection = memo(({
           : "button-disabled"
       }`}
     >
-      <span className="button-icon">{isBuilding ? "\u23f3" : "\ud83d\ude80"}</span>
+      <span className="button-icon">{isBuilding ? "⏳" : "🚀"}</span>
       {isBuilding
         ? "Building & Deploying..."
-        : `Build + Deploy (${selectedWidgets.size} widgets \u2192 ${selectedApps.size} apps)`}
+        : `Build + Deploy (${selectedWidgets.size} widgets → ${selectedApps.size} apps)`}
     </button>
 
     <InlineResults
       inlineResults={inlineResults}
       setInlineResults={setInlineResults}
+      isBuilding={isBuilding}
     />
   </div>
 ));

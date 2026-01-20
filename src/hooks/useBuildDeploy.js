@@ -5,30 +5,15 @@ import {
   useBuildDeployOperation,
 } from "./build-deploy";
 
-/**
- * Build and deploy composition hook.
- * Combines sub-hooks for state, persistence, and operations.
- * Maintains backward compatibility by flattening all returns.
- *
- * @param {Object} options - Optional configuration
- * @param {function} options.onShowResultModal - Callback when result modal should be shown
- */
-export function useBuildDeploy(options = {}) {
-  const { onShowResultModal } = options;
-
-  // State management
+export function useBuildDeploy({ onShowResultModal } = {}) {
   const state = useBuildDeployState();
-
-  // Package manager persistence
   const persistence = usePackageManagerPersistence();
 
-  // Install operation
   const install = useInstallOperation({
     packageManager: persistence.packageManager,
     setIsInstalling: state.setIsInstalling,
   });
 
-  // Build & deploy operation
   const buildDeploy = useBuildDeployOperation({
     packageManager: persistence.packageManager,
     setIsBuilding: state.setIsBuilding,
@@ -38,10 +23,8 @@ export function useBuildDeploy(options = {}) {
   });
 
   return {
-    // Package manager
     packageManager: persistence.packageManager,
     setPackageManager: persistence.setPackageManager,
-    // State
     isInstalling: state.isInstalling,
     isBuilding: state.isBuilding,
     buildResults: state.buildResults,
@@ -50,7 +33,6 @@ export function useBuildDeploy(options = {}) {
     setInlineResults: state.setInlineResults,
     isUninstalling: state.isUninstalling,
     setIsUninstalling: state.setIsUninstalling,
-    // Operations
     handleInstall: install.handleInstall,
     handleBuildDeploy: buildDeploy.handleBuildDeploy,
   };

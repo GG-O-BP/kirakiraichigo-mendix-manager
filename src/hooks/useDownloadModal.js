@@ -23,10 +23,11 @@ export function useDownloadModal() {
   );
 
   const close = useCallback(
-    R.pipe(
-      R.tap(() => setShowModal(false)),
-      R.tap(() => setVersionToDownload(null)),
-    ),
+    () =>
+      R.pipe(
+        R.tap(() => setShowModal(false)),
+        R.tap(() => setVersionToDownload(null)),
+      )(null),
     [],
   );
 

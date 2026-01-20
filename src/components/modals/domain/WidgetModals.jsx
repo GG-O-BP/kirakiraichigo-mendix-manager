@@ -65,10 +65,10 @@ function WidgetModals() {
 
       <ConfirmModal
         isOpen={showWidgetDeleteModal}
-        title="\ud83c\udf53 Remove Widget from List?"
+        title="🍓 Remove Widget from List?"
         message={
           widgetToDelete
-            ? `Should I remove "${widgetToDelete.caption}" from your widget list? \ud83c\udf80\n\nDon't worry! This only removes it from my list - your files will stay safe and sound! \ud83c\udf1f`
+            ? `Should I remove "${widgetToDelete.caption}" from your widget list? 🎀\n\nDon't worry! This only removes it from my list - your files will stay safe and sound! 🌟`
             : ""
         }
         onConfirm={handleConfirmWidgetDelete}

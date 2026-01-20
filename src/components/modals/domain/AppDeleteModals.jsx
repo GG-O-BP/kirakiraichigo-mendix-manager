@@ -38,10 +38,10 @@ function AppDeleteModals() {
   return (
     <ConfirmModal
       isOpen={showAppDeleteModal}
-      title="\ud83c\udf53 Delete This App?"
+      title="🍓 Delete This App?"
       message={
         appToDelete
-          ? `Do you really want to delete ${appToDelete.name}? \ud83e\udd7a\n\nI can't undo this once it's done! Are you absolutely sure? \ud83d\udc95`
+          ? `Do you really want to delete ${appToDelete.name}? 🥺\n\nI can't undo this once it's done! Are you absolutely sure? 💕`
           : ""
       }
       onConfirm={handleConfirmAppDelete}

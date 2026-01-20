@@ -57,10 +57,10 @@ function StudioProModals() {
     <>
       <ConfirmModal
         isOpen={showUninstallModal}
-        title="\ud83c\udf53 Say Goodbye to Studio Pro?"
+        title="🍓 Say Goodbye to Studio Pro?"
         message={
           versionToUninstall
-            ? `Are you really really sure you want to uninstall Studio Pro ${versionToUninstall.version}? \u2728\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay? \ud83d\udc9d`
+            ? `Are you really really sure you want to uninstall Studio Pro ${versionToUninstall.version}? ✨\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay? 💝`
             : ""
         }
         onConfirm={() => handleConfirmUninstall(false)}

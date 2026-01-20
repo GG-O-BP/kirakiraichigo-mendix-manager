@@ -14,5 +14,3 @@ export function useAppContext() {
   }
   return context;
 }
-
-export default AppContext;

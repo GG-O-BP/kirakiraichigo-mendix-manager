@@ -2,32 +2,24 @@ use crate::mendix::MendixVersion;
 use crate::web_scraper::DownloadableVersion;
 use serde::{Deserialize, Serialize};
 
-// ============= Version Option Type =============
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionOption {
     pub value: String,
     pub label: String,
 }
 
-// ============= Pure Helper Functions =============
-
-/// Normalizes a version string by trimming whitespace
 fn normalize_version_string(version: &str) -> String {
     version.trim().to_string()
 }
 
-/// Extracts the version string from an installed version
 fn extract_installed_version_string(installed: &MendixVersion) -> String {
     normalize_version_string(&installed.version)
 }
 
-/// Extracts the version string from a downloadable version
 fn extract_downloadable_version_string(downloadable: &DownloadableVersion) -> String {
     normalize_version_string(&downloadable.version)
 }
 
-/// Checks if a downloadable version is already installed
 fn is_version_installed(
     downloadable: &DownloadableVersion,
     installed_versions: &[MendixVersion],
@@ -38,9 +30,6 @@ fn is_version_installed(
         .any(|installed| extract_installed_version_string(installed) == download_version)
 }
 
-// ============= Pure Filtering Functions =============
-
-/// Filters out downloadable versions that are already installed
 fn exclude_installed_versions_internal(
     versions: Vec<DownloadableVersion>,
     installed_versions: &[MendixVersion],
@@ -56,7 +45,6 @@ fn exclude_installed_versions_internal(
         .collect()
 }
 
-/// Filters versions by support type (LTS, MTS, Beta)
 fn filter_by_version_support_type_internal(
     versions: Vec<DownloadableVersion>,
     show_lts_only: bool,
@@ -78,7 +66,6 @@ fn filter_by_version_support_type_internal(
         .collect()
 }
 
-/// Checks if a version string exists in the installed versions list
 fn is_version_in_installed_list_internal(
     version: &str,
     installed_versions: &[MendixVersion],
@@ -89,7 +76,6 @@ fn is_version_in_installed_list_internal(
         .any(|installed| extract_installed_version_string(installed) == normalized_version)
 }
 
-/// Checks if the app version differs from the selected version
 fn is_app_version_mismatch_internal(
     selected_version: Option<&str>,
     app_version: Option<&str>,
@@ -103,7 +89,6 @@ fn is_app_version_mismatch_internal(
     }
 }
 
-/// Checks if a version is currently selected
 fn is_version_currently_selected_internal(
     selected_version: Option<&str>,
     version: &str,
@@ -114,7 +99,6 @@ fn is_version_currently_selected_internal(
     }
 }
 
-/// Calculates the next page number for pagination
 fn calculate_next_page_number_internal(total_items: usize, items_per_page: usize) -> usize {
     if items_per_page == 0 {
         return 1;
@@ -124,7 +108,6 @@ fn calculate_next_page_number_internal(total_items: usize, items_per_page: usize
     std::cmp::max(1, pages + 1)
 }
 
-/// Creates version options for a dropdown from installed versions
 fn create_version_options_internal(versions: &[MendixVersion]) -> Vec<VersionOption> {
     let mut options: Vec<VersionOption> = vec![VersionOption {
         value: "all".to_string(),
@@ -140,8 +123,6 @@ fn create_version_options_internal(versions: &[MendixVersion]) -> Vec<VersionOpt
 
     options
 }
-
-// ============= Tauri Commands =============
 
 #[tauri::command]
 pub fn exclude_installed_versions(
@@ -216,8 +197,6 @@ pub fn calculate_next_page_number(
 pub fn create_version_options(versions: Vec<MendixVersion>) -> Result<Vec<VersionOption>, String> {
     Ok(create_version_options_internal(&versions))
 }
-
-// ============= Tests =============
 
 #[cfg(test)]
 mod tests {

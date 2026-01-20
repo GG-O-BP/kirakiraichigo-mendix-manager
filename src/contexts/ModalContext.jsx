@@ -16,5 +16,3 @@ export function useModalContext() {
   }
   return context;
 }
-
-export default ModalContext;

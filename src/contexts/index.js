@@ -15,7 +15,6 @@ export {
 export { ModalProvider, useModalContext } from "./ModalContext";
 export { VersionsProvider, useVersionsContext } from "./VersionsContext";
 
-// Domain-specific modal contexts
 export {
   StudioProModalProvider,
   useStudioProModalContext,

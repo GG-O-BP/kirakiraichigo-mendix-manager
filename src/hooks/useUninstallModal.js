@@ -23,11 +23,12 @@ export function useUninstallModal() {
   );
 
   const close = useCallback(
-    R.pipe(
-      R.tap(() => setShowModal(false)),
-      R.tap(() => setVersionToUninstall(null)),
-      R.tap(() => setRelatedApps([])),
-    ),
+    () =>
+      R.pipe(
+        R.tap(() => setShowModal(false)),
+        R.tap(() => setVersionToUninstall(null)),
+        R.tap(() => setRelatedApps([])),
+      )(null),
     [],
   );
 

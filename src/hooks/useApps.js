@@ -47,7 +47,6 @@ export function useApps() {
     [loadApps, collection.removeFromSelection],
   );
 
-  // Filter apps effect
   useEffect(() => {
     const processApps = async () => {
       try {

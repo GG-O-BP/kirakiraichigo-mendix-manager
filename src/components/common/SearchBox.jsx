@@ -1,7 +1,6 @@
 import { memo } from "react";
 import { createChangeHandler } from "../../utils";
 
-// SearchBox component with functional approach
 const SearchBox = memo(({ placeholder, value, onChange }) => (
   <div className="search-container">
     <span className="search-icon">🔍</span>

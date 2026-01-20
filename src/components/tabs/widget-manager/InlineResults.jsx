@@ -3,13 +3,13 @@ import { memo } from "react";
 
 const InlineResultItem = memo(({ type, widget, apps }) => (
   <div className={`inline-result-item ${type}`}>
-    <span className="result-icon">{R.equals(type, "success") ? "\u2705" : "\u274c"}</span>
+    <span className="result-icon">{R.equals(type, "success") ? "✅" : "❌"}</span>
     <span className="result-text">{widget}</span>
     {R.ifElse(
       R.both(R.always(R.equals(type, "success")), R.complement(R.isNil)),
       R.always(
         <span className="result-details">
-          \u2192 {R.join(", ", R.defaultTo([], apps))}
+          → {R.join(", ", R.defaultTo([], apps))}
         </span>,
       ),
       R.always(null),
@@ -19,7 +19,23 @@ const InlineResultItem = memo(({ type, widget, apps }) => (
 
 InlineResultItem.displayName = "InlineResultItem";
 
-const InlineResults = memo(({ inlineResults, setInlineResults }) => {
+const BuildingProgress = memo(() => (
+  <div className="inline-results-container">
+    <div className="inline-results-header">
+      <h4>Build & Deploy Results</h4>
+    </div>
+    <div className="inline-results-content">
+      <div className="build-progress-container">
+        <progress className="build-progress-bar" />
+        <span className="build-progress-text">Building & Deploying...</span>
+      </div>
+    </div>
+  </div>
+));
+
+BuildingProgress.displayName = "BuildingProgress";
+
+const InlineResults = memo(({ inlineResults, setInlineResults, isBuilding }) => {
   const hasResults = R.pipe(
     R.juxt([
       R.pipe(R.propOr([], "successful"), R.complement(R.isEmpty)),
@@ -27,6 +43,10 @@ const InlineResults = memo(({ inlineResults, setInlineResults }) => {
     ]),
     R.any(R.identity),
   )(inlineResults);
+
+  if (isBuilding) {
+    return <BuildingProgress />;
+  }
 
   if (R.or(R.isNil(inlineResults), R.not(hasResults))) {
     return null;

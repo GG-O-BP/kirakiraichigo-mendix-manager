@@ -192,6 +192,68 @@
     gap: 8px;
 }
 
+/* ============= Build Progress ============= */
+.build-progress-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+}
+
+.build-progress-bar {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    appearance: none;
+    background: var(--theme-surface-tertiary);
+    border: none;
+}
+
+.build-progress-bar::-webkit-progress-bar {
+    background: var(--theme-surface-tertiary);
+    border-radius: 4px;
+}
+
+.build-progress-bar:indeterminate {
+    background: linear-gradient(
+        90deg,
+        var(--theme-surface-tertiary) 0%,
+        var(--theme-surface-tertiary) 40%,
+        var(--theme-primary) 50%,
+        var(--theme-surface-tertiary) 60%,
+        var(--theme-surface-tertiary) 100%
+    );
+    background-size: 200% 100%;
+    animation: indeterminate-progress 1.5s linear infinite;
+}
+
+.build-progress-bar::-webkit-progress-value {
+    background: var(--theme-primary);
+    border-radius: 4px;
+}
+
+.build-progress-bar::-moz-progress-bar {
+    background: var(--theme-primary);
+    border-radius: 4px;
+}
+
+@keyframes indeterminate-progress {
+    0% {
+        background-position: 100% 0;
+    }
+    100% {
+        background-position: -100% 0;
+    }
+}
+
+.build-progress-text {
+    font-size: 0.875rem;
+    color: var(--theme-text-secondary);
+    font-weight: 500;
+}
+
 /* ============= Version Info Layout ============= */
 .version-info {
     display: flex;

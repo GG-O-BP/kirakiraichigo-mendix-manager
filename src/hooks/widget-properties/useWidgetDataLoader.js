@@ -4,16 +4,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { createEditorConfigHandler } from "../../utils/editorConfigParser";
 import { initializePropertyValues } from "../../utils/data-processing/propertyCalculation";
 
-/**
- * useWidgetDataLoader - Loads widget definition, properties, and editor config
- * @param {Object|null} selectedWidget - The currently selected widget
- */
 export function useWidgetDataLoader(selectedWidget) {
   const [widgetDefinition, setWidgetDefinition] = useState(null);
   const [dynamicProperties, setDynamicProperties] = useState({});
   const [editorConfigHandler, setEditorConfigHandler] = useState(null);
 
-  const resetWidgetPropertiesState = useCallback(() => {
+  const resetWidgetState = useCallback(() => {
     setWidgetDefinition(null);
     setDynamicProperties({});
     setEditorConfigHandler(null);
@@ -26,10 +22,9 @@ export function useWidgetDataLoader(selectedWidget) {
     []
   );
 
-  // Load widget data when selection changes
   useEffect(() => {
     if (!selectedWidget) {
-      resetWidgetPropertiesState();
+      resetWidgetState();
       return;
     }
 
@@ -61,7 +56,7 @@ export function useWidgetDataLoader(selectedWidget) {
     };
 
     loadWidgetData();
-  }, [selectedWidget, resetWidgetPropertiesState]);
+  }, [selectedWidget, resetWidgetState]);
 
   return {
     widgetDefinition,

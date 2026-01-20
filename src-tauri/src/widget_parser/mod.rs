@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-// Pure data types - immutable by design
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WidgetProperty {
     pub key: String,
@@ -51,7 +50,6 @@ impl std::fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-// Pure data structures for parsing state
 #[derive(Debug, Clone)]
 struct ParseContext {
     depth: usize,
@@ -94,7 +92,6 @@ fn create_initial_state() -> ParseState {
     }
 }
 
-// Pure attribute extraction functions
 fn extract_string_attribute(
     attributes: &[quick_xml::events::attributes::Attribute],
     key: &[u8],
@@ -143,7 +140,6 @@ fn extract_enumeration_value(
     extract_string_attribute(&attrs, b"key")
 }
 
-// Pure state transformation functions
 fn increment_depth(state: ParseState) -> ParseState {
     ParseState {
         context: ParseContext {
@@ -286,7 +282,6 @@ fn finalize_current_property(mut state: ParseState) -> ParseState {
 }
 
 fn finalize_property_to_group(mut state: ParseState, property: WidgetProperty) -> ParseState {
-    // Add property to the current group (top of stack)
     if let Some(group) = state.group_stack.last_mut() {
         group.properties.push(property);
     }
@@ -301,20 +296,16 @@ fn finalize_property_to_root(mut state: ParseState, property: WidgetProperty) ->
 }
 
 fn finalize_current_group(mut state: ParseState) -> ParseState {
-    // Pop the current group from stack
     if let Some(completed_group) = state.group_stack.pop() {
-        // If there's a parent group, add as nested group
         if let Some(parent_group) = state.group_stack.last_mut() {
             parent_group.property_groups.push(completed_group);
         } else {
-            // No parent, add to root property_groups
             state.property_groups.push(completed_group);
         }
     }
     state
 }
 
-// Pure event processing functions
 fn process_start_event(
     state: ParseState,
     name: &[u8],
@@ -379,7 +370,6 @@ fn process_text_event(state: ParseState, text: &str) -> ParseState {
     }
 }
 
-// Pure XML parsing function
 fn parse_xml_events<F>(xml_content: &str, mut event_processor: F) -> Result<ParseState, ParseError>
 where
     F: FnMut(ParseState, Event) -> ParseState,
@@ -444,7 +434,6 @@ fn parse_xml_content(xml_content: &str) -> Result<WidgetDefinition, ParseError> 
     parse_xml_events(xml_content, process_xml_event).map(state_to_widget_definition)
 }
 
-// Pure file filtering functions
 fn is_xml_file(path: &Path) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
@@ -463,7 +452,6 @@ fn is_widget_xml_file(path: &Path) -> bool {
     is_xml_file(path) && is_not_package_xml(path)
 }
 
-// IO functions - only these perform side effects
 fn read_directory_entries(dir_path: &Path) -> Result<Vec<std::fs::DirEntry>, ParseError> {
     fs::read_dir(dir_path)
         .map_err(|e| ParseError::FileNotFound(format!("Cannot read src directory: {}", e)))?
@@ -500,12 +488,10 @@ fn read_file_content(file_path: &str) -> Result<String, ParseError> {
         .map_err(|e| ParseError::FileNotFound(format!("Failed to read {}: {}", file_path, e)))
 }
 
-// Pure validation function
 fn contains_mendix_string(content: &str) -> bool {
     content.to_lowercase().contains("mendix")
 }
 
-// Validation function for Mendix widget
 fn validate_mendix_package_xml(widget_path: &str) -> Result<bool, ParseError> {
     let package_xml_path = Path::new(widget_path).join("src").join("package.xml");
 
@@ -520,7 +506,6 @@ fn validate_mendix_package_xml(widget_path: &str) -> Result<bool, ParseError> {
         .map(|content| contains_mendix_string(&content))
 }
 
-// Main API function - composes pure functions with minimal IO
 pub fn parse_widget_xml(widget_path: &str) -> Result<WidgetDefinition, ParseError> {
     find_widget_xml_file(widget_path)
         .and_then(|xml_path| read_file_content(&xml_path))
@@ -545,7 +530,6 @@ pub struct EditorConfigResult {
     pub file_path: Option<String>,
 }
 
-// Pure file filtering function for editorConfig
 fn is_editor_config_file(path: &Path) -> bool {
     path.file_name()
         .and_then(|name| name.to_str())
@@ -553,7 +537,6 @@ fn is_editor_config_file(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-// Find editorConfig file in widget src directory
 fn find_editor_config_file(widget_path: &str) -> Option<String> {
     let src_path = Path::new(widget_path).join("src");
 
@@ -589,8 +572,6 @@ pub fn read_editor_config(widget_path: String) -> Result<EditorConfigResult, Str
         }),
     }
 }
-
-// ============= Property UI Type Mapping =============
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UITypeMapping {
@@ -639,8 +620,6 @@ pub fn get_ui_type_mappings() -> Result<Vec<UITypeMapping>, String> {
     }).collect())
 }
 
-// ============= Property Default Values =============
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PropertyValue {
@@ -667,8 +646,6 @@ fn get_default_value_for_type_internal(property_type: &str) -> PropertyValue {
 pub fn get_default_value_for_type(property_type: String) -> Result<PropertyValue, String> {
     Ok(get_default_value_for_type_internal(&property_type))
 }
-
-// ============= Property Validation =============
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationResult {
@@ -750,8 +727,6 @@ pub fn validate_property_value(
     Ok(validate_property_value_internal(&property, &value))
 }
 
-// ============= Property Search Filtering =============
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParsedProperty {
     pub key: String,
@@ -790,8 +765,6 @@ pub fn filter_properties_by_search(
         .filter(|p| property_matches_search(p, &search_term))
         .collect())
 }
-
-// ============= Property Initialization =============
 
 fn extract_properties_from_group_with_category(
     group: &WidgetPropertyGroup,
@@ -881,8 +854,6 @@ pub fn initialize_property_values(widget_path: String) -> Result<HashMap<String,
     Ok(values)
 }
 
-// ============= Group Properties by Category =============
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PropertyGroup {
     pub category: String,
@@ -911,9 +882,6 @@ pub fn group_properties_by_category(properties: Vec<ParsedProperty>) -> Result<V
     Ok(result)
 }
 
-// ============= Editor Config Transformation Functions =============
-
-/// Property format used by the editor config (frontend-friendly format)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EditorProperty {
     pub key: String,
@@ -927,7 +895,6 @@ pub struct EditorProperty {
     pub options: Vec<String>,
 }
 
-/// Property group format used by the editor config
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EditorPropertyGroup {
     pub caption: String,
@@ -936,7 +903,6 @@ pub struct EditorPropertyGroup {
     pub property_groups: Vec<EditorPropertyGroup>,
 }
 
-/// Transforms a WidgetProperty to EditorProperty format
 fn transform_property_to_editor_format(prop: &WidgetProperty) -> EditorProperty {
     EditorProperty {
         key: prop.key.clone(),
@@ -953,7 +919,6 @@ fn transform_property_to_editor_format(prop: &WidgetProperty) -> EditorProperty 
     }
 }
 
-/// Recursively transforms a WidgetPropertyGroup to EditorPropertyGroup format
 fn transform_property_group_to_editor_format(group: &WidgetPropertyGroup) -> EditorPropertyGroup {
     EditorPropertyGroup {
         caption: group.caption.clone(),
@@ -970,7 +935,6 @@ fn transform_property_group_to_editor_format(group: &WidgetPropertyGroup) -> Edi
     }
 }
 
-/// Transforms a WidgetDefinition to editor-friendly format (array of property groups)
 fn transform_widget_definition_to_editor_format_internal(
     definition: &WidgetDefinition,
 ) -> Vec<EditorPropertyGroup> {
@@ -981,7 +945,6 @@ fn transform_widget_definition_to_editor_format_internal(
         .collect()
 }
 
-/// Recursively extracts all property keys from editor property groups
 fn extract_keys_from_editor_group(group: &EditorPropertyGroup) -> Vec<String> {
     let mut keys: Vec<String> = group.properties.iter().map(|p| p.key.clone()).collect();
 
@@ -992,7 +955,6 @@ fn extract_keys_from_editor_group(group: &EditorPropertyGroup) -> Vec<String> {
     keys
 }
 
-/// Extracts all property keys from a list of editor property groups
 fn extract_all_property_keys_from_groups_internal(groups: &[EditorPropertyGroup]) -> Vec<String> {
     let mut all_keys: Vec<String> = Vec::new();
 
@@ -1007,7 +969,6 @@ fn extract_all_property_keys_from_groups_internal(groups: &[EditorPropertyGroup]
     all_keys
 }
 
-/// Recursively checks if a property key exists in editor property groups
 fn is_key_in_editor_group(group: &EditorPropertyGroup, key: &str) -> bool {
     if group.properties.iter().any(|p| p.key == key) {
         return true;
@@ -1019,12 +980,10 @@ fn is_key_in_editor_group(group: &EditorPropertyGroup, key: &str) -> bool {
         .any(|g| is_key_in_editor_group(g, key))
 }
 
-/// Checks if a property key exists in any of the editor property groups
 fn is_property_key_in_groups_internal(groups: &[EditorPropertyGroup], key: &str) -> bool {
     groups.iter().any(|group| is_key_in_editor_group(group, key))
 }
 
-/// Filters parsed properties by visible keys
 fn filter_parsed_properties_by_keys_internal(
     visible_keys: Option<&[String]>,
     parsed_properties: Vec<ParsedProperty>,
@@ -1037,8 +996,6 @@ fn filter_parsed_properties_by_keys_internal(
             .collect(),
     }
 }
-
-// ============= Editor Config Tauri Commands =============
 
 #[tauri::command]
 pub fn transform_widget_definition_to_editor_format(
@@ -1074,9 +1031,6 @@ pub fn is_property_key_in_groups(
     Ok(is_property_key_in_groups_internal(&groups, &property_key))
 }
 
-// ============= Property Count Functions =============
-
-/// Recursively counts visible properties in an EditorPropertyGroup
 fn count_visible_properties_in_group_internal(
     group: &EditorPropertyGroup,
     visible_keys: Option<&[String]>,
@@ -1112,7 +1066,6 @@ pub fn count_visible_properties_in_group(
     ))
 }
 
-/// Counts visible properties in a WidgetPropertyGroup (original XML parsed format)
 fn count_visible_properties_in_widget_group_internal(
     group: &WidgetPropertyGroup,
     visible_keys: Option<&[String]>,
@@ -1148,16 +1101,12 @@ pub fn count_visible_properties_in_widget_group(
     ))
 }
 
-// ============= Batch Property Count Functions =============
-
-/// Result type for batch counting - maps group path to count
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroupCountResult {
     pub group_path: String,
     pub count: usize,
 }
 
-/// Recursively counts all groups and builds a map of group_path -> count
 fn count_all_groups_recursive(
     group: &EditorPropertyGroup,
     parent_path: &str,
@@ -1184,8 +1133,6 @@ fn count_all_groups_recursive(
     }
 }
 
-/// Counts visible properties for all groups in a widget definition
-/// Returns a list of (group_path, count) pairs
 fn count_all_groups_in_definition_internal(
     property_groups: &[EditorPropertyGroup],
     visible_keys: Option<&[String]>,
@@ -1210,9 +1157,6 @@ pub fn count_all_groups_visible_properties(
     ))
 }
 
-// ============= Batch Property Count for WidgetPropertyGroup =============
-
-/// Recursively counts all groups and builds a map of group_path -> count (for WidgetPropertyGroup)
 fn count_all_widget_groups_recursive(
     group: &WidgetPropertyGroup,
     parent_path: &str,
@@ -1239,7 +1183,6 @@ fn count_all_widget_groups_recursive(
     }
 }
 
-/// Counts visible properties for all groups in a widget definition (for WidgetPropertyGroup)
 fn count_all_widget_groups_in_definition_internal(
     property_groups: &[WidgetPropertyGroup],
     visible_keys: Option<&[String]>,
@@ -1264,9 +1207,6 @@ pub fn count_all_widget_groups_visible_properties(
     ))
 }
 
-// ============= Property Spec Transformation =============
-
-/// Property spec format expected by frontend components
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PropertySpec {
     pub key: String,
@@ -1281,7 +1221,6 @@ pub struct PropertySpec {
     pub options: Vec<String>,
 }
 
-/// Transforms a WidgetProperty to PropertySpec format
 fn transform_widget_property_to_spec(prop: &WidgetProperty) -> PropertySpec {
     PropertySpec {
         key: prop.key.clone(),
@@ -1298,7 +1237,6 @@ fn transform_widget_property_to_spec(prop: &WidgetProperty) -> PropertySpec {
     }
 }
 
-/// Transforms a batch of WidgetProperty to PropertySpec format
 #[tauri::command]
 pub fn transform_properties_to_spec(
     properties: Vec<WidgetProperty>,
@@ -1309,9 +1247,6 @@ pub fn transform_properties_to_spec(
         .collect())
 }
 
-// ============= Complete Widget Definition in Spec Format =============
-
-/// Property group in spec format
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PropertyGroupSpec {
     pub caption: String,
@@ -1320,7 +1255,6 @@ pub struct PropertyGroupSpec {
     pub property_groups: Vec<PropertyGroupSpec>,
 }
 
-/// Complete widget definition in spec format (frontend-ready)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WidgetDefinitionSpec {
     pub name: String,
@@ -1330,7 +1264,6 @@ pub struct WidgetDefinitionSpec {
     pub property_groups: Vec<PropertyGroupSpec>,
 }
 
-/// Transforms a WidgetPropertyGroup to PropertyGroupSpec format
 fn transform_property_group_to_spec(group: &WidgetPropertyGroup) -> PropertyGroupSpec {
     PropertyGroupSpec {
         caption: group.caption.clone(),
@@ -1347,7 +1280,6 @@ fn transform_property_group_to_spec(group: &WidgetPropertyGroup) -> PropertyGrou
     }
 }
 
-/// Transforms a WidgetDefinition to WidgetDefinitionSpec format
 fn transform_widget_definition_to_spec(definition: &WidgetDefinition) -> WidgetDefinitionSpec {
     WidgetDefinitionSpec {
         name: definition.name.clone(),
@@ -1365,16 +1297,12 @@ fn transform_widget_definition_to_spec(definition: &WidgetDefinition) -> WidgetD
     }
 }
 
-/// Parses widget properties and returns in spec format (frontend-ready)
 #[tauri::command]
 pub fn parse_widget_properties_as_spec(widget_path: String) -> Result<WidgetDefinitionSpec, String> {
     let definition = parse_widget_xml(&widget_path).map_err(|e| e.to_string())?;
     Ok(transform_widget_definition_to_spec(&definition))
 }
 
-// ============= Property Count Functions for Spec Format =============
-
-/// Recursively counts visible properties in a PropertyGroupSpec
 fn count_visible_properties_in_spec_group_internal(
     group: &PropertyGroupSpec,
     visible_keys: Option<&[String]>,
@@ -1399,7 +1327,6 @@ fn count_visible_properties_in_spec_group_internal(
     direct_count + nested_count
 }
 
-/// Recursively counts all groups and builds a map of group_path -> count (for PropertyGroupSpec)
 fn count_all_spec_groups_recursive(
     group: &PropertyGroupSpec,
     parent_path: &str,
@@ -1426,7 +1353,6 @@ fn count_all_spec_groups_recursive(
     }
 }
 
-/// Counts visible properties for all groups in spec format
 #[tauri::command]
 pub fn count_all_spec_groups_visible_properties(
     property_groups: Vec<PropertyGroupSpec>,

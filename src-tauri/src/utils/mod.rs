@@ -2,7 +2,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-// Pure data types - immutable by design
 #[derive(Debug, Clone)]
 pub struct CopyOperation {
     pub source_path: PathBuf,
@@ -24,7 +23,6 @@ pub struct FileTreeNode {
     pub source_path: PathBuf,
 }
 
-// Pure validation functions
 fn is_valid_widget_path(widget_path: &str) -> bool {
     let dist_path = Path::new(widget_path).join("dist").join("1.0.0");
     dist_path.exists()
@@ -34,7 +32,6 @@ fn is_valid_app_path(app_path: &str) -> bool {
     Path::new(app_path).exists()
 }
 
-// Pure path construction functions
 fn construct_widget_source_path(widget_path: &str) -> PathBuf {
     Path::new(widget_path).join("dist").join("1.0.0")
 }
@@ -47,7 +44,6 @@ fn construct_target_file_path(target_dir: &Path, relative_path: &Path) -> PathBu
     target_dir.join(relative_path)
 }
 
-// Pure file tree analysis functions
 fn extract_relative_path(source_path: &Path, base_path: &Path) -> Option<PathBuf> {
     source_path
         .strip_prefix(base_path)
@@ -82,7 +78,6 @@ fn scan_directory_tree(source_dir: &Path) -> Result<Vec<FileTreeNode>, String> {
         .collect()
 }
 
-// Pure copy operation planning functions
 fn create_copy_operations(file_nodes: &[FileTreeNode], target_dir: &Path) -> Vec<CopyOperation> {
     file_nodes
         .iter()
@@ -99,7 +94,6 @@ fn plan_copy_operations_for_app(file_nodes: &[FileTreeNode], app_path: &str) -> 
     create_copy_operations(file_nodes, &target_dir)
 }
 
-// Pure result aggregation functions
 fn create_success_result(app_path: String) -> CopyResult {
     CopyResult {
         app_path,
@@ -136,7 +130,6 @@ fn collect_error_messages(results: &[CopyResult]) -> Vec<String> {
         .collect()
 }
 
-// Pure filtering functions
 fn filter_valid_app_paths(app_paths: Vec<String>) -> Vec<String> {
     app_paths
         .into_iter()
@@ -144,7 +137,6 @@ fn filter_valid_app_paths(app_paths: Vec<String>) -> Vec<String> {
         .collect()
 }
 
-// IO wrapper functions - only these perform side effects
 fn create_directory_if_not_exists(dir_path: &Path) -> Result<(), String> {
     if !dir_path.exists() {
         fs::create_dir_all(dir_path).map_err(|e| format!("Failed to create directory: {}", e))?;
@@ -153,7 +145,6 @@ fn create_directory_if_not_exists(dir_path: &Path) -> Result<(), String> {
 }
 
 fn copy_file_to_target(source_path: &Path, target_path: &Path) -> Result<(), String> {
-    // Ensure parent directory exists
     if let Some(parent) = target_path.parent() {
         create_directory_if_not_exists(parent)?;
     }
@@ -178,7 +169,6 @@ fn execute_copy_operations(operations: Vec<CopyOperation>) -> Result<(), String>
     Ok(())
 }
 
-// Main processing functions - compose pure functions with minimal IO
 fn process_single_app_copy(file_nodes: &[FileTreeNode], app_path: String) -> CopyResult {
     let copy_operations = plan_copy_operations_for_app(file_nodes, &app_path);
 
@@ -195,7 +185,6 @@ fn process_all_app_copies(file_nodes: &[FileTreeNode], app_paths: Vec<String>) -
         .collect()
 }
 
-// Pure validation composition
 fn validate_widget_copy_inputs(widget_path: &str, app_paths: &[String]) -> Result<(), String> {
     if !is_valid_widget_path(widget_path) {
         return Err(format!(
@@ -212,10 +201,6 @@ fn validate_widget_copy_inputs(widget_path: &str, app_paths: &[String]) -> Resul
     Ok(())
 }
 
-// Path utility functions
-
-/// Extracts the folder/file name from a path (last segment)
-/// Works with Windows paths (backslash separator)
 fn extract_folder_name_internal(path: &str) -> String {
     path.split(&['\\', '/'][..])
         .filter(|s| !s.is_empty())
@@ -232,7 +217,6 @@ pub fn extract_folder_name_from_path(path: String) -> Result<String, String> {
     Ok(extract_folder_name_internal(&path))
 }
 
-// Main API functions
 #[tauri::command]
 pub fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -243,20 +227,13 @@ pub fn copy_widget_to_apps(
     widget_path: String,
     app_paths: Vec<String>,
 ) -> Result<Vec<String>, String> {
-    // Validate inputs using pure functions
     validate_widget_copy_inputs(&widget_path, &app_paths)?;
 
-    // Get valid app paths only
     let valid_app_paths = filter_valid_app_paths(app_paths);
-
-    // Scan source directory structure
     let source_dir = construct_widget_source_path(&widget_path);
     let file_nodes = scan_directory_tree(&source_dir)?;
-
-    // Process all copy operations
     let results = process_all_app_copies(&file_nodes, valid_app_paths);
 
-    // Check for any failures and return appropriate result
     if has_any_failures(&results) {
         let error_messages = collect_error_messages(&results);
         Err(format!(

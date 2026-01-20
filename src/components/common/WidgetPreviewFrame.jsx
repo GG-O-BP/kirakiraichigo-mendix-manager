@@ -5,7 +5,6 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
   const iframeReadyRef = useRef(false);
   const bundleRef = useRef(null);
 
-  // Send properties update to iframe via postMessage
   const sendPropertiesToIframe = useCallback((props) => {
     if (!iframeRef.current || !iframeReadyRef.current) return;
 
@@ -16,11 +15,9 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
     );
   }, []);
 
-  // Initialize iframe with bundle (only when bundle changes)
   useEffect(() => {
     if (!iframeRef.current || !bundle) return;
 
-    // Skip if bundle hasn't changed
     if (bundleRef.current === bundle) {
       return;
     }
@@ -30,14 +27,12 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
     const iframe = iframeRef.current;
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
-    // Safely escape values for injection into HTML
     const safeWidgetName = (widgetName || "Widget").replace(/'/g, "\\'");
     const safeWidgetId = (widgetId || "").replace(/'/g, "\\'");
     const safeProperties = JSON.stringify(properties || {});
     const safeBundle = bundle;
     const safeCss = css || "";
 
-    // Create preview HTML with React runtime and widget bundle
     const html = `
       <!DOCTYPE html>
       <html>
@@ -72,7 +67,6 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
               color: #666;
             }
           </style>
-          <!-- Widget CSS -->
           <style>
             ${safeCss}
           </style>
@@ -82,38 +76,30 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
             <div class="preview-loading">Loading widget...</div>
           </div>
 
-          <!-- React Runtime from CDN -->
           <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
           <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-
-          <!-- RequireJS for AMD module loading -->
           <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
 
           <script>
             (function() {
               try {
-                // Make React available globally
                 window.React = React;
                 window.ReactDOM = ReactDOM;
 
-                // Create JSX runtime shim for React 18
                 const jsxRuntime = {
                   jsx: React.createElement,
                   jsxs: React.createElement,
                   Fragment: React.Fragment,
                 };
 
-                // Configure RequireJS to handle React modules
                 if (typeof define !== 'undefined' && define.amd) {
                   define('react', [], function() { return React; });
                   define('react-dom', [], function() { return ReactDOM; });
                   define('react/jsx-runtime', [], function() { return jsxRuntime; });
                 }
 
-                // Store the widget module
                 let WidgetModule = null;
 
-                // Override define to capture the widget module
                 const originalDefine = window.define;
                 window.define = function(deps, factory) {
                   if (typeof factory === 'function') {
@@ -141,25 +127,19 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                 };
                 window.define.amd = true;
 
-                // Widget bundle
                 ${safeBundle}
 
-                // Restore original define
                 window.define = originalDefine;
 
-                // Get root element
                 const container = document.getElementById('widget-root');
                 if (!container) {
                   throw new Error('Root container not found');
                 }
 
-                // Create React root
                 const root = ReactDOM.createRoot(container);
 
-                // Store root globally for re-renders
                 window.__widgetRoot = root;
 
-                // Mock Mendix context and APIs
                 const createMockAttribute = (value) => ({
                   value: value,
                   status: 'available',
@@ -174,7 +154,6 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                   status: 'available'
                 });
 
-                // Function to map properties to widget format
                 const mapPropsToWidgetFormat = (props) => {
                   const widgetProps = {};
                   Object.keys(props).forEach(key => {
@@ -190,10 +169,8 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                   return widgetProps;
                 };
 
-                // Store the mapping function globally
                 window.__mapPropsToWidgetFormat = mapPropsToWidgetFormat;
 
-                // Try to find the widget
                 let Widget = null;
 
                 if (WidgetModule) {
@@ -213,7 +190,6 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                   }
                 }
 
-                // Fallback to global exports
                 if (!Widget && typeof window['${safeWidgetName}'] !== 'undefined') {
                   Widget = window['${safeWidgetName}'];
                 } else if (!Widget && '${safeWidgetId}'.includes('.')) {
@@ -223,7 +199,6 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                   }
                 }
 
-                // Check for namespaced exports
                 if (!Widget && '${safeWidgetId}'.includes('.')) {
                   const parts = '${safeWidgetId}'.split('.');
                   let obj = window;
@@ -240,15 +215,12 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                   throw new Error('Widget "${safeWidgetName}" (${safeWidgetId}) not found.');
                 }
 
-                // Store Widget globally for re-renders
                 window.__WidgetComponent = Widget;
 
-                // Initial render with properties
                 const initialProps = ${safeProperties};
                 const widgetProps = mapPropsToWidgetFormat(initialProps);
                 root.render(React.createElement(Widget, widgetProps));
 
-                // Listen for property updates from parent
                 window.addEventListener('message', (event) => {
                   if (event.data && event.data.type === 'UPDATE_PROPERTIES') {
                     const newProps = event.data.properties;
@@ -262,7 +234,6 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                   }
                 });
 
-                // Notify parent that iframe is ready
                 window.parent.postMessage({ type: 'IFRAME_READY' }, '*');
 
               } catch (error) {
@@ -292,21 +263,18 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
     iframeDoc.close();
   }, [bundle, css, widgetName, widgetId]);
 
-  // Listen for iframe ready message
   useEffect(() => {
-    const handleMessage = (event) => {
+    const handleIframeReady = (event) => {
       if (event.data && event.data.type === "IFRAME_READY") {
         iframeReadyRef.current = true;
-        // Send current properties when iframe is ready
         sendPropertiesToIframe(properties);
       }
     };
 
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
+    window.addEventListener("message", handleIframeReady);
+    return () => window.removeEventListener("message", handleIframeReady);
   }, [properties, sendPropertiesToIframe]);
 
-  // Send property updates to iframe when properties change (without rebuilding)
   useEffect(() => {
     if (iframeReadyRef.current && properties) {
       sendPropertiesToIframe(properties);

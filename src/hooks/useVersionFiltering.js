@@ -32,7 +32,6 @@ export const useVersionFiltering = ({
   const [displayedApps, setDisplayedApps] = useState([]);
   const [nextPageNumber, setNextPageNumber] = useState(1);
 
-  // Filter installed versions
   useEffect(() => {
     if (installedVersions && installedVersions.length > 0) {
       filterMendixVersions(installedVersions, searchTerm, true)
@@ -46,7 +45,6 @@ export const useVersionFiltering = ({
     }
   }, [installedVersions, searchTerm]);
 
-  // Filter and sort apps
   useEffect(() => {
     if (apps && apps.length > 0) {
       filterAndSortAppsWithPriority(
@@ -64,7 +62,6 @@ export const useVersionFiltering = ({
     }
   }, [apps, searchTerm, selectedVersion]);
 
-  // Filter downloadable versions
   useEffect(() => {
     const filterDownloadable = async () => {
       if (!downloadableVersions || downloadableVersions.length === 0) {
@@ -103,7 +100,6 @@ export const useVersionFiltering = ({
     filterDownloadable();
   }, [downloadableVersions, installedVersions, showOnlyDownloadableVersions, showLTSOnly, showMTSOnly, showBetaOnly, searchTerm]);
 
-  // Calculate next page number
   useEffect(() => {
     if (downloadableVersions && downloadableVersions.length > 0) {
       invokeCalculateNextPageNumber(downloadableVersions.length, DOWNLOADABLE_VERSIONS_PAGE_SIZE)
@@ -127,5 +123,3 @@ export const useVersionFiltering = ({
     loadMoreHandler: createLoadMoreHandler(),
   };
 };
-
-export default useVersionFiltering;
