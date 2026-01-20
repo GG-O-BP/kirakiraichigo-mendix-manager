@@ -44,5 +44,3 @@ export function useInstalledVersions(searchTerm = "") {
     loadVersions,
   };
 }
-
-export default useInstalledVersions;

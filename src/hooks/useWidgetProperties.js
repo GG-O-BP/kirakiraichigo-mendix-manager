@@ -28,5 +28,3 @@ export const useWidgetProperties = (selectedWidget, baseProperties = {}) => {
     combinedProperties,
   };
 };
-
-export default useWidgetProperties;

@@ -20,5 +20,3 @@ export function usePropertyGroupUI() {
     toggleGroup,
   };
 }
-
-export default usePropertyGroupUI;

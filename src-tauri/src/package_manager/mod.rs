@@ -25,6 +25,14 @@ pub struct InstallResult {
     pub error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchInstallSummary {
+    pub results: Vec<InstallResult>,
+    pub failed_widget_names: Vec<String>,
+    pub success_count: usize,
+    pub failure_count: usize,
+}
+
 #[tauri::command]
 pub fn run_package_manager_command(
     package_manager: String,
@@ -767,7 +775,7 @@ pub fn batch_install_widgets(
     widgets: Vec<WidgetInstallInput>,
     package_manager: String,
     selected_widget_ids: Option<Vec<String>>,
-) -> Result<Vec<InstallResult>, String> {
+) -> Result<BatchInstallSummary, String> {
     let widgets_to_install = match selected_widget_ids {
         Some(ids) if !ids.is_empty() => filter_widgets_by_ids_internal(&widgets, &ids),
         _ => widgets,
@@ -788,13 +796,23 @@ pub fn batch_install_widgets(
         .map(|widget| install_single_widget(widget, &package_manager))
         .collect();
 
-    let successful_count = results.iter().filter(|r| r.success).count();
-    let failed_count = results.iter().filter(|r| !r.success).count();
+    let success_count = results.iter().filter(|r| r.success).count();
+    let failure_count = results.iter().filter(|r| !r.success).count();
+    let failed_widget_names: Vec<String> = results
+        .iter()
+        .filter(|r| !r.success)
+        .map(|r| r.widget_caption.clone())
+        .collect();
 
     println!(
         "[Batch Install] Completed: {} successful, {} failed",
-        successful_count, failed_count
+        success_count, failure_count
     );
 
-    Ok(results)
+    Ok(BatchInstallSummary {
+        results,
+        failed_widget_names,
+        success_count,
+        failure_count,
+    })
 }

@@ -24,23 +24,18 @@ export function useInstallOperation({ packageManager, setIsInstalling }) {
       const selectedWidgetIds = Array.from(selectedWidgets);
 
       try {
-        const results = await invoke("batch_install_widgets", {
+        const summary = await invoke("batch_install_widgets", {
           widgets,
           packageManager,
           selectedWidgetIds,
         });
 
-        const failedResults = R.filter(R.propEq(false, "success"), results);
-
         R.unless(
           R.isEmpty,
-          R.pipe(
-            R.map(R.prop("widgetCaption")),
-            R.join(", "),
-            (failedWidgets) =>
-              alert(`Failed to install dependencies for: ${failedWidgets}`),
+          R.pipe(R.join(", "), (failedWidgets) =>
+            alert(`Failed to install dependencies for: ${failedWidgets}`),
           ),
-        )(failedResults);
+        )(R.prop("failed_widget_names", summary));
       } catch (error) {
         alert(`Installation failed: ${error}`);
       }

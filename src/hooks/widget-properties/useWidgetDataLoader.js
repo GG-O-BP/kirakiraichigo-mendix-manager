@@ -65,5 +65,3 @@ export function useWidgetDataLoader(selectedWidget) {
     updateProperty,
   };
 }
-
-export default useWidgetDataLoader;

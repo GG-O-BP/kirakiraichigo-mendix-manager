@@ -89,5 +89,3 @@ export function useApps() {
     handleDeleteApp,
   };
 }
-
-export default useApps;

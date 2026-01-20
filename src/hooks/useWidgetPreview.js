@@ -21,5 +21,3 @@ export function useWidgetPreview() {
     updateProperty,
   };
 }
-
-export default useWidgetPreview;

@@ -1,11 +1,7 @@
 import * as R from "ramda";
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  STORAGE_KEYS,
-  saveToStorage,
-  invokeValidateRequired,
-} from "../utils";
+import { STORAGE_KEYS, saveToStorage } from "../utils";
 import { filterWidgets } from "../utils/data-processing/widgetFiltering";
 import { useCollection } from "./useCollection";
 
@@ -30,11 +26,7 @@ export function useWidgets() {
 
   const handleAddWidget = useCallback(
     async (onSuccess) => {
-      const isValid = invokeValidateRequired(["caption", "path"], {
-        caption: newWidgetCaption,
-        path: newWidgetPath,
-      });
-
+      const isValid = R.all(R.complement(R.isEmpty), [newWidgetCaption, newWidgetPath]);
       if (!isValid) return;
 
       try {
@@ -126,5 +118,3 @@ export function useWidgets() {
     handleWidgetDelete,
   };
 }
-
-export default useWidgets;

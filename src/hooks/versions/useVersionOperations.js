@@ -148,5 +148,3 @@ export function useVersionOperations({ onLoadVersions }) {
     handleModalDownload,
   };
 }
-
-export default useVersionOperations;

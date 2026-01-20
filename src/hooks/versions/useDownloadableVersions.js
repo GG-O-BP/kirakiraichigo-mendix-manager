@@ -62,5 +62,3 @@ export function useDownloadableVersions() {
     fetchVersionsFromDatagrid,
   };
 }
-
-export default useDownloadableVersions;

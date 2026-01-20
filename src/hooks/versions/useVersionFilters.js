@@ -24,5 +24,3 @@ export function useVersionFilters() {
     setShowBetaOnly,
   };
 }
-
-export default useVersionFilters;

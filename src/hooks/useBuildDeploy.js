@@ -37,5 +37,3 @@ export function useBuildDeploy({ onShowResultModal } = {}) {
     handleBuildDeploy: buildDeploy.handleBuildDeploy,
   };
 }
-
-export default useBuildDeploy;

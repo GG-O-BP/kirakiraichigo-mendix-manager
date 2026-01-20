@@ -17,7 +17,7 @@ pub use mendix::{
     get_installed_mendix_versions, launch_studio_pro, uninstall_studio_pro,
     uninstall_studio_pro_and_wait, MendixApp, MendixVersion,
 };
-pub use package_manager::{batch_install_widgets, run_package_manager_command};
+pub use package_manager::{batch_install_widgets, run_package_manager_command, BatchInstallSummary};
 pub use utils::{copy_widget_to_apps, extract_folder_name_from_path, greet};
 pub use web_scraper::{
     debug_page_structure, download_and_install_mendix_version, extract_build_number,

@@ -27,5 +27,3 @@ export function useVersionSelection() {
     handleVersionClick,
   };
 }
-
-export default useVersionSelection;
