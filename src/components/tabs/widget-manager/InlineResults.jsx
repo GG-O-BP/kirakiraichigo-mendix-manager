@@ -19,7 +19,23 @@ const InlineResultItem = memo(({ type, widget, apps }) => (
 
 InlineResultItem.displayName = "InlineResultItem";
 
-const InlineResults = memo(({ inlineResults, setInlineResults }) => {
+const BuildingProgress = memo(() => (
+  <div className="inline-results-container">
+    <div className="inline-results-header">
+      <h4>Build & Deploy Results</h4>
+    </div>
+    <div className="inline-results-content">
+      <div className="build-progress-container">
+        <progress className="build-progress-bar" />
+        <span className="build-progress-text">Building & Deploying...</span>
+      </div>
+    </div>
+  </div>
+));
+
+BuildingProgress.displayName = "BuildingProgress";
+
+const InlineResults = memo(({ inlineResults, setInlineResults, isBuilding }) => {
   const hasResults = R.pipe(
     R.juxt([
       R.pipe(R.propOr([], "successful"), R.complement(R.isEmpty)),
@@ -27,6 +43,10 @@ const InlineResults = memo(({ inlineResults, setInlineResults }) => {
     ]),
     R.any(R.identity),
   )(inlineResults);
+
+  if (isBuilding) {
+    return <BuildingProgress />;
+  }
 
   if (R.or(R.isNil(inlineResults), R.not(hasResults))) {
     return null;

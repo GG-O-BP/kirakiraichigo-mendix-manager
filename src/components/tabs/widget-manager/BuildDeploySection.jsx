@@ -68,6 +68,7 @@ const BuildDeploySection = memo(({
     <InlineResults
       inlineResults={inlineResults}
       setInlineResults={setInlineResults}
+      isBuilding={isBuilding}
     />
   </div>
 ));
