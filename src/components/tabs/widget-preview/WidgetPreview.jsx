@@ -101,6 +101,7 @@ const WidgetPreview = memo(() => {
       <PreviewPanel
         previewData={previewData}
         properties={combinedProperties}
+        isBuilding={isBuilding}
       />
     </div>
   );
