@@ -1,16 +1,16 @@
 import { useEffect, useRef, useCallback } from "react";
 
-const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) => {
+const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, widgetDefinition }) => {
   const iframeRef = useRef(null);
   const iframeReadyRef = useRef(false);
   const bundleRef = useRef(null);
 
-  const sendPropertiesToIframe = useCallback((props) => {
+  const sendPropertiesToIframe = useCallback((props, definition) => {
     if (!iframeRef.current || !iframeReadyRef.current) return;
 
     const iframe = iframeRef.current;
     iframe.contentWindow?.postMessage(
-      { type: "UPDATE_PROPERTIES", properties: props },
+      { type: "UPDATE_PROPERTIES", properties: props, widgetDefinition: definition },
       "*"
     );
   }, []);
@@ -30,6 +30,7 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
     const safeWidgetName = (widgetName || "Widget").replace(/'/g, "\\'");
     const safeWidgetId = (widgetId || "").replace(/'/g, "\\'");
     const safeProperties = JSON.stringify(properties || {});
+    const safeWidgetDefinition = JSON.stringify(widgetDefinition || {});
     const safeBundle = bundle;
     const safeCss = css || "";
 
@@ -140,27 +141,86 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
 
                 window.__widgetRoot = root;
 
-                const createMockAttribute = (value) => ({
-                  value: value,
-                  status: 'available',
-                  readOnly: false,
-                  validation: undefined,
-                  displayValue: value ? String(value) : '',
-                  setValue: () => {}
-                });
-
                 const createMockExpression = (value) => ({
                   value: value,
                   status: 'available'
                 });
 
-                const mapPropsToWidgetFormat = (props) => {
+                const createMockDatasource = (jsonString) => {
+                  let items = [];
+                  try {
+                    const parsed = JSON.parse(jsonString);
+                    items = Array.isArray(parsed) ? parsed : [parsed];
+                  } catch (e) {
+                    items = [];
+                  }
+                  return {
+                    items: items,
+                    status: 'available'
+                  };
+                };
+
+                const createMockAttribute = (selectedKey) => {
+                  return {
+                    get: (item) => {
+                      const value = item ? item[selectedKey] : undefined;
+                      return {
+                        value: value,
+                        displayValue: value !== undefined && value !== null ? String(value) : ''
+                      };
+                    },
+                    status: 'available'
+                  };
+                };
+
+                const createSimpleMockAttribute = (value) => ({
+                  value: value,
+                  status: 'available',
+                  readOnly: false,
+                  validation: undefined,
+                  displayValue: value !== undefined && value !== null ? String(value) : '',
+                  setValue: () => {}
+                });
+
+                const getAllProperties = (definition) => {
+                  const props = [];
+                  if (definition && definition.properties) {
+                    props.push(...definition.properties);
+                  }
+                  if (definition && definition.propertyGroups) {
+                    const collectFromGroups = (groups) => {
+                      groups.forEach(group => {
+                        if (group.properties) {
+                          props.push(...group.properties);
+                        }
+                        if (group.propertyGroups) {
+                          collectFromGroups(group.propertyGroups);
+                        }
+                      });
+                    };
+                    collectFromGroups(definition.propertyGroups);
+                  }
+                  return props;
+                };
+
+                const mapPropsToWidgetFormat = (props, definition) => {
                   const widgetProps = {};
+                  const allPropertyDefs = getAllProperties(definition);
+
                   Object.keys(props).forEach(key => {
                     const value = props[key];
-                    if (key.includes('attribute') || key.includes('date') || key.includes('Date')) {
-                      widgetProps[key] = createMockAttribute(value);
-                    } else if (key.includes('expression') || key.includes('min') || key.includes('max')) {
+                    const propertyDef = allPropertyDefs.find(p => p.key === key);
+                    const propType = propertyDef ? propertyDef.type : null;
+
+                    if (propType === 'datasource') {
+                      widgetProps[key] = createMockDatasource(value);
+                    } else if (propType === 'attribute') {
+                      if (value) {
+                        widgetProps[key] = createMockAttribute(value);
+                      } else {
+                        widgetProps[key] = createSimpleMockAttribute(value);
+                      }
+                    } else if (propType === 'expression' || key.includes('expression')) {
                       widgetProps[key] = createMockExpression(value);
                     } else {
                       widgetProps[key] = value;
@@ -170,6 +230,7 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                 };
 
                 window.__mapPropsToWidgetFormat = mapPropsToWidgetFormat;
+                window.__widgetDefinition = ${safeWidgetDefinition};
 
                 let Widget = null;
 
@@ -218,13 +279,15 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
                 window.__WidgetComponent = Widget;
 
                 const initialProps = ${safeProperties};
-                const widgetProps = mapPropsToWidgetFormat(initialProps);
+                const initialDefinition = ${safeWidgetDefinition};
+                const widgetProps = mapPropsToWidgetFormat(initialProps, initialDefinition);
                 root.render(React.createElement(Widget, widgetProps));
 
                 window.addEventListener('message', (event) => {
                   if (event.data && event.data.type === 'UPDATE_PROPERTIES') {
                     const newProps = event.data.properties;
-                    const mappedProps = window.__mapPropsToWidgetFormat(newProps);
+                    const newDefinition = event.data.widgetDefinition || window.__widgetDefinition;
+                    const mappedProps = window.__mapPropsToWidgetFormat(newProps, newDefinition);
                     const WidgetComp = window.__WidgetComponent;
                     const reactRoot = window.__widgetRoot;
 
@@ -267,19 +330,19 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties }) =
     const handleIframeReady = (event) => {
       if (event.data && event.data.type === "IFRAME_READY") {
         iframeReadyRef.current = true;
-        sendPropertiesToIframe(properties);
+        sendPropertiesToIframe(properties, widgetDefinition);
       }
     };
 
     window.addEventListener("message", handleIframeReady);
     return () => window.removeEventListener("message", handleIframeReady);
-  }, [properties, sendPropertiesToIframe]);
+  }, [properties, widgetDefinition, sendPropertiesToIframe]);
 
   useEffect(() => {
     if (iframeReadyRef.current && properties) {
-      sendPropertiesToIframe(properties);
+      sendPropertiesToIframe(properties, widgetDefinition);
     }
-  }, [properties, sendPropertiesToIframe]);
+  }, [properties, widgetDefinition, sendPropertiesToIframe]);
 
   return (
     <iframe
