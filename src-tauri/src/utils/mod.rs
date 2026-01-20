@@ -203,8 +203,7 @@ fn validate_widget_copy_inputs(widget_path: &str, app_paths: &[String]) -> Resul
 
 fn extract_folder_name_internal(path: &str) -> String {
     path.split(&['\\', '/'][..])
-        .filter(|s| !s.is_empty())
-        .last()
+        .rfind(|s| !s.is_empty())
         .unwrap_or("")
         .to_string()
 }

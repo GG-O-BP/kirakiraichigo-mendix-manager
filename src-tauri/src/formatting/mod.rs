@@ -35,7 +35,7 @@ fn parse_date_string(date_str: &str) -> Option<DateTime<Local>> {
 fn format_date_with_fallback_internal(date_str: Option<&str>, fallback: &str) -> String {
     match date_str {
         None => fallback.to_string(),
-        Some(s) if s.is_empty() => fallback.to_string(),
+        Some("") => fallback.to_string(),
         Some(s) => match parse_date_string(s) {
             Some(dt) => dt.format("%Y-%m-%d").to_string(),
             None => fallback.to_string(),

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageManagerConfig {
@@ -85,29 +85,35 @@ fn construct_config_file_path() -> Result<PathBuf, String> {
     construct_config_directory_path().map(|dir| dir.join("package_manager_config.json"))
 }
 
-fn extract_parent_directory(path: &PathBuf) -> Option<&std::path::Path> {
+fn extract_parent_directory(path: &Path) -> Option<&Path> {
     path.parent()
 }
 
-fn read_config_file(file_path: &PathBuf) -> Result<String, String> {
+fn read_config_file(file_path: &Path) -> Result<String, String> {
     fs::read_to_string(file_path).map_err(|e| format!("Failed to read config file: {}", e))
 }
 
-fn write_config_file(file_path: &PathBuf, content: &str) -> Result<(), String> {
+fn write_config_file(file_path: &Path, content: &str) -> Result<(), String> {
     fs::write(file_path, content).map_err(|e| format!("Failed to write config file: {}", e))
 }
 
-fn create_directory_recursive(dir_path: &std::path::Path) -> Result<(), String> {
+fn create_directory_recursive(dir_path: &Path) -> Result<(), String> {
     fs::create_dir_all(dir_path).map_err(|e| format!("Failed to create directory: {}", e))
 }
 
-fn file_exists(path: &PathBuf) -> bool {
+fn file_exists(path: &Path) -> bool {
     path.exists()
+}
+
+impl Default for PackageManagerConfig {
+    fn default() -> Self {
+        create_empty_config()
+    }
 }
 
 impl PackageManagerConfig {
     pub fn new() -> Self {
-        create_empty_config()
+        Self::default()
     }
 
     pub fn get_method(&self, package_manager: &str) -> Option<&String> {
@@ -121,42 +127,42 @@ impl PackageManagerConfig {
     pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
         let config_path =
             construct_config_file_path().map_err(|e| -> Box<dyn std::error::Error> {
-                Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                Box::new(std::io::Error::other(e))
             })?;
 
         if file_exists(&config_path) {
             let content =
                 read_config_file(&config_path).map_err(|e| -> Box<dyn std::error::Error> {
-                    Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                    Box::new(std::io::Error::other(e))
                 })?;
 
             deserialize_config_from_json(&content).map_err(|e| -> Box<dyn std::error::Error> {
-                Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                Box::new(std::io::Error::other(e))
             })
         } else {
-            Ok(create_empty_config())
+            Ok(Self::default())
         }
     }
 
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         let config_path =
             construct_config_file_path().map_err(|e| -> Box<dyn std::error::Error> {
-                Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                Box::new(std::io::Error::other(e))
             })?;
 
         if let Some(parent) = extract_parent_directory(&config_path) {
             create_directory_recursive(parent).map_err(|e| -> Box<dyn std::error::Error> {
-                Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                Box::new(std::io::Error::other(e))
             })?;
         }
 
         let content =
             serialize_config_to_json(self).map_err(|e| -> Box<dyn std::error::Error> {
-                Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                Box::new(std::io::Error::other(e))
             })?;
 
         write_config_file(&config_path, &content).map_err(|e| -> Box<dyn std::error::Error> {
-            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+            Box::new(std::io::Error::other(e))
         })
     }
 

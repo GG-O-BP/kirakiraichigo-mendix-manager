@@ -1,8 +1,7 @@
-use crate::package_manager::run_package_manager_command;
+use crate::package_manager::widget_operations::install_and_build_widget;
 use crate::utils::copy_widget_to_apps as copy_widget_to_apps_util;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WidgetInput {
@@ -31,7 +30,10 @@ fn transform_widget_to_build_request(widget: &WidgetInput) -> WidgetBuildRequest
 }
 
 fn transform_widgets_to_build_requests(widgets: &[WidgetInput]) -> Vec<WidgetBuildRequest> {
-    widgets.iter().map(transform_widget_to_build_request).collect()
+    widgets
+        .iter()
+        .map(transform_widget_to_build_request)
+        .collect()
 }
 
 fn extract_app_paths(apps: &[AppInput]) -> Vec<String> {
@@ -111,41 +113,12 @@ fn process_widget_build_and_deploy(
 
     println!("[Build & Deploy] Processing widget: {}", widget_caption);
 
-    let node_modules_path = Path::new(&widget_path).join("node_modules");
-    if !node_modules_path.exists() {
-        println!(
-            "[Build & Deploy] node_modules not found for {}, running install",
-            widget_caption
-        );
-
-        match run_package_manager_command(
-            package_manager.to_string(),
-            "install".to_string(),
-            widget_path.clone(),
-        ) {
-            Ok(_) => println!("[Build & Deploy] Install completed for {}", widget_caption),
-            Err(e) => {
-                return Err(FailedDeployment {
-                    widget: widget_caption,
-                    error: format!("Failed to install dependencies: {}", e),
-                });
-            }
-        }
-    }
-
-    println!("[Build & Deploy] Building widget: {}", widget_caption);
-    match run_package_manager_command(
-        package_manager.to_string(),
-        "run build".to_string(),
-        widget_path.clone(),
-    ) {
-        Ok(_) => println!("[Build & Deploy] Build completed for {}", widget_caption),
-        Err(e) => {
-            return Err(FailedDeployment {
-                widget: widget_caption,
-                error: format!("Build failed: {}", e),
-            });
-        }
+    // Use the common install_and_build_widget function
+    if let Err(e) = install_and_build_widget(&widget_path, package_manager) {
+        return Err(FailedDeployment {
+            widget: widget_caption,
+            error: e,
+        });
     }
 
     println!(

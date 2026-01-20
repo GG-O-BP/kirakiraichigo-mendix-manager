@@ -198,7 +198,7 @@ fn construct_exe_path(mendix_dir: &str, version: &str) -> Option<String> {
     entries
         .into_iter()
         .find(|(dir_name, _)| {
-            extract_version_from_directory_name(dir_name).map_or(false, |v| v == version)
+            extract_version_from_directory_name(dir_name).is_some_and(|v| v == version)
         })
         .map(|(_, path)| format!("{}\\modeler\\studiopro.exe", path))
 }

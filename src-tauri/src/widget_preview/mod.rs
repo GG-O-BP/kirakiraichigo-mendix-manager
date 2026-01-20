@@ -1,4 +1,4 @@
-use crate::package_manager::run_package_manager_command;
+use crate::package_manager::widget_operations::install_and_build_widget;
 use serde::Serialize;
 use std::path::Path;
 
@@ -18,71 +18,45 @@ pub async fn build_widget_for_preview(
     package_manager: String,
 ) -> Result<BuildWidgetResponse, String> {
     let path = Path::new(&widget_path);
-    let node_modules = path.join("node_modules");
-    if !node_modules.exists() {
-        match run_package_manager_command(
-            package_manager.clone(),
-            "install".to_string(),
-            widget_path.clone(),
-        ) {
-            Ok(_) => {}
-            Err(e) => {
-                return Ok(BuildWidgetResponse {
-                    success: false,
-                    bundle_content: None,
-                    css_content: None,
-                    widget_name: None,
-                    widget_id: None,
-                    error: Some(format!("Failed to install dependencies: {}", e)),
-                });
-            }
-        }
+
+    // Use the common install_and_build_widget function
+    if let Err(e) = install_and_build_widget(&widget_path, &package_manager) {
+        return Ok(BuildWidgetResponse {
+            success: false,
+            bundle_content: None,
+            css_content: None,
+            widget_name: None,
+            widget_id: None,
+            error: Some(e),
+        });
     }
 
-    match run_package_manager_command(
-        package_manager,
-        "run build".to_string(),
-        widget_path.clone(),
-    ) {
-        Ok(_) => {
-            match read_widget_bundle(path).await {
-                Ok((bundle, css)) => {
-                    match parse_widget_metadata(path) {
-                        Ok(metadata) => Ok(BuildWidgetResponse {
-                            success: true,
-                            bundle_content: Some(bundle),
-                            css_content: css,
-                            widget_name: Some(metadata.name),
-                            widget_id: Some(metadata.id),
-                            error: None,
-                        }),
-                        Err(e) => Ok(BuildWidgetResponse {
-                            success: true,
-                            bundle_content: Some(bundle),
-                            css_content: css,
-                            widget_name: None,
-                            widget_id: None,
-                            error: Some(format!("Warning: Failed to parse metadata: {}", e)),
-                        }),
-                    }
-                }
-                Err(e) => Ok(BuildWidgetResponse {
-                    success: false,
-                    bundle_content: None,
-                    css_content: None,
-                    widget_name: None,
-                    widget_id: None,
-                    error: Some(format!("Build succeeded but failed to read bundle: {}", e)),
-                }),
-            }
-        }
+    match read_widget_bundle(path).await {
+        Ok((bundle, css)) => match parse_widget_metadata(path) {
+            Ok(metadata) => Ok(BuildWidgetResponse {
+                success: true,
+                bundle_content: Some(bundle),
+                css_content: css,
+                widget_name: Some(metadata.name),
+                widget_id: Some(metadata.id),
+                error: None,
+            }),
+            Err(e) => Ok(BuildWidgetResponse {
+                success: true,
+                bundle_content: Some(bundle),
+                css_content: css,
+                widget_name: None,
+                widget_id: None,
+                error: Some(format!("Warning: Failed to parse metadata: {}", e)),
+            }),
+        },
         Err(e) => Ok(BuildWidgetResponse {
             success: false,
             bundle_content: None,
             css_content: None,
             widget_name: None,
             widget_id: None,
-            error: Some(format!("Build failed: {}", e)),
+            error: Some(format!("Build succeeded but failed to read bundle: {}", e)),
         }),
     }
 }
@@ -109,7 +83,7 @@ async fn read_widget_bundle(widget_path: &Path) -> Result<(String, Option<String
                         .file_stem()
                         .and_then(|s| s.to_str())
                         .map(|name| format!("{}.css", name))
-                        .unwrap_or_default()
+                        .unwrap_or_default(),
                 );
 
                 if css_path.exists() {
@@ -154,7 +128,7 @@ async fn find_widget_bundle_recursive(dir: &Path) -> Option<std::path::PathBuf> 
                     && !file_name.starts_with(".")
                 {
                     // Prefer files in deeper nested directories (actual widget bundle)
-                    if path.parent()?.file_name()?.to_str()?.len() > 0 {
+                    if !path.parent()?.file_name()?.to_str()?.is_empty() {
                         return Some(path);
                     }
                 }
@@ -180,8 +154,8 @@ fn parse_widget_metadata(widget_path: &Path) -> Result<WidgetMetadata, String> {
     let content = std::fs::read_to_string(&package_json_path)
         .map_err(|e| format!("Failed to read package.json: {}", e))?;
 
-    let json: serde_json::Value = serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse package.json: {}", e))?;
+    let json: serde_json::Value =
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse package.json: {}", e))?;
 
     let widget_name = json["widgetName"]
         .as_str()

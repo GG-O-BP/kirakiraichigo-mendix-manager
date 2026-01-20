@@ -182,10 +182,7 @@ pub fn filter_valid_items<F>(items: Vec<F>, is_valid_extractor: fn(&F) -> bool) 
 where
     F: Clone,
 {
-    items
-        .into_iter()
-        .filter(|item| is_valid_extractor(item))
-        .collect()
+    items.into_iter().filter(is_valid_extractor).collect()
 }
 
 pub fn apply_filters_and_sort<F>(

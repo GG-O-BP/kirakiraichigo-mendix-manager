@@ -217,7 +217,7 @@ async fn handle_privacy_modal_if_present(page: &Page) -> Result<(), String> {
     ];
 
     for modal_selector in &modal_selectors {
-        if let Ok(_) = page.find_element(*modal_selector).await {
+        if page.find_element(*modal_selector).await.is_ok() {
             let button_selectors = [
                 "[data-testid='uc-deny-all-button']",
                 "[data-testid='uc-reject-all-button']",
@@ -351,6 +351,9 @@ async fn navigate_to_page(page: &Page, target_page: u32) -> Result<(), String> {
         return Ok(());
     }
 
+    let page_status_regex =
+        Regex::new(r"(\d+) to (\d+) of (\d+)").map_err(|e| format!("Invalid regex: {}", e))?;
+
     for current_page in 1..target_page {
         println!(
             "Navigating to page {} (clicking next button)",
@@ -366,14 +369,12 @@ async fn navigate_to_page(page: &Page, target_page: u32) -> Result<(), String> {
                 if let Ok(Some(status_text)) = status_element.inner_text().await {
                     println!("Current page status: {}", status_text);
 
-                    if let Ok(re) = Regex::new(r"(\d+) to (\d+) of (\d+)") {
-                        if let Some(captures) = re.captures(&status_text) {
-                            let start_item: u32 = captures[1].parse().unwrap_or(0);
-                            let expected_start = (current_page) * 10 + 1;
+                    if let Some(captures) = page_status_regex.captures(&status_text) {
+                        let start_item: u32 = captures[1].parse().unwrap_or(0);
+                        let expected_start = (current_page) * 10 + 1;
 
-                            if start_item != expected_start {
-                                return Err(format!("Page navigation failed. Expected to start at item {}, but got {}", expected_start, start_item));
-                            }
+                        if start_item != expected_start {
+                            return Err(format!("Page navigation failed. Expected to start at item {}, but got {}", expected_start, start_item));
                         }
                     }
                 }
