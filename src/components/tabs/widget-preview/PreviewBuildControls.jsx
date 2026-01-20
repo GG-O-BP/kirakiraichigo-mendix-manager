@@ -27,7 +27,7 @@ const PreviewBuildControls = memo(({
         onClick={() => handleRunPreview(selectedWidget)}
         disabled={R.or(R.isNil(selectedWidget), isBuilding)}
       >
-        <span className="button-icon">{isBuilding ? "\u23f3" : "\u25b6\ufe0f"}</span>
+        <span className="button-icon">{isBuilding ? "⏳" : "▶️"}</span>
         {isBuilding ? "Building..." : "Run Preview"}
       </button>
     </div>
@@ -35,7 +35,7 @@ const PreviewBuildControls = memo(({
       R.complement(R.isNil),
       (error) => (
         <div className="build-error">
-          <span className="error-icon">{"\u274c"}</span>
+          <span className="error-icon">❌</span>
           <p>{error}</p>
         </div>
       ),

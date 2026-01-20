@@ -3,13 +3,13 @@ import { memo } from "react";
 
 const InlineResultItem = memo(({ type, widget, apps }) => (
   <div className={`inline-result-item ${type}`}>
-    <span className="result-icon">{R.equals(type, "success") ? "\u2705" : "\u274c"}</span>
+    <span className="result-icon">{R.equals(type, "success") ? "✅" : "❌"}</span>
     <span className="result-text">{widget}</span>
     {R.ifElse(
       R.both(R.always(R.equals(type, "success")), R.complement(R.isNil)),
       R.always(
         <span className="result-details">
-          \u2192 {R.join(", ", R.defaultTo([], apps))}
+          → {R.join(", ", R.defaultTo([], apps))}
         </span>,
       ),
       R.always(null),

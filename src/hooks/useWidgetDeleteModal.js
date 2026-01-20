@@ -14,10 +14,11 @@ export function useWidgetDeleteModal() {
   );
 
   const close = useCallback(
-    R.pipe(
-      R.tap(() => setShowModal(false)),
-      R.tap(() => setWidgetToDelete(null)),
-    ),
+    () =>
+      R.pipe(
+        R.tap(() => setShowModal(false)),
+        R.tap(() => setWidgetToDelete(null)),
+      )(null),
     [],
   );
 
