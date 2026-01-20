@@ -1,73 +1,22 @@
+pub mod transform;
+pub mod types;
+
 use crate::data_processing::filter_by_key_set;
 use crate::package_manager::widget_operations::install_and_build_widget;
 use crate::utils::copy_widget_to_apps as copy_widget_to_apps_util;
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WidgetInput {
-    pub id: String,
-    pub caption: String,
-    pub path: String,
-}
+// Re-export types for backward compatibility
+pub use types::{
+    AppDeployResult, AppInput, BuildDeployResult, FailedDeployment, SuccessfulDeployment,
+    WidgetBuildRequest, WidgetInput,
+};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AppInput {
-    pub name: String,
-    pub path: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WidgetBuildRequest {
-    pub widget_path: String,
-    pub caption: String,
-}
-
-fn transform_widget_to_build_request(widget: &WidgetInput) -> WidgetBuildRequest {
-    WidgetBuildRequest {
-        widget_path: widget.path.clone(),
-        caption: widget.caption.clone(),
-    }
-}
-
-fn transform_widgets_to_build_requests(widgets: &[WidgetInput]) -> Vec<WidgetBuildRequest> {
-    widgets
-        .iter()
-        .map(transform_widget_to_build_request)
-        .collect()
-}
-
-fn extract_app_paths(apps: &[AppInput]) -> Vec<String> {
-    apps.iter().map(|app| app.path.clone()).collect()
-}
-
-fn extract_app_names(apps: &[AppInput]) -> Vec<String> {
-    apps.iter().map(|app| app.name.clone()).collect()
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BuildDeployResult {
-    pub successful: Vec<SuccessfulDeployment>,
-    pub failed: Vec<FailedDeployment>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SuccessfulDeployment {
-    pub widget: String,
-    pub apps: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct FailedDeployment {
-    pub widget: String,
-    pub error: String,
-}
-
-/// Deploy result for a single app
-struct AppDeployResult {
-    app_name: String,
-    result: Result<Vec<String>, String>,
-}
+// Re-export transform functions for backward compatibility
+pub use transform::{
+    app_path_extractor, extract_app_names, extract_app_paths, transform_widgets_to_build_requests,
+    widget_id_extractor,
+};
 
 #[tauri::command]
 pub async fn build_and_deploy_widgets(
@@ -188,16 +137,6 @@ fn process_widget_build_and_deploy(
         widget: widget_caption,
         apps: successful_app_names,
     })
-}
-
-/// Key extractor for widget id
-fn widget_id_extractor(widget: &WidgetInput) -> &String {
-    &widget.id
-}
-
-/// Key extractor for app path
-fn app_path_extractor(app: &AppInput) -> &String {
-    &app.path
 }
 
 #[tauri::command]

@@ -1,8 +1,13 @@
+pub mod bundle;
+pub mod metadata;
+
 use crate::package_manager::widget_operations::install_and_build_widget;
-use quick_xml::events::Event;
-use quick_xml::Reader;
 use serde::Serialize;
 use std::path::Path;
+
+// Re-export for backward compatibility
+pub use bundle::read_widget_bundle;
+pub use metadata::parse_widget_metadata;
 
 #[derive(Debug, Serialize)]
 pub struct BuildWidgetResponse {
@@ -61,157 +66,4 @@ pub async fn build_widget_for_preview(
             error: Some(format!("Build succeeded but failed to read bundle: {}", e)),
         }),
     }
-}
-
-async fn read_widget_bundle(widget_path: &Path) -> Result<(String, Option<String>), String> {
-    let dist_dir = widget_path.join("dist");
-
-    if !dist_dir.exists() {
-        return Err("dist directory not found".to_string());
-    }
-
-    // Recursively search for the main widget JS file
-    match find_widget_bundle_recursive(&dist_dir).await {
-        Some(bundle_path) => {
-            // Read JS bundle
-            let bundle_content = tokio::fs::read_to_string(&bundle_path)
-                .await
-                .map_err(|e| format!("Failed to read bundle file: {}", e))?;
-
-            // Try to find and read CSS file in the same directory
-            let css_content = if let Some(parent) = bundle_path.parent() {
-                let css_path = parent.join(
-                    bundle_path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .map(|name| format!("{}.css", name))
-                        .unwrap_or_default(),
-                );
-
-                if css_path.exists() {
-                    tokio::fs::read_to_string(&css_path).await.ok()
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-
-            Ok((bundle_content, css_content))
-        }
-        None => Err(format!(
-            "No widget bundle (.js) file found in dist directory. Searched in: {:?}",
-            dist_dir
-        )),
-    }
-}
-
-async fn find_widget_bundle_recursive(dir: &Path) -> Option<std::path::PathBuf> {
-    let mut queue = vec![dir.to_path_buf()];
-
-    while let Some(current_dir) = queue.pop() {
-        let mut entries = match tokio::fs::read_dir(&current_dir).await {
-            Ok(entries) => entries,
-            Err(_) => continue,
-        };
-
-        while let Ok(Some(entry)) = entries.next_entry().await {
-            let path = entry.path();
-
-            if path.is_dir() {
-                queue.push(path);
-            } else if path.extension().and_then(|s| s.to_str()) == Some("js") {
-                let file_name = path.file_name()?.to_str()?;
-
-                // Look for main widget file (not editor files)
-                // Pattern: <WidgetName>.js in sbtglobal/sbtdatepicker/ or similar
-                if !file_name.contains("editorPreview")
-                    && !file_name.contains("editorConfig")
-                    && !file_name.starts_with(".")
-                {
-                    // Prefer files in deeper nested directories (actual widget bundle)
-                    if !path.parent()?.file_name()?.to_str()?.is_empty() {
-                        return Some(path);
-                    }
-                }
-            }
-        }
-    }
-
-    None
-}
-
-#[derive(Debug)]
-struct WidgetMetadata {
-    name: String,
-    id: String,
-}
-
-fn parse_widget_metadata(widget_path: &Path) -> Result<WidgetMetadata, String> {
-    let package_json_path = widget_path.join("package.json");
-    if !package_json_path.exists() {
-        return Err("package.json not found".to_string());
-    }
-
-    let content = std::fs::read_to_string(&package_json_path)
-        .map_err(|e| format!("Failed to read package.json: {}", e))?;
-
-    let json: serde_json::Value =
-        serde_json::from_str(&content).map_err(|e| format!("Failed to parse package.json: {}", e))?;
-
-    let widget_name = json["widgetName"]
-        .as_str()
-        .ok_or("widgetName not found in package.json")?
-        .to_string();
-
-    let src_dir = widget_path.join("src");
-    let widget_id = find_widget_id_in_directory(&src_dir).unwrap_or_else(|| widget_name.clone());
-
-    Ok(WidgetMetadata {
-        name: widget_name,
-        id: widget_id,
-    })
-}
-
-/// Find widget id from XML files in the source directory using proper XML parsing
-fn find_widget_id_in_directory(src_dir: &Path) -> Option<String> {
-    let entries = std::fs::read_dir(src_dir).ok()?;
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) == Some("xml") {
-            if let Some(id) = extract_widget_id_from_xml(&path) {
-                return Some(id);
-            }
-        }
-    }
-
-    None
-}
-
-/// Extract widget id attribute from XML file using quick_xml
-fn extract_widget_id_from_xml(xml_path: &Path) -> Option<String> {
-    let xml_content = std::fs::read_to_string(xml_path).ok()?;
-    let mut reader = Reader::from_str(&xml_content);
-    reader.config_mut().trim_text(true);
-
-    loop {
-        match reader.read_event() {
-            Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) => {
-                // Look for 'widget' element and extract 'id' attribute
-                if e.name().as_ref() == b"widget" {
-                    for attr in e.attributes().flatten() {
-                        if attr.key.as_ref() == b"id" {
-                            return attr.unescape_value().ok().map(|v| v.into_owned());
-                        }
-                    }
-                }
-            }
-            Ok(Event::Eof) => break,
-            Err(_) => break,
-            _ => {}
-        }
-    }
-
-    None
 }

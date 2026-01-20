@@ -1,54 +1,14 @@
 use super::*;
 use crate::mendix::{MendixApp, MendixVersion};
-use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Widget {
-    pub id: String,
-    pub caption: String,
-    pub path: String,
-}
-
-pub fn version_extractor_for_version(item: &MendixVersion) -> Option<String> {
-    Some(item.version.clone())
-}
-
-pub fn date_extractor_for_version(item: &MendixVersion) -> Option<chrono::DateTime<chrono::Local>> {
-    item.install_date
-}
-
-pub fn is_valid_version(item: &MendixVersion) -> bool {
-    item.is_valid
-}
-
-pub fn searchable_fields_version(item: &MendixVersion) -> Option<String> {
-    Some(format!("{} {}", item.version, item.path))
-}
-
-pub fn version_extractor_for_app(item: &MendixApp) -> Option<String> {
-    item.version.clone()
-}
-
-pub fn date_extractor_for_app(item: &MendixApp) -> Option<chrono::DateTime<chrono::Local>> {
-    item.last_modified
-}
-
-pub fn is_valid_app(item: &MendixApp) -> bool {
-    item.is_valid
-}
-
-pub fn searchable_fields_app(item: &MendixApp) -> Option<String> {
-    Some(format!(
-        "{} {} {}",
-        item.name,
-        item.version.as_ref().unwrap_or(&String::new()),
-        item.path
-    ))
-}
-
-pub fn searchable_fields_widget(item: &Widget) -> Option<String> {
-    Some(format!("{} {}", item.caption, item.path))
-}
+// Re-export types and functions from sub-modules for backward compatibility
+pub use super::extractors::{
+    date_extractor_for_app, date_extractor_for_version, is_valid_app, is_valid_version,
+    searchable_fields_app, searchable_fields_version, version_extractor_for_app,
+    version_extractor_for_version,
+};
+pub use super::widget::{searchable_fields_widget, Widget};
 
 #[tauri::command]
 pub fn filter_mendix_versions(
@@ -168,8 +128,6 @@ pub fn filter_widgets(
     }
 }
 
-use std::collections::HashSet;
-
 #[tauri::command]
 pub fn filter_widgets_by_selected_ids(
     widgets: Vec<Widget>,
@@ -227,16 +185,10 @@ pub fn remove_widget_by_id(
     Ok(widgets.into_iter().filter(|w| w.id != widget_id).collect())
 }
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
+// Tauri command wrapper for create_widget
 #[tauri::command]
 pub fn create_widget(caption: String, path: String) -> Result<Widget, String> {
-    let id = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis().to_string())
-        .unwrap_or_else(|_| "0".to_string());
-
-    Ok(Widget { id, caption, path })
+    super::widget::create_widget(caption, path)
 }
 
 #[cfg(test)]

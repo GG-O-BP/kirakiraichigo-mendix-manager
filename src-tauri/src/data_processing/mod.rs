@@ -1,5 +1,7 @@
+pub mod extractors;
 pub mod mendix_filters;
 pub mod version_utils;
+pub mod widget;
 
 use serde::{Deserialize, Serialize};
 

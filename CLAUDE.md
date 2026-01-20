@@ -24,6 +24,7 @@ KiraKira Ichigo ("KiraIchi") is a **Windows-only** Tauri-based desktop applicati
 - Tests: `cd src-tauri && cargo test`
 - Single test: `cd src-tauri && cargo test test_name`
 - Manual build: `cd src-tauri && cargo build`
+- Lint: `cd src-tauri && cargo clippy`
 
 ## Architecture Overview
 
@@ -64,17 +65,38 @@ export function useVersions() {
 
 **Module Structure** (`src-tauri/src/`):
 - `mendix/` - Studio Pro version/app management
+  - `models.rs` - MendixVersion, MendixApp structs
+  - `scanner.rs` - Directory scanning, version extraction
+  - `paths.rs` - Path constants and construction
+  - `execution.rs` - Process execution, Tauri commands
 - `web_scraper/` - Mendix versions download (chromiumoxide headless browser)
+  - `config.rs` - Constants, timeouts, URLs
+  - `browser.rs` - BrowserSession lifecycle management
+  - `parsing.rs` - HTML/datagrid parsing
+  - `download.rs` - File download, installer execution
 - `widget_parser/` - widget.xml parsing, property transformation
 - `widget_preview/` - Widget preview build operations
+  - `metadata.rs` - WidgetMetadata parsing, XML id extraction (uses quick_xml)
+  - `bundle.rs` - Widget bundle file reading
+  - `mod.rs` - Tauri command (build_widget_for_preview)
 - `build_deploy/` - Widget build and deployment (parallel via Rayon)
+  - `types.rs` - WidgetInput, AppInput, BuildDeployResult structs
+  - `transform.rs` - Widget/app transformation and extraction functions
+  - `mod.rs` - Tauri commands and orchestration
 - `package_manager/` - npm/pnpm/yarn/bun command execution
+  - `strategies/` - Execution strategies (direct_node, fnm_simple, powershell_fnm, etc.)
+  - `executor.rs` - Strategy execution
+  - `widget_operations.rs` - Widget install/build operations
 - `storage/` - Persistent state (Tauri fs plugin)
-- `data_processing/` - Filtering, pagination, sorting
+- `data_processing/` - Filtering, pagination, sorting, generic utilities
+  - `widget.rs` - Widget struct and creation
+  - `extractors.rs` - MendixVersion/MendixApp field extractors
+  - `mendix_filters.rs` - Tauri filter commands
+  - `version_utils.rs` - Version comparison and filtering utilities
 - `validation/` - Input validation
 - `formatting/` - Date formatting, version status/badge text
 - `config/` - Package manager configuration types
-- `utils/` - Path utilities
+- `utils/` - Path utilities, widget copy operations
 
 **Tauri Commands**:
 ```javascript
@@ -130,6 +152,8 @@ R.propOr([], "items", data)
 - All commands: `async fn` returning `Result<T, String>`
 - Use `#[tauri::command]` and register in `lib.rs`
 - Use `rayon` for parallel operations
+- Use `quick_xml` for XML parsing (not string search)
+- Prefer zip pattern over index-based iteration for safety
 
 ### CSS Architecture
 - Uses **LightningCSS** (not PostCSS)
