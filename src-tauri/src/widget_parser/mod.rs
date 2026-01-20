@@ -15,6 +15,8 @@ pub struct WidgetProperty {
     pub required: bool,
     pub options: Vec<String>,
     pub category: Option<String>,
+    #[serde(rename = "dataSource", skip_serializing_if = "Option::is_none")]
+    pub data_source: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,6 +127,7 @@ fn extract_property_attributes(
         required: extract_bool_attribute(&attrs, b"required"),
         options: Vec::new(),
         category: None,
+        data_source: extract_string_attribute(&attrs, b"dataSource"),
     }
 }
 
@@ -738,6 +741,8 @@ pub struct ParsedProperty {
     pub default_value: Option<String>,
     pub options: Vec<String>,
     pub category: String,
+    #[serde(rename = "dataSource", skip_serializing_if = "Option::is_none")]
+    pub data_source: Option<String>,
 }
 
 fn property_matches_search(property: &ParsedProperty, search_term: &str) -> bool {
@@ -787,6 +792,7 @@ fn extract_properties_from_group_with_category(
         default_value: p.default_value.clone(),
         options: p.options.clone(),
         category: if full_path.is_empty() { "General".to_string() } else { full_path.clone() },
+        data_source: p.data_source.clone(),
     }).collect();
 
     // Recursively process nested groups
@@ -811,6 +817,7 @@ fn parse_widget_properties_enhanced(definition: &WidgetDefinition) -> Vec<Parsed
             default_value: p.default_value.clone(),
             options: p.options.clone(),
             category: "General".to_string(),
+            data_source: p.data_source.clone(),
         });
     }
 
@@ -893,6 +900,8 @@ pub struct EditorProperty {
     pub default_value: Option<String>,
     pub required: bool,
     pub options: Vec<String>,
+    #[serde(rename = "dataSource", skip_serializing_if = "Option::is_none")]
+    pub data_source: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -916,6 +925,7 @@ fn transform_property_to_editor_format(prop: &WidgetProperty) -> EditorProperty 
         default_value: prop.default_value.clone(),
         required: prop.required,
         options: prop.options.clone(),
+        data_source: prop.data_source.clone(),
     }
 }
 
@@ -1219,6 +1229,8 @@ pub struct PropertySpec {
     #[serde(rename = "defaultValue", skip_serializing_if = "Option::is_none")]
     pub default_value: Option<String>,
     pub options: Vec<String>,
+    #[serde(rename = "dataSource", skip_serializing_if = "Option::is_none")]
+    pub data_source: Option<String>,
 }
 
 fn transform_widget_property_to_spec(prop: &WidgetProperty) -> PropertySpec {
@@ -1234,6 +1246,7 @@ fn transform_widget_property_to_spec(prop: &WidgetProperty) -> PropertySpec {
         required: prop.required,
         default_value: prop.default_value.clone(),
         options: prop.options.clone(),
+        data_source: prop.data_source.clone(),
     }
 }
 
@@ -1412,6 +1425,39 @@ mod tests {
         assert!(alignment_prop.options.contains(&"left".to_string()));
     }
 
+    #[test]
+    fn test_parse_datasource_attribute() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<widget id="com.example.MyWidget" needsEntityContext="true" xmlns="http://www.mendix.com/widget/1.0/">
+    <name>My Widget</name>
+    <description>Test widget with datasource</description>
+    <properties>
+        <property key="datasource" type="datasource" isList="true" required="false">
+            <caption>Data Source</caption>
+            <description>Data source for items</description>
+        </property>
+        <property key="idAttribute" type="attribute" dataSource="datasource" required="false">
+            <caption>ID Attribute</caption>
+            <description>Attribute for ID</description>
+        </property>
+    </properties>
+</widget>"#;
+
+        let result = parse_xml_content(xml).unwrap();
+
+        assert_eq!(result.properties.len(), 2);
+
+        let datasource_prop = &result.properties[0];
+        assert_eq!(datasource_prop.key, "datasource");
+        assert_eq!(datasource_prop.property_type, "datasource");
+        assert!(datasource_prop.data_source.is_none());
+
+        let attribute_prop = &result.properties[1];
+        assert_eq!(attribute_prop.key, "idAttribute");
+        assert_eq!(attribute_prop.property_type, "attribute");
+        assert_eq!(attribute_prop.data_source, Some("datasource".to_string()));
+    }
+
     fn create_test_editor_property(key: &str) -> EditorProperty {
         EditorProperty {
             key: key.to_string(),
@@ -1421,6 +1467,7 @@ mod tests {
             default_value: None,
             required: false,
             options: vec![],
+            data_source: None,
         }
     }
 

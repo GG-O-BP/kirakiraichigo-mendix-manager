@@ -266,14 +266,64 @@
     min-height: 80px;
 }
 
-.property-select option {
+.datasource-textarea-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.property-textarea.datasource-json {
+    font-family: "Fira Code", "Consolas", "Monaco", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    min-height: 100px;
+}
+
+.property-textarea.datasource-json.invalid-json {
+    border-color: var(--theme-error);
+    background: color-mix(in srgb, var(--theme-error) 5%, var(--theme-surface));
+}
+
+.property-textarea.datasource-json.invalid-json:focus {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-error) 20%, transparent);
+}
+
+.json-error-hint {
+    font-size: 11px;
+    color: var(--theme-error);
+    padding: 2px 8px;
+}
+
+.attribute-select-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.property-select.attribute-select {
+    cursor: pointer;
+}
+
+.property-select.attribute-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.attribute-hint {
+    font-size: 11px;
+    color: var(--theme-text-muted);
+    padding: 2px 8px;
+    font-style: italic;
+}
+
+.dropdown option {
     background: #1e1e2e;
     color: #cdd6f4;
     padding: 8px;
 }
 
-.theme-latte .property-select option,
-.theme-kiraichi-light .property-select option {
+.theme-latte .dropdown option,
+.theme-kiraichi-light .dropdown option {
     background: #eff1f5;
     color: #4c4f69;
 }

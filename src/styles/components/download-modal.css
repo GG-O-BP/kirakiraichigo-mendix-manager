@@ -385,9 +385,13 @@
 .theme-frappe .btn-primary,
 .theme-macchiato .btn-primary,
 .theme-mocha .btn-primary {
-    background: var(--theme-button-bg);
+    background: linear-gradient(
+        135deg,
+        var(--theme-primary),
+        var(--theme-secondary)
+    );
     border-color: var(--theme-primary);
-    color: var(--theme-button-text);
+    color: var(--catppuccin-crust);
 }
 
 .theme-latte .btn-primary:hover:not(:disabled),
@@ -397,6 +401,25 @@
     background: var(--theme-primary);
     border-color: var(--theme-primary);
     box-shadow: var(--theme-primary-shadow);
+}
+
+.theme-kiraichi .btn-primary,
+.theme-kiraichi-light .btn-primary {
+    background: linear-gradient(
+        135deg,
+        var(--theme-primary),
+        var(--theme-secondary)
+    );
+    border-color: var(--theme-primary);
+    color: var(--theme-primary-dark);
+}
+
+.theme-kiraichi .btn-primary:hover:not(:disabled),
+.theme-kiraichi-light .btn-primary:hover:not(:disabled) {
+    background: var(--theme-secondary);
+    border-color: var(--theme-secondary);
+    box-shadow: var(--theme-primary-shadow);
+    color: var(--theme-primary-dark);
 }
 
 .theme-latte .btn-secondary,

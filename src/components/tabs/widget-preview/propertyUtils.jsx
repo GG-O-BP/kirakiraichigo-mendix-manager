@@ -9,5 +9,6 @@ export const renderPropertyInputField = R.curry((properties, updateProperty, pro
     onChange={updateProperty(R.prop("key", property))}
     disabled={false}
     showValidation={true}
+    allProperties={properties}
   />
 ));
