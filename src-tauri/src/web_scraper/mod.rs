@@ -12,7 +12,6 @@ use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::time::timeout;
 
-// Pure data types - immutable by design
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DownloadableVersion {
     pub version: String,
@@ -58,7 +57,6 @@ pub struct VersionFlags {
     pub is_latest: bool,
 }
 
-// Pure constructor functions
 const fn create_default_scraping_config() -> ScrapingConfig {
     ScrapingConfig {
         wait_for_element_seconds: 30,
@@ -100,7 +98,6 @@ const fn create_version_flags(
     }
 }
 
-// Pure validation functions
 fn is_valid_version_string(version: &str) -> bool {
     regex::Regex::new(r"^\d+\.\d+\.\d+$")
         .map(|re| re.is_match(version))
@@ -111,7 +108,6 @@ fn is_valid_download_url(url: &str) -> bool {
     url.starts_with("https://") && url.contains("mendix.com")
 }
 
-// Pure build number extraction functions
 fn extract_build_number_from_text(text: &str) -> Option<String> {
     Regex::new(r"Build\s+(\d{5})")
         .ok()?
@@ -127,7 +123,6 @@ fn construct_download_url(version: &str, build_number: &str) -> String {
     )
 }
 
-// For v11+, build number is not needed in URL
 fn construct_download_url_v11(version: &str) -> String {
     format!(
         "https://artifacts.rnd.mendix.com/modelers/Mendix-{}-Setup.exe",
@@ -135,7 +130,6 @@ fn construct_download_url_v11(version: &str) -> String {
     )
 }
 
-// Check if version is 11 or above
 fn is_version_11_or_above(version: &str) -> bool {
     version
         .split('.')
@@ -163,7 +157,6 @@ fn is_valid_version(version: &DownloadableVersion) -> bool {
             || version.download_url.is_empty())
 }
 
-// Pure filtering and transformation functions
 fn filter_valid_versions(versions: Vec<DownloadableVersion>) -> Vec<DownloadableVersion> {
     versions.into_iter().filter(is_valid_version).collect()
 }
@@ -189,7 +182,6 @@ fn partition_versions_by_type(
     versions.into_iter().partition(|v| !v.is_beta)
 }
 
-// Pure data extraction functions
 fn extract_version_from_text(text: &str) -> Option<String> {
     regex::Regex::new(r"(\d+\.\d+\.\d+)")
         .ok()?
@@ -240,7 +232,6 @@ fn extract_release_notes_url_from_html(html: &str) -> Option<String> {
         .map(|m| m.as_str().to_string())
 }
 
-// Pure composition function for version creation
 fn create_version_from_element_data(data: &ElementData) -> Option<DownloadableVersion> {
     let version = extract_version_from_text(&data.text)?;
     let download_url = extract_download_url_from_html(&data.html).unwrap_or_default();
@@ -259,7 +250,6 @@ fn create_version_from_element_data(data: &ElementData) -> Option<DownloadableVe
     ))
 }
 
-// Pure version processing pipeline
 fn process_element_data_list(data_list: Vec<ElementData>) -> Vec<DownloadableVersion> {
     data_list
         .iter()
@@ -274,9 +264,7 @@ fn apply_version_processing_pipeline(
     sort_versions_by_version_desc(filtered)
 }
 
-// IO wrapper functions - only these perform side effects
 async fn create_browser_instance() -> Result<(Browser, chromiumoxide::handler::Handler), String> {
-    // Create a temporary directory for Chrome user data to avoid conflicts
     let temp_dir = std::env::temp_dir().join(format!("kiraichi-chrome-{}", std::process::id()));
     let user_data_dir = temp_dir.to_string_lossy().to_string();
 
@@ -309,7 +297,6 @@ async fn navigate_to_url(browser: &Browser, url: &str) -> Result<Page, String> {
         .await
         .map_err(|e| format!("Failed to create new page: {}", e))?;
 
-    // Navigate with timeout
     let navigation_timeout = Duration::from_secs(60);
     timeout(navigation_timeout, page.goto(url))
         .await
@@ -365,7 +352,6 @@ async fn wait_for_element_with_timeout(
 }
 
 async fn handle_privacy_modal_if_present(page: &Page) -> Result<(), String> {
-    // Try multiple selectors for privacy modal
     let modal_selectors = [
         "[data-testid='uc-default-wall']",
         ".cookie-banner",
@@ -376,7 +362,6 @@ async fn handle_privacy_modal_if_present(page: &Page) -> Result<(), String> {
 
     for modal_selector in &modal_selectors {
         if let Ok(_) = page.find_element(*modal_selector).await {
-            // Try multiple button selectors
             let button_selectors = [
                 "[data-testid='uc-deny-all-button']",
                 "[data-testid='uc-reject-all-button']",
@@ -443,14 +428,12 @@ async fn cleanup_browser_resources(
     Ok(())
 }
 
-// Main orchestration functions
 async fn scrape_versions_from_url(
     url: &str,
     config: &ScrapingConfig,
 ) -> Result<Vec<DownloadableVersion>, String> {
     let (browser, mut handler) = create_browser_instance().await?;
 
-    // Create a shared flag to control handler lifetime
     let handler_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
     let handler_flag = handler_running.clone();
 
@@ -478,13 +461,11 @@ async fn scrape_versions_from_url(
     }
     .await;
 
-    // Signal handler to stop and cleanup
     handler_running.store(false, std::sync::atomic::Ordering::Relaxed);
     let _ = cleanup_browser_resources(browser, handler_task).await;
     result
 }
 
-// Pure datagrid parsing functions
 fn parse_datagrid_row(row: &scraper::ElementRef) -> Option<DownloadableVersion> {
     let version_selector = Selector::parse("div[role=gridcell] > div > div > a").ok()?;
     let span_selector = Selector::parse("div[role=gridcell] > div > div > span").ok()?;
@@ -550,19 +531,16 @@ async fn extract_datagrid_content(page: &Page, config: &ScrapingConfig) -> Resul
 }
 
 async fn click_next_page_button(page: &Page) -> Result<(), String> {
-    // Try multiple selectors for the next page button
     let selectors = [
         "button[aria-label='Go to next page']",
         ".pagination-button[aria-label='Go to next page']",
-        "button.pagination-button:nth-child(3)", // Next button is typically 3rd in pagination
+        "button.pagination-button:nth-child(3)",
     ];
 
     for selector in &selectors {
-        // Wait for the pagination element to be present (up to 10 seconds)
         match wait_for_element_with_timeout(page, selector, 10).await {
             Ok(elements) => {
                 if let Some(button) = elements.into_iter().next() {
-                    // Check if button is enabled
                     if let Ok(disabled) = button.attribute("disabled").await {
                         if disabled.is_some() {
                             return Err("Next page button is disabled".to_string());
@@ -574,13 +552,12 @@ async fn click_next_page_button(page: &Page) -> Result<(), String> {
                         .await
                         .map_err(|e| format!("Failed to click next page button: {}", e))?;
 
-                    // Wait for page to load
                     tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
 
                     return Ok(());
                 }
             }
-            Err(_) => continue, // Try next selector
+            Err(_) => continue,
         }
     }
 
@@ -592,26 +569,21 @@ async fn navigate_to_page(page: &Page, target_page: u32) -> Result<(), String> {
         return Ok(());
     }
 
-    // Navigate to the target page by clicking next button (target_page - 1) times
     for current_page in 1..target_page {
         println!(
             "Navigating to page {} (clicking next button)",
             current_page + 1
         );
 
-        // Click next page button
         click_next_page_button(page).await?;
 
-        // Wait for content to load
         tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
 
-        // Verify we're on the correct page by checking paging status
         if let Ok(elements) = page.find_elements("div.paging-status").await {
             if let Some(status_element) = elements.into_iter().next() {
                 if let Ok(Some(status_text)) = status_element.inner_text().await {
                     println!("Current page status: {}", status_text);
 
-                    // Extract current page info from status text (e.g., "1 to 10 of 290")
                     if let Ok(re) = Regex::new(r"(\d+) to (\d+) of (\d+)") {
                         if let Some(captures) = re.captures(&status_text) {
                             let start_item: u32 = captures[1].parse().unwrap_or(0);
@@ -630,7 +602,6 @@ async fn navigate_to_page(page: &Page, target_page: u32) -> Result<(), String> {
     Ok(())
 }
 
-// Public API functions - compose pure functions with minimal IO
 #[tauri::command]
 pub async fn get_downloadable_mendix_versions() -> Result<Vec<DownloadableVersion>, String> {
     let config = create_default_scraping_config();
@@ -674,7 +645,6 @@ pub async fn get_downloadable_versions_from_datagrid(
 
         handle_privacy_modal_if_present(&page_instance).await?;
 
-        // Navigate to the specified page if provided
         if let Some(target_page) = page {
             if target_page > 1 {
                 navigate_to_page(&page_instance, target_page).await?;
@@ -716,7 +686,6 @@ pub async fn debug_page_structure() -> Result<String, String> {
     let result = async {
         let page = navigate_to_url(&browser, url).await?;
 
-        // Wait for content to load
         tokio::time::sleep(Duration::from_millis(5000)).await;
 
         page.content()
@@ -768,15 +737,12 @@ pub async fn wait_for_datagrid_content() -> Result<String, String> {
     result
 }
 
-// Pure build number extraction from marketplace page
 async fn extract_build_number_from_marketplace(
     page: &Page,
     version: &str,
 ) -> Result<String, String> {
-    // Wait for page content to load
     tokio::time::sleep(Duration::from_millis(3000)).await;
 
-    // Look for span elements with build information
     let selector = "span.mx-text.pds-heading--sm.pds-mb-0";
 
     let elements = page
@@ -798,7 +764,6 @@ async fn extract_build_number_from_marketplace(
     Err(format!("Build number not found for version {}", version))
 }
 
-// Pure file download function
 async fn download_file_to_path(url: &str, file_path: &str) -> Result<(), String> {
     let client = reqwest::Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -848,7 +813,6 @@ async fn download_file_to_path(url: &str, file_path: &str) -> Result<(), String>
     Ok(())
 }
 
-// Pure installer execution function
 fn execute_installer(installer_path: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
@@ -872,7 +836,6 @@ fn execute_installer(installer_path: &str) -> Result<(), String> {
     Ok(())
 }
 
-// Main API functions
 #[tauri::command]
 pub async fn extract_build_number(version: String) -> Result<BuildInfo, String> {
     let url = construct_marketplace_url(&version);
@@ -915,32 +878,27 @@ pub async fn download_and_install_mendix_version(version: String) -> Result<Stri
         dirs::download_dir().ok_or_else(|| "Failed to get downloads directory".to_string())?;
 
     let (download_url, installer_filename) = if is_version_11_or_above(&version) {
-        // v11+: No build number needed
         println!("📋 Version 11+ detected, skipping build number extraction...");
         let url = construct_download_url_v11(&version);
         let filename = format!("Mendix-{}-Setup.exe", version);
         (url, filename)
     } else {
-        // v10 and below: Extract build number
-        println!("📋 Step 1: Extracting build number...");
+        println!("📋 Extracting build number...");
         let build_info = extract_build_number(version.clone()).await?;
         let filename = format!("Mendix-{}.{}-Setup.exe", version, build_info.build_number);
         (build_info.download_url, filename)
     };
 
-    // Step 2: Construct download path
-    println!("📁 Step 2: Setting up download path...");
+    println!("📁 Setting up download path...");
     let installer_path = downloads_dir.join(&installer_filename);
     let installer_path_str = installer_path
         .to_str()
         .ok_or_else(|| "Invalid installer path".to_string())?;
 
-    // Step 3: Download the installer
-    println!("⬇️ Step 3: Downloading installer...");
+    println!("⬇️ Downloading installer...");
     download_file_to_path(&download_url, installer_path_str).await?;
 
-    // Step 4: Execute the installer
-    println!("🚀 Step 4: Launching installer...");
+    println!("🚀 Launching installer...");
     execute_installer(installer_path_str)?;
     println!("✅ Installer launched successfully");
 

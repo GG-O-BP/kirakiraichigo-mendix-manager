@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-// Pure data types - immutable by design
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageManagerConfig {
     pub npm_method: Option<String>,
@@ -10,7 +9,6 @@ pub struct PackageManagerConfig {
     pub pnpm_method: Option<String>,
 }
 
-// Pure constructor functions
 fn create_empty_config() -> PackageManagerConfig {
     PackageManagerConfig {
         npm_method: None,
@@ -19,7 +17,6 @@ fn create_empty_config() -> PackageManagerConfig {
     }
 }
 
-// Pure query functions
 fn get_method_from_config<'a>(
     config: &'a PackageManagerConfig,
     package_manager: &str,
@@ -32,7 +29,6 @@ fn get_method_from_config<'a>(
     }
 }
 
-// Pure transformation functions
 fn set_npm_method(config: PackageManagerConfig, method: String) -> PackageManagerConfig {
     PackageManagerConfig {
         npm_method: Some(method),
@@ -71,7 +67,6 @@ fn is_empty_method(method: &str) -> bool {
     method.trim().is_empty()
 }
 
-// Pure serialization functions
 fn serialize_config_to_json(config: &PackageManagerConfig) -> Result<String, String> {
     serde_json::to_string_pretty(config).map_err(|e| format!("Serialization error: {}", e))
 }
@@ -80,7 +75,6 @@ fn deserialize_config_from_json(content: &str) -> Result<PackageManagerConfig, S
     serde_json::from_str(content).map_err(|e| format!("Deserialization error: {}", e))
 }
 
-// Pure path construction functions
 fn construct_config_directory_path() -> Result<PathBuf, String> {
     dirs::config_dir()
         .ok_or_else(|| "Could not find config directory".to_string())
@@ -91,12 +85,10 @@ fn construct_config_file_path() -> Result<PathBuf, String> {
     construct_config_directory_path().map(|dir| dir.join("package_manager_config.json"))
 }
 
-// Pure file system operation helpers
 fn extract_parent_directory(path: &PathBuf) -> Option<&std::path::Path> {
     path.parent()
 }
 
-// IO wrapper functions - only these perform side effects
 fn read_config_file(file_path: &PathBuf) -> Result<String, String> {
     fs::read_to_string(file_path).map_err(|e| format!("Failed to read config file: {}", e))
 }
@@ -113,7 +105,6 @@ fn file_exists(path: &PathBuf) -> bool {
     path.exists()
 }
 
-// Main API functions - compose pure functions with minimal IO
 impl PackageManagerConfig {
     pub fn new() -> Self {
         create_empty_config()
@@ -153,7 +144,6 @@ impl PackageManagerConfig {
                 Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
             })?;
 
-        // Ensure parent directory exists
         if let Some(parent) = extract_parent_directory(&config_path) {
             create_directory_recursive(parent).map_err(|e| -> Box<dyn std::error::Error> {
                 Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))

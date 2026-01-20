@@ -4,7 +4,6 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-// Input types for frontend selections
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WidgetInput {
     pub id: String,
@@ -24,7 +23,6 @@ pub struct WidgetBuildRequest {
     pub caption: String,
 }
 
-// Pure transformation functions
 fn transform_widget_to_build_request(widget: &WidgetInput) -> WidgetBuildRequest {
     WidgetBuildRequest {
         widget_path: widget.path.clone(),
@@ -75,8 +73,6 @@ pub async fn build_and_deploy_widgets(
         app_paths.len()
     );
 
-    // Process each widget sequentially (build is I/O bound)
-    // but deploy to multiple apps in parallel
     let results: Vec<Result<SuccessfulDeployment, FailedDeployment>> = widgets
         .into_iter()
         .map(|widget| {
@@ -115,7 +111,6 @@ fn process_widget_build_and_deploy(
 
     println!("[Build & Deploy] Processing widget: {}", widget_caption);
 
-    // Step 1: Check if node_modules exists, if not, run install
     let node_modules_path = Path::new(&widget_path).join("node_modules");
     if !node_modules_path.exists() {
         println!(
@@ -138,7 +133,6 @@ fn process_widget_build_and_deploy(
         }
     }
 
-    // Step 2: Build the widget
     println!("[Build & Deploy] Building widget: {}", widget_caption);
     match run_package_manager_command(
         package_manager.to_string(),
@@ -154,7 +148,6 @@ fn process_widget_build_and_deploy(
         }
     }
 
-    // Step 3: Deploy to all apps in parallel using rayon
     println!(
         "[Build & Deploy] Deploying {} to {} apps in parallel",
         widget_caption,
@@ -169,7 +162,6 @@ fn process_widget_build_and_deploy(
                 widget_caption, app_path
             );
 
-            // copy_widget_to_apps expects a Vec, so we pass a single-element Vec
             match copy_widget_to_apps_util(widget_path.clone(), vec![app_path.clone()]) {
                 Ok(_) => {
                     println!(
@@ -189,7 +181,6 @@ fn process_widget_build_and_deploy(
         })
         .collect();
 
-    // Check if any deployment failed
     let mut failed_apps = Vec::new();
     for (i, result) in deploy_results.iter().enumerate() {
         if let Err(e) = result {
@@ -212,23 +203,19 @@ fn process_widget_build_and_deploy(
     })
 }
 
-/// New command that takes raw widget/app selections and handles transformation internally
 #[tauri::command]
 pub async fn build_and_deploy_from_selections(
     widgets: Vec<WidgetInput>,
     apps: Vec<AppInput>,
     package_manager: String,
 ) -> Result<BuildDeployResult, String> {
-    // Transform inputs to build requests
     let widget_requests = transform_widgets_to_build_requests(&widgets);
     let app_paths = extract_app_paths(&apps);
     let app_names = extract_app_names(&apps);
 
-    // Delegate to existing build_and_deploy_widgets
     build_and_deploy_widgets(widget_requests, app_paths, app_names, package_manager).await
 }
 
-/// Creates a catastrophic error result when an entire build/deploy operation fails
 #[tauri::command]
 pub fn create_catastrophic_error_result(error_message: String) -> Result<BuildDeployResult, String> {
     Ok(BuildDeployResult {

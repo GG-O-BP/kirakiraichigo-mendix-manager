@@ -1,39 +1,29 @@
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 use serde::{Deserialize, Serialize};
 
-// ============= Badge Types =============
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionValidityBadge {
     pub badge: Option<String>,
     pub badge_class: Option<String>,
 }
 
-// ============= Pure Date Formatting Functions =============
-
-/// Parses a date string into a DateTime<Local>
 fn parse_date_string(date_str: &str) -> Option<DateTime<Local>> {
-    // Try RFC3339 format first (e.g., "2024-01-15T10:30:00Z")
     if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
         return Some(dt.with_timezone(&Local));
     }
 
-    // Try ISO 8601 format with timezone
     if let Ok(dt) = DateTime::parse_from_str(date_str, "%Y-%m-%dT%H:%M:%S%.f%:z") {
         return Some(dt.with_timezone(&Local));
     }
 
-    // Try ISO 8601 format without timezone
     if let Ok(naive) = NaiveDateTime::parse_from_str(date_str, "%Y-%m-%dT%H:%M:%S%.f") {
         return Local.from_local_datetime(&naive).single();
     }
 
-    // Try simple date format
     if let Ok(naive) = NaiveDateTime::parse_from_str(date_str, "%Y-%m-%d") {
         return Local.from_local_datetime(&naive).single();
     }
 
-    // Try with date only (add time)
     if let Ok(naive_date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
         let naive = naive_date.and_hms_opt(0, 0, 0)?;
         return Local.from_local_datetime(&naive).single();
@@ -42,7 +32,6 @@ fn parse_date_string(date_str: &str) -> Option<DateTime<Local>> {
     None
 }
 
-/// Formats a date string with a fallback for invalid dates
 fn format_date_with_fallback_internal(date_str: Option<&str>, fallback: &str) -> String {
     match date_str {
         None => fallback.to_string(),
@@ -54,14 +43,10 @@ fn format_date_with_fallback_internal(date_str: Option<&str>, fallback: &str) ->
     }
 }
 
-/// Formats a date for display (localized format)
 fn format_date_internal(date_str: Option<&str>) -> String {
     format_date_with_fallback_internal(date_str, "Date unknown")
 }
 
-// ============= Pure Badge Functions =============
-
-/// Gets the version validity badge based on version properties
 fn get_version_validity_badge_internal(is_valid: bool, is_lts: bool, is_mts: bool) -> VersionValidityBadge {
     if is_valid {
         VersionValidityBadge {
@@ -86,7 +71,6 @@ fn get_version_validity_badge_internal(is_valid: bool, is_lts: bool, is_mts: boo
     }
 }
 
-/// Gets the version status text based on loading states
 fn get_version_status_text_internal(
     is_launching: bool,
     is_uninstalling: bool,
@@ -101,9 +85,6 @@ fn get_version_status_text_internal(
     }
 }
 
-// ============= Pure Search Functions =============
-
-/// Extracts searchable text from item fields
 fn extract_searchable_text_internal(
     label: Option<&str>,
     version: Option<&str>,
@@ -118,7 +99,6 @@ fn extract_searchable_text_internal(
     parts.join(" ").to_lowercase()
 }
 
-/// Checks if the searchable text contains the search term
 fn matches_search_term(searchable_text: &str, search_term: &str) -> bool {
     if search_term.is_empty() {
         return true;
@@ -126,8 +106,6 @@ fn matches_search_term(searchable_text: &str, search_term: &str) -> bool {
 
     searchable_text.contains(&search_term.to_lowercase())
 }
-
-// ============= Tauri Commands =============
 
 #[tauri::command]
 pub fn format_date_with_fallback(
@@ -187,8 +165,6 @@ pub fn text_matches_search(
 ) -> Result<bool, String> {
     Ok(matches_search_term(&searchable_text, &search_term))
 }
-
-// ============= Tests =============
 
 #[cfg(test)]
 mod tests {
