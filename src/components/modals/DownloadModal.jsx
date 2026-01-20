@@ -1,5 +1,5 @@
 import * as R from "ramda";
-import { memo, useState, useEffect } from "react";
+import { memo, useState, useEffect, useRef, useCallback } from "react";
 import "../../styles/components/download-modal.css";
 
 // Pure data types - immutable by design
@@ -13,61 +13,79 @@ const DOWNLOAD_STEPS = {
   ERROR: "error",
 };
 
-const STEP_INFO = {
+// Step configuration with time-based progress ranges
+// Progress ranges are based on actual time distribution:
+// - EXTRACTING_BUILD: ~1.2s
+// - SETTING_PATH: ~0.8s
+// - DOWNLOADING: ~220s (variable, majority of time)
+// - LAUNCHING: ~1.5s
+const STEP_CONFIG = {
   [DOWNLOAD_STEPS.CONFIRM]: {
     title: "Confirm Installation",
-    description: "Ready to download and install Mendix Studio Pro",
-    progress: 0,
     icon: "🤔",
+    startProgress: 0,
+    endProgress: 0,
+    estimatedDuration: 0,
   },
   [DOWNLOAD_STEPS.EXTRACTING_BUILD]: {
     title: "Extracting Build Number",
-    description: "Fetching build information from Mendix marketplace...",
-    progress: 20,
     icon: "🔍",
+    startProgress: 0,
+    endProgress: 2,
+    estimatedDuration: 1200,
   },
   [DOWNLOAD_STEPS.SETTING_PATH]: {
     title: "Setting Up Download",
-    description: "Preparing download directory and file path...",
-    progress: 30,
     icon: "📁",
+    startProgress: 2,
+    endProgress: 5,
+    estimatedDuration: 800,
   },
   [DOWNLOAD_STEPS.DOWNLOADING]: {
     title: "Downloading Installer",
-    description: "Downloading Mendix Studio Pro installer...",
-    progress: 70,
     icon: "⬇️",
+    startProgress: 5,
+    endProgress: 95,
+    estimatedDuration: 250000, // ~250 seconds estimated
   },
   [DOWNLOAD_STEPS.LAUNCHING]: {
     title: "Launching Installer",
-    description: "Starting the installation process...",
-    progress: 90,
     icon: "🚀",
+    startProgress: 95,
+    endProgress: 99,
+    estimatedDuration: 1500,
   },
   [DOWNLOAD_STEPS.COMPLETED]: {
     title: "Setup File Launched Successfully",
-    description:
-      "The Mendix Studio Pro installer is now running. Please continue with the installation wizard.",
-    progress: 100,
     icon: "🎯",
+    startProgress: 100,
+    endProgress: 100,
+    estimatedDuration: 0,
   },
   [DOWNLOAD_STEPS.ERROR]: {
     title: "Installation Failed",
-    description: "An error occurred during the installation process",
-    progress: 0,
     icon: "❌",
+    startProgress: 0,
+    endProgress: 0,
+    estimatedDuration: 0,
   },
 };
 
 // Pure utility functions
-const getStepInfo = (step) =>
-  STEP_INFO[step] || STEP_INFO[DOWNLOAD_STEPS.CONFIRM];
+const getStepConfig = (step) =>
+  STEP_CONFIG[step] || STEP_CONFIG[DOWNLOAD_STEPS.CONFIRM];
 
 const canCancel = (step) =>
   R.includes(step, [DOWNLOAD_STEPS.CONFIRM, DOWNLOAD_STEPS.ERROR]);
 
 const shouldShowProgress = (step) =>
   !R.includes(step, [DOWNLOAD_STEPS.CONFIRM, DOWNLOAD_STEPS.ERROR]);
+
+// Calculate animated progress target (100% of step range)
+const calculateAnimationTarget = (config) => config.endProgress;
+
+// Easing function for smooth animation (ease-out cubic)
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 // Enhanced error message renderer
 const renderErrorMessage = (error) => (
@@ -113,6 +131,76 @@ const renderActionButtons = R.curry(
   },
 );
 
+// Custom hook for animated progress
+const useAnimatedProgress = (currentStep, isProcessing) => {
+  const [progress, setProgress] = useState(0);
+  const animationRef = useRef(null);
+  const stepStartTimeRef = useRef(null);
+
+  useEffect(() => {
+    // Cancel any existing animation
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+
+    const config = getStepConfig(currentStep);
+
+    // For COMPLETED step, immediately set to 100%
+    if (currentStep === DOWNLOAD_STEPS.COMPLETED) {
+      setProgress(100);
+      return;
+    }
+
+    // For ERROR or CONFIRM, set to start progress
+    if (
+      currentStep === DOWNLOAD_STEPS.ERROR ||
+      currentStep === DOWNLOAD_STEPS.CONFIRM
+    ) {
+      setProgress(config.startProgress);
+      return;
+    }
+
+    // If not processing, just set to start progress
+    if (!isProcessing) {
+      setProgress(config.startProgress);
+      return;
+    }
+
+    // Start animation
+    stepStartTimeRef.current = performance.now();
+    const startProgress = config.startProgress;
+    const targetProgress = calculateAnimationTarget(config);
+    const duration = config.estimatedDuration;
+
+    const animate = (currentTime) => {
+      const elapsed = currentTime - stepStartTimeRef.current;
+      const rawProgress = Math.min(elapsed / duration, 1);
+      const easedProgress = easeOutCubic(rawProgress);
+
+      const newProgress =
+        startProgress + (targetProgress - startProgress) * easedProgress;
+      setProgress(newProgress);
+
+      // Continue animation if not reached 90% of duration
+      if (rawProgress < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [currentStep, isProcessing]);
+
+  // Return both raw value for smooth bar and rounded for display
+  return progress;
+};
+
 // Main DownloadModal component with functional approach
 const DownloadModal = memo(
   ({ isOpen, version, onDownload, onClose, onCancel }) => {
@@ -120,6 +208,9 @@ const DownloadModal = memo(
     const [currentStep, setCurrentStep] = useState(DOWNLOAD_STEPS.CONFIRM);
     const [error, setError] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // Animated progress
+    const animatedProgress = useAnimatedProgress(currentStep, isProcessing);
 
     // Reset modal state when opened
     useEffect(() => {
@@ -130,7 +221,7 @@ const DownloadModal = memo(
       }
     }, [isOpen]);
 
-    const handleDownload = () => {
+    const handleDownload = useCallback(() => {
       if (!version?.version) {
         setError("Invalid version data");
         setCurrentStep(DOWNLOAD_STEPS.ERROR);
@@ -155,7 +246,6 @@ const DownloadModal = memo(
 
           setCurrentStep(DOWNLOAD_STEPS.COMPLETED);
         } catch (err) {
-          console.error("Download process failed:", err);
           setError(err.toString());
           setCurrentStep(DOWNLOAD_STEPS.ERROR);
         } finally {
@@ -164,25 +254,25 @@ const DownloadModal = memo(
       };
 
       executeDownload();
-    };
+    }, [version, onDownload]);
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
       if (!isProcessing) {
         onClose();
       }
-    };
+    }, [isProcessing, onClose]);
 
-    const handleCancel = () => {
+    const handleCancel = useCallback(() => {
       if (canCancel(currentStep)) {
         onCancel();
       }
-    };
+    }, [currentStep, onCancel]);
 
     if (!isOpen) {
       return null;
     }
 
-    const stepInfo = getStepInfo(currentStep);
+    const stepConfig = getStepConfig(currentStep);
     const showProgressBar = shouldShowProgress(currentStep);
 
     return (
@@ -234,7 +324,7 @@ const DownloadModal = memo(
                 <span style={{ fontSize: "1.2rem", marginRight: "8px" }}>
                   {isProcessing && currentStep !== DOWNLOAD_STEPS.COMPLETED
                     ? "🍓"
-                    : stepInfo.icon}
+                    : stepConfig.icon}
                 </span>
                 <span
                   style={{
@@ -243,7 +333,7 @@ const DownloadModal = memo(
                     color: "var(--theme-primary)",
                   }}
                 >
-                  {stepInfo.title}
+                  {stepConfig.title}
                 </span>
                 <br />
                 <div
@@ -263,8 +353,7 @@ const DownloadModal = memo(
                       background:
                         "linear-gradient(90deg, var(--theme-primary), var(--theme-secondary))",
                       borderRadius: "2px",
-                      width: `${stepInfo.progress}%`,
-                      transition: "width 0.3s ease",
+                      width: `${animatedProgress}%`,
                       position: "relative",
                     }}
                   >
@@ -290,7 +379,7 @@ const DownloadModal = memo(
                     marginTop: "2px",
                   }}
                 >
-                  {stepInfo.progress}%
+                  {Math.round(animatedProgress)}%
                 </span>
                 <div style={{ clear: "both" }} />
               </>
