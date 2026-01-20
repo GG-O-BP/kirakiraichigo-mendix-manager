@@ -178,27 +178,6 @@ pub fn load_from_storage(key: String, default_value: Value) -> Result<Value, Str
     load_specific_state(&key, default_value)
 }
 
-#[tauri::command]
-pub fn save_app_state(state: AppState) -> Result<(), String> {
-    save_state_to_file(&state)
-}
-
-#[tauri::command]
-pub fn load_app_state() -> Result<AppState, String> {
-    load_state_from_file()
-}
-
-#[tauri::command]
-pub fn clear_app_state() -> Result<(), String> {
-    let path = construct_storage_file_path("app_state.json")?;
-
-    if path.exists() {
-        fs::remove_file(&path).map_err(|e| format!("Failed to clear app state: {}", e))?;
-    }
-
-    Ok(())
-}
-
 // ============================================================================
 // Widget Storage Management Functions
 // ============================================================================

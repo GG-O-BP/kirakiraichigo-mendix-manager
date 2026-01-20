@@ -85,28 +85,6 @@ fn get_version_status_text_internal(
     }
 }
 
-fn extract_searchable_text_internal(
-    label: Option<&str>,
-    version: Option<&str>,
-    name: Option<&str>,
-) -> String {
-    let parts: Vec<&str> = [label, version, name]
-        .into_iter()
-        .flatten()
-        .filter(|s| !s.is_empty())
-        .collect();
-
-    parts.join(" ").to_lowercase()
-}
-
-fn matches_search_term(searchable_text: &str, search_term: &str) -> bool {
-    if search_term.is_empty() {
-        return true;
-    }
-
-    searchable_text.contains(&search_term.to_lowercase())
-}
-
 #[tauri::command]
 pub fn format_date_with_fallback(
     date_str: Option<String>,
@@ -143,27 +121,6 @@ pub fn get_version_status_text(
         is_uninstalling,
         install_date.as_deref(),
     ))
-}
-
-#[tauri::command]
-pub fn extract_searchable_text(
-    label: Option<String>,
-    version: Option<String>,
-    name: Option<String>,
-) -> Result<String, String> {
-    Ok(extract_searchable_text_internal(
-        label.as_deref(),
-        version.as_deref(),
-        name.as_deref(),
-    ))
-}
-
-#[tauri::command]
-pub fn text_matches_search(
-    searchable_text: String,
-    search_term: String,
-) -> Result<bool, String> {
-    Ok(matches_search_term(&searchable_text, &search_term))
 }
 
 #[cfg(test)]
@@ -256,49 +213,4 @@ mod tests {
         assert_eq!(result, "Installation date unknown");
     }
 
-    #[test]
-    fn test_extract_searchable_text_all_fields() {
-        let result = extract_searchable_text_internal(
-            Some("My Widget"),
-            Some("10.4.0"),
-            Some("TestApp"),
-        );
-        assert_eq!(result, "my widget 10.4.0 testapp");
-    }
-
-    #[test]
-    fn test_extract_searchable_text_partial_fields() {
-        let result = extract_searchable_text_internal(
-            Some("My Widget"),
-            None,
-            Some("TestApp"),
-        );
-        assert_eq!(result, "my widget testapp");
-    }
-
-    #[test]
-    fn test_extract_searchable_text_empty() {
-        let result = extract_searchable_text_internal(None, None, None);
-        assert_eq!(result, "");
-    }
-
-    #[test]
-    fn test_matches_search_term_found() {
-        assert!(matches_search_term("my widget 10.4.0", "widget"));
-    }
-
-    #[test]
-    fn test_matches_search_term_not_found() {
-        assert!(!matches_search_term("my widget 10.4.0", "component"));
-    }
-
-    #[test]
-    fn test_matches_search_term_case_insensitive() {
-        assert!(matches_search_term("my widget", "WIDGET"));
-    }
-
-    #[test]
-    fn test_matches_search_term_empty_search() {
-        assert!(matches_search_term("any text", ""));
-    }
 }

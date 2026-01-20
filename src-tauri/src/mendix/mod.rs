@@ -287,25 +287,14 @@ pub fn launch_studio_pro(version: String) -> Result<(), String> {
         .and_then(|exe_path| execute_command(&exe_path, &[]))
 }
 
-#[tauri::command]
-pub fn uninstall_studio_pro(version: String) -> Result<(), String> {
+// Used internally by uninstall_studio_pro_and_wait
+fn uninstall_studio_pro(version: &str) -> Result<(), String> {
     let mendix_data_dir = "C:\\ProgramData\\Mendix";
 
-    construct_uninstall_path(mendix_data_dir, &version)
+    construct_uninstall_path(mendix_data_dir, version)
         .filter(|path| Path::new(path).exists())
         .ok_or_else(|| format!("Uninstaller not found for version {}", version))
         .and_then(|uninstall_path| execute_command(&uninstall_path, &["/SILENT"]))
-}
-
-#[tauri::command]
-pub fn check_version_folder_exists(version: String) -> Result<bool, String> {
-    let mendix_dir = "C:\\Program Files\\Mendix";
-
-    scan_mendix_directory(mendix_dir).map(|entries| {
-        entries
-            .into_iter()
-            .any(|(dir_name, _)| dir_name.starts_with(&version))
-    })
 }
 
 #[tauri::command]
@@ -328,7 +317,7 @@ pub async fn uninstall_studio_pro_and_wait(
     let timeout = timeout_seconds.unwrap_or(60);
     let mendix_dir = "C:\\Program Files\\Mendix";
 
-    uninstall_studio_pro(version.clone())?;
+    uninstall_studio_pro(&version)?;
 
     let poll_interval = std::time::Duration::from_secs(1);
     let start_time = std::time::Instant::now();

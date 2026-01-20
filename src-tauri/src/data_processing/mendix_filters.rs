@@ -106,50 +106,6 @@ pub fn filter_mendix_apps(
 }
 
 #[tauri::command]
-pub fn paginate_mendix_versions(
-    versions: Vec<MendixVersion>,
-    page: usize,
-    items_per_page: usize,
-) -> Result<PaginatedResult<MendixVersion>, String> {
-    let options = PaginationOptions {
-        page,
-        items_per_page,
-    };
-
-    Ok(paginate(versions, &options))
-}
-
-#[tauri::command]
-pub fn paginate_mendix_apps(
-    apps: Vec<MendixApp>,
-    page: usize,
-    items_per_page: usize,
-) -> Result<PaginatedResult<MendixApp>, String> {
-    let options = PaginationOptions {
-        page,
-        items_per_page,
-    };
-
-    Ok(paginate(apps, &options))
-}
-
-#[tauri::command]
-pub fn sort_versions_by_semantic_version(
-    versions: Vec<MendixVersion>,
-) -> Result<Vec<MendixVersion>, String> {
-    Ok(sort_by_version(versions, version_extractor_for_version))
-}
-
-#[tauri::command]
-pub fn sort_apps_by_version_and_date(apps: Vec<MendixApp>) -> Result<Vec<MendixApp>, String> {
-    Ok(sort_by_version_with_date_fallback(
-        apps,
-        version_extractor_for_app,
-        date_extractor_for_app,
-    ))
-}
-
-#[tauri::command]
 pub fn filter_and_sort_apps_with_priority(
     apps: Vec<MendixApp>,
     search_term: Option<String>,
@@ -347,32 +303,6 @@ mod tests {
 
         let result = filter_mendix_apps(apps, Some("my".to_string()), None, true).unwrap();
         assert_eq!(result.len(), 2);
-    }
-
-    #[test]
-    fn test_paginate_versions() {
-        let versions: Vec<MendixVersion> = (1..=25)
-            .map(|i| create_test_version(&format!("10.{}.0", i), true))
-            .collect();
-
-        let result = paginate_mendix_versions(versions, 0, 10).unwrap();
-        assert_eq!(result.items.len(), 10);
-        assert_eq!(result.total_pages, 3);
-        assert!(result.has_next_page);
-    }
-
-    #[test]
-    fn test_sort_versions() {
-        let versions = vec![
-            create_test_version("1.0.0", true),
-            create_test_version("10.4.0", true),
-            create_test_version("2.0.0", true),
-        ];
-
-        let result = sort_versions_by_semantic_version(versions).unwrap();
-        assert_eq!(result[0].version, "10.4.0");
-        assert_eq!(result[1].version, "2.0.0");
-        assert_eq!(result[2].version, "1.0.0");
     }
 
     fn create_test_widget(id: &str, caption: &str) -> Widget {

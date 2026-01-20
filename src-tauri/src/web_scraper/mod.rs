@@ -44,12 +44,6 @@ pub struct ScrapingConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct ElementData {
-    pub text: String,
-    pub html: String,
-}
-
-#[derive(Debug, Clone)]
 pub struct VersionFlags {
     pub is_lts: bool,
     pub is_beta: bool,
@@ -98,16 +92,6 @@ const fn create_version_flags(
     }
 }
 
-fn is_valid_version_string(version: &str) -> bool {
-    regex::Regex::new(r"^\d+\.\d+\.\d+$")
-        .map(|re| re.is_match(version))
-        .unwrap_or(false)
-}
-
-fn is_valid_download_url(url: &str) -> bool {
-    url.starts_with("https://") && url.contains("mendix.com")
-}
-
 fn extract_build_number_from_text(text: &str) -> Option<String> {
     Regex::new(r"Build\s+(\d{5})")
         .ok()?
@@ -149,119 +133,6 @@ fn create_build_info(build_number: String, version: &str) -> BuildInfo {
         build_number,
         download_url,
     }
-}
-
-fn is_valid_version(version: &DownloadableVersion) -> bool {
-    is_valid_version_string(&version.version)
-        && (!version.download_url.is_empty() && is_valid_download_url(&version.download_url)
-            || version.download_url.is_empty())
-}
-
-fn filter_valid_versions(versions: Vec<DownloadableVersion>) -> Vec<DownloadableVersion> {
-    versions.into_iter().filter(is_valid_version).collect()
-}
-
-fn sort_versions_by_version_desc(
-    mut versions: Vec<DownloadableVersion>,
-) -> Vec<DownloadableVersion> {
-    versions.sort_by(|a, b| {
-        let parse_version = |version: &str| -> Vec<u32> {
-            version.split('.').filter_map(|s| s.parse().ok()).collect()
-        };
-
-        let a_parts = parse_version(&a.version);
-        let b_parts = parse_version(&b.version);
-        b_parts.cmp(&a_parts)
-    });
-    versions
-}
-
-fn partition_versions_by_type(
-    versions: Vec<DownloadableVersion>,
-) -> (Vec<DownloadableVersion>, Vec<DownloadableVersion>) {
-    versions.into_iter().partition(|v| !v.is_beta)
-}
-
-fn extract_version_from_text(text: &str) -> Option<String> {
-    regex::Regex::new(r"(\d+\.\d+\.\d+)")
-        .ok()?
-        .captures(text)?
-        .get(1)
-        .map(|m| m.as_str().to_string())
-}
-
-fn extract_download_url_from_html(html: &str) -> Option<String> {
-    regex::Regex::new(r#"href="(https://[^"]*mendix[^"]*\.msi[^"]*)""#)
-        .ok()?
-        .captures(html)?
-        .get(1)
-        .map(|m| m.as_str().to_string())
-}
-
-fn extract_release_date_from_text(text: &str) -> Option<String> {
-    regex::Regex::new(r"(\w+ \d{1,2}, \d{4})")
-        .ok()?
-        .captures(text)?
-        .get(1)
-        .map(|m| m.as_str().to_string())
-}
-
-fn detect_version_flags(text: &str) -> VersionFlags {
-    let lower_text = text.to_lowercase();
-    create_version_flags(
-        lower_text.contains("lts") || lower_text.contains("long term"),
-        lower_text.contains("beta") || lower_text.contains("preview"),
-        false,
-        false,
-    )
-}
-
-fn extract_file_size_from_text(text: &str) -> Option<String> {
-    regex::Regex::new(r"(\d+(?:\.\d+)?\s*(?:MB|GB|KB))")
-        .ok()?
-        .captures(text)?
-        .get(1)
-        .map(|m| m.as_str().to_string())
-}
-
-fn extract_release_notes_url_from_html(html: &str) -> Option<String> {
-    regex::Regex::new(r#"href="([^"]*(?:release-notes|changelog)[^"]*)""#)
-        .ok()?
-        .captures(html)?
-        .get(1)
-        .map(|m| m.as_str().to_string())
-}
-
-fn create_version_from_element_data(data: &ElementData) -> Option<DownloadableVersion> {
-    let version = extract_version_from_text(&data.text)?;
-    let download_url = extract_download_url_from_html(&data.html).unwrap_or_default();
-    let release_date = extract_release_date_from_text(&data.text);
-    let release_notes_url = extract_release_notes_url_from_html(&data.html);
-    let file_size = extract_file_size_from_text(&data.text);
-    let flags = detect_version_flags(&data.text);
-
-    Some(create_downloadable_version(
-        version,
-        download_url,
-        release_date,
-        release_notes_url,
-        file_size,
-        flags,
-    ))
-}
-
-fn process_element_data_list(data_list: Vec<ElementData>) -> Vec<DownloadableVersion> {
-    data_list
-        .iter()
-        .filter_map(create_version_from_element_data)
-        .collect()
-}
-
-fn apply_version_processing_pipeline(
-    versions: Vec<DownloadableVersion>,
-) -> Vec<DownloadableVersion> {
-    let filtered = filter_valid_versions(versions);
-    sort_versions_by_version_desc(filtered)
 }
 
 async fn create_browser_instance() -> Result<(Browser, chromiumoxide::handler::Handler), String> {
@@ -306,27 +177,12 @@ async fn navigate_to_url(browser: &Browser, url: &str) -> Result<Page, String> {
     Ok(page)
 }
 
-async fn extract_element_text(element: &Element) -> Result<String, String> {
-    element
-        .inner_text()
-        .await
-        .map_err(|e| format!("Failed to extract text: {}", e))?
-        .ok_or_else(|| "Element has no text content".to_string())
-}
-
 async fn extract_element_html(element: &Element) -> Result<String, String> {
     element
         .inner_html()
         .await
         .map_err(|e| format!("Failed to extract HTML: {}", e))?
         .ok_or_else(|| "Element has no HTML content".to_string())
-}
-
-async fn extract_element_data(element: &Element) -> Result<ElementData, String> {
-    let text = extract_element_text(element).await.unwrap_or_default();
-    let html = extract_element_html(element).await.unwrap_or_default();
-
-    Ok(ElementData { text, html })
 }
 
 async fn wait_for_element_with_timeout(
@@ -383,42 +239,6 @@ async fn handle_privacy_modal_if_present(page: &Page) -> Result<(), String> {
     Ok(())
 }
 
-async fn extract_version_elements_from_page(
-    page: &Page,
-    config: &ScrapingConfig,
-) -> Result<Vec<Element>, String> {
-    let selectors = [
-        "a[href*='.msi']",
-        ".version-item",
-        ".download-item",
-        "[data-download]",
-    ];
-
-    for selector in &selectors {
-        if let Ok(elements) =
-            wait_for_element_with_timeout(page, *selector, config.wait_for_element_seconds).await
-        {
-            if !elements.is_empty() {
-                return Ok(elements);
-            }
-        }
-    }
-
-    Err("No version elements found with any known selectors".to_string())
-}
-
-async fn extract_all_element_data(elements: Vec<Element>) -> Vec<ElementData> {
-    let mut data_list = Vec::new();
-
-    for element in elements {
-        if let Ok(data) = extract_element_data(&element).await {
-            data_list.push(data);
-        }
-    }
-
-    data_list
-}
-
 async fn cleanup_browser_resources(
     mut browser: Browser,
     handler_task: tokio::task::JoinHandle<()>,
@@ -426,44 +246,6 @@ async fn cleanup_browser_resources(
     let _ = browser.close().await;
     handler_task.abort();
     Ok(())
-}
-
-async fn scrape_versions_from_url(
-    url: &str,
-    config: &ScrapingConfig,
-) -> Result<Vec<DownloadableVersion>, String> {
-    let (browser, mut handler) = create_browser_instance().await?;
-
-    let handler_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
-    let handler_flag = handler_running.clone();
-
-    let handler_task = tokio::spawn(async move {
-        while handler_flag.load(std::sync::atomic::Ordering::Relaxed) {
-            match tokio::time::timeout(Duration::from_millis(100), handler.next()).await {
-                Ok(Some(Ok(_))) => continue,
-                Ok(Some(Err(_))) => continue,
-                Ok(None) => break,
-                Err(_) => continue, // Timeout, continue checking
-            }
-        }
-    });
-
-    let result = async {
-        let page = navigate_to_url(&browser, url).await?;
-
-        handle_privacy_modal_if_present(&page).await?;
-
-        let elements = extract_version_elements_from_page(&page, config).await?;
-        let element_data_list = extract_all_element_data(elements).await;
-        let versions = process_element_data_list(element_data_list);
-
-        Ok(apply_version_processing_pipeline(versions))
-    }
-    .await;
-
-    handler_running.store(false, std::sync::atomic::Ordering::Relaxed);
-    let _ = cleanup_browser_resources(browser, handler_task).await;
-    result
 }
 
 fn parse_datagrid_row(row: &scraper::ElementRef) -> Option<DownloadableVersion> {
@@ -603,21 +385,6 @@ async fn navigate_to_page(page: &Page, target_page: u32) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn get_downloadable_mendix_versions() -> Result<Vec<DownloadableVersion>, String> {
-    let config = create_default_scraping_config();
-    let url = "https://marketplace.mendix.com/link/studiopro";
-    scrape_versions_from_url(url, &config).await
-}
-
-#[tauri::command]
-pub async fn get_downloadable_versions_by_type(
-) -> Result<(Vec<DownloadableVersion>, Vec<DownloadableVersion>), String> {
-    get_downloadable_mendix_versions()
-        .await
-        .map(partition_versions_by_type)
-}
-
-#[tauri::command]
 pub async fn get_downloadable_versions_from_datagrid(
     page: Option<u32>,
 ) -> Result<Vec<DownloadableVersion>, String> {
@@ -657,82 +424,6 @@ pub async fn get_downloadable_versions_from_datagrid(
     .await;
 
     handler_running.store(false, std::sync::atomic::Ordering::Relaxed);
-    let _ = cleanup_browser_resources(browser, handler_task).await;
-    result
-}
-
-#[tauri::command]
-pub async fn debug_page_structure() -> Result<String, String> {
-    let url = "https://marketplace.mendix.com/link/studiopro";
-
-    let (browser, mut handler) = create_browser_instance().await?;
-
-    let handler_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
-    let handler_flag = handler_running.clone();
-
-    let handler_task = tokio::spawn(async move {
-        while handler_flag.load(std::sync::atomic::Ordering::Relaxed) {
-            match tokio::time::timeout(Duration::from_millis(100), handler.next()).await {
-                Ok(Some(Ok(_))) => continue,
-                Ok(Some(Err(_))) => continue,
-                Ok(None) => break,
-                Err(_) => continue,
-            }
-        }
-    });
-
-    tokio::time::sleep(Duration::from_millis(3000)).await;
-
-    let result = async {
-        let page = navigate_to_url(&browser, url).await?;
-
-        tokio::time::sleep(Duration::from_millis(5000)).await;
-
-        page.content()
-            .await
-            .map_err(|e| format!("Failed to get page content: {}", e))
-    }
-    .await;
-
-    handler_running.store(false, std::sync::atomic::Ordering::Relaxed);
-    let _ = cleanup_browser_resources(browser, handler_task).await;
-    result
-}
-
-#[tauri::command]
-pub async fn wait_for_datagrid_content() -> Result<String, String> {
-    let config = create_default_scraping_config();
-    let url = "https://marketplace.mendix.com/link/studiopro";
-
-    let (browser, mut handler) = create_browser_instance().await?;
-
-    let handler_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
-    let handler_flag = handler_running.clone();
-
-    let handler_task = tokio::spawn(async move {
-        while handler_flag.load(std::sync::atomic::Ordering::Relaxed) {
-            match tokio::time::timeout(Duration::from_millis(100), handler.next()).await {
-                Ok(Some(Ok(_))) => continue,
-                Ok(Some(Err(_))) => continue,
-                Ok(None) => break,
-                Err(_) => continue,
-            }
-        }
-    });
-
-    tokio::time::sleep(Duration::from_millis(3000)).await;
-
-    let result = async {
-        let page = navigate_to_url(&browser, url).await?;
-
-        handle_privacy_modal_if_present(&page).await?;
-
-        extract_datagrid_content(&page, &config).await
-    }
-    .await;
-
-    handler_running.store(false, std::sync::atomic::Ordering::Relaxed);
-
     let _ = cleanup_browser_resources(browser, handler_task).await;
     result
 }
@@ -836,9 +527,9 @@ fn execute_installer(installer_path: &str) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-pub async fn extract_build_number(version: String) -> Result<BuildInfo, String> {
-    let url = construct_marketplace_url(&version);
+// Used internally by download_and_install_mendix_version
+async fn extract_build_number(version: &str) -> Result<BuildInfo, String> {
+    let url = construct_marketplace_url(version);
     let (browser, mut handler) = create_browser_instance().await?;
 
     let handler_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
@@ -860,8 +551,8 @@ pub async fn extract_build_number(version: String) -> Result<BuildInfo, String> 
     let result = async {
         let page = navigate_to_url(&browser, &url).await?;
         handle_privacy_modal_if_present(&page).await?;
-        let build_number = extract_build_number_from_marketplace(&page, &version).await?;
-        let build_info = create_build_info(build_number, &version);
+        let build_number = extract_build_number_from_marketplace(&page, version).await?;
+        let build_info = create_build_info(build_number, version);
         Ok(build_info)
     }
     .await;
@@ -884,7 +575,7 @@ pub async fn download_and_install_mendix_version(version: String) -> Result<Stri
         (url, filename)
     } else {
         println!("📋 Extracting build number...");
-        let build_info = extract_build_number(version.clone()).await?;
+        let build_info = extract_build_number(&version).await?;
         let filename = format!("Mendix-{}.{}-Setup.exe", version, build_info.build_number);
         (build_info.download_url, filename)
     };
@@ -906,14 +597,4 @@ pub async fn download_and_install_mendix_version(version: String) -> Result<Stri
         "Successfully started installation of Mendix Studio Pro {}",
         version
     ))
-}
-
-#[tauri::command]
-pub async fn get_download_url_for_version(version: String) -> Result<String, String> {
-    if is_version_11_or_above(&version) {
-        Ok(construct_download_url_v11(&version))
-    } else {
-        let build_info = extract_build_number(version).await?;
-        Ok(build_info.download_url)
-    }
 }

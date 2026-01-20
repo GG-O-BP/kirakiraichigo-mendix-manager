@@ -14,6 +14,7 @@ KiraKira Ichigo ("KiraIchi") is a Tauri-based desktop application for managing M
 - `bun run preview` - Preview production build
 - `bun test` - Run Vitest tests once
 - `bun test:watch` - Run Vitest in watch mode
+- `bun test <file>` - Run specific test file
 
 ### Tauri Application
 - `bun tauri dev` - Start Tauri app in development mode (auto-runs `bun dev`)
@@ -21,6 +22,7 @@ KiraKira Ichigo ("KiraIchi") is a Tauri-based desktop application for managing M
 
 ### Rust Backend
 - Tests: `cd src-tauri && cargo test`
+- Single test: `cd src-tauri && cargo test test_name`
 - Manual build: `cd src-tauri && cargo build`
 
 ## Architecture Overview
@@ -62,11 +64,15 @@ export function useVersions() {
 - `mendix/` - Studio Pro version/app management
 - `web_scraper/` - Mendix versions download (chromiumoxide headless browser)
 - `widget_parser/` - widget.xml parsing, property transformation
+- `widget_preview/` - Widget preview build operations
 - `build_deploy/` - Widget build and deployment (parallel via Rayon)
 - `package_manager/` - npm/pnpm/yarn/bun command execution
 - `storage/` - Persistent state (Tauri fs plugin)
 - `data_processing/` - Filtering, pagination, sorting
 - `validation/` - Input validation
+- `formatting/` - Date formatting, version status/badge text
+- `config/` - Package manager configuration types
+- `utils/` - Path utilities
 
 **Tauri Commands**:
 ```javascript
