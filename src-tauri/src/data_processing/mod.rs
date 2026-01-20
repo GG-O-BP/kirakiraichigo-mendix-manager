@@ -276,16 +276,11 @@ mod tests {
     #[derive(Debug, Clone)]
     struct TestItem {
         name: String,
-        version: String,
         is_valid: bool,
     }
 
     fn test_name_extractor(item: &TestItem) -> Option<String> {
         Some(item.name.clone())
-    }
-
-    fn test_version_extractor(item: &TestItem) -> Option<String> {
-        Some(item.version.clone())
     }
 
     fn test_is_valid(item: &TestItem) -> bool {
@@ -297,17 +292,14 @@ mod tests {
         let items = vec![
             TestItem {
                 name: "Widget A".to_string(),
-                version: "1.0.0".to_string(),
                 is_valid: true,
             },
             TestItem {
                 name: "Widget B".to_string(),
-                version: "2.0.0".to_string(),
                 is_valid: true,
             },
             TestItem {
                 name: "Component C".to_string(),
-                version: "1.5.0".to_string(),
                 is_valid: true,
             },
         ];
@@ -326,17 +318,14 @@ mod tests {
         let items = vec![
             TestItem {
                 name: "A".to_string(),
-                version: "1.0.0".to_string(),
                 is_valid: true,
             },
             TestItem {
                 name: "B".to_string(),
-                version: "2.0.0".to_string(),
                 is_valid: false,
             },
             TestItem {
                 name: "C".to_string(),
-                version: "3.0.0".to_string(),
                 is_valid: true,
             },
         ];

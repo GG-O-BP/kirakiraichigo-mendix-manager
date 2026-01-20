@@ -53,7 +53,8 @@ pub use data_processing::{
     mendix_filters::{
         create_widget, filter_and_sort_apps_with_priority, filter_apps_by_selected_paths,
         filter_mendix_apps, filter_mendix_versions, filter_widgets, filter_widgets_by_selected_ids,
-        remove_widget_by_id, sort_widgets_by_order, Widget,
+        process_apps_pipeline, process_widgets_pipeline, remove_widget_by_id, sort_widgets_by_order,
+        Widget,
     },
     FilterOptions, SearchFilter, VersionFilter,
 };
@@ -64,40 +65,46 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            // ================================================================
             // Mendix version management
+            // ================================================================
             get_installed_mendix_versions,
             launch_studio_pro,
             uninstall_studio_pro_and_wait,
             delete_mendix_app,
             get_apps_by_version,
             get_installed_mendix_apps,
-            // Widget installation
+            // ================================================================
+            // Widget management
+            // ================================================================
             batch_install_widgets,
-            // Widget parsing
             validate_mendix_widget,
             read_editor_config,
             initialize_property_values,
+            remove_widget_by_id,
+            create_widget,
+            // ================================================================
             // Web scraper
+            // ================================================================
             get_downloadable_versions_from_datagrid,
             download_and_install_mendix_version,
-            // Widget preview & deployment
+            // ================================================================
+            // Widget preview & build
+            // ================================================================
             build_widget_for_preview,
             build_and_deploy_from_selections,
-            // Filtering
-            filter_mendix_versions,
-            filter_mendix_apps,
-            filter_widgets,
-            filter_and_sort_apps_with_priority,
+            // ================================================================
             // Storage
+            // ================================================================
             save_to_storage,
             load_from_storage,
             load_widgets_ordered,
             delete_widget_and_save,
             add_widget_and_save,
-            // Validation
-            validate_build_deploy_selections,
-            has_build_failures,
+            // ================================================================
             // Version utilities
+            // ================================================================
+            filter_mendix_versions,
             exclude_installed_versions,
             filter_by_version_support_type,
             filter_downloadable_versions,
@@ -106,35 +113,50 @@ pub fn run() {
             is_version_currently_selected,
             calculate_next_page_number,
             create_version_options,
+            // ================================================================
             // Formatting
+            // ================================================================
             format_date_with_fallback,
             format_date,
             get_version_validity_badge,
             get_version_status_text,
-            // Batch formatting (consolidated)
             format_versions_batch,
             format_apps_batch,
+            // ================================================================
             // Path utilities
+            // ================================================================
             extract_folder_name_from_path,
-            // Selection filtering
-            filter_widgets_by_selected_ids,
-            filter_apps_by_selected_paths,
-            // Widget ordering & deletion
-            sort_widgets_by_order,
-            remove_widget_by_id,
-            // Widget creation
-            create_widget,
-            // Error result
-            create_catastrophic_error_result,
+            // ================================================================
+            // Validation
+            // ================================================================
+            validate_build_deploy_selections,
+            has_build_failures,
+            // ================================================================
             // Property transformation
+            // ================================================================
             transform_properties_to_spec,
             parse_widget_properties_as_spec,
-            // Property counting
             count_all_spec_groups_visible_properties,
-            // Consolidated commands
+            // ================================================================
+            // Consolidated commands (preferred)
+            // ================================================================
             load_widget_complete_data,
             validate_and_build_deploy,
-            compare_versions
+            compare_versions,
+            process_widgets_pipeline,
+            process_apps_pipeline,
+            // ================================================================
+            // Legacy commands (deprecated - kept for backward compatibility)
+            // Use process_widgets_pipeline instead of individual widget commands
+            // Use process_apps_pipeline instead of individual app commands
+            // ================================================================
+            filter_widgets,
+            filter_widgets_by_selected_ids,
+            sort_widgets_by_order,
+            filter_mendix_apps,
+            filter_apps_by_selected_paths,
+            filter_and_sort_apps_with_priority,
+            create_catastrophic_error_result
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

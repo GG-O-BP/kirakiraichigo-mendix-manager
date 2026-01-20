@@ -2,7 +2,7 @@ import * as R from "ramda";
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { STORAGE_KEYS, saveToStorage } from "../utils";
-import { filterWidgets } from "../utils/data-processing/widgetFiltering";
+import { processWidgetsPipeline } from "../utils/data-processing/widgetFiltering";
 import { useCollection } from "./useCollection";
 
 export function useWidgets() {
@@ -85,8 +85,9 @@ export function useWidgets() {
   useEffect(() => {
     const filterWidgetsBySearchTerm = async () => {
       try {
-        const searchTerm = R.defaultTo(null, collection.searchTerm);
-        const filtered = await filterWidgets(collection.items, searchTerm);
+        const filtered = await processWidgetsPipeline(collection.items, {
+          searchTerm: collection.searchTerm,
+        });
         collection.setFilteredItems(filtered);
       } catch (error) {
         console.error("Failed to filter widgets:", error);

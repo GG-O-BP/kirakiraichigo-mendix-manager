@@ -1,8 +1,15 @@
 export { filterMendixVersions } from "./versionFiltering";
 
-export { filterMendixApps, filterAndSortAppsWithPriority } from "./appFiltering";
+export {
+  processAppsPipeline,
+  filterMendixApps,
+  filterAndSortAppsWithPriority,
+} from "./appFiltering";
 
-export { filterWidgets } from "./widgetFiltering";
+export {
+  processWidgetsPipeline,
+  filterWidgets,
+} from "./widgetFiltering";
 
 export {
   initializePropertyValues,

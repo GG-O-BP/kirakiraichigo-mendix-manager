@@ -2,7 +2,7 @@ import * as R from "ramda";
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { filterMendixVersions } from "../utils/data-processing/versionFiltering";
-import { filterAndSortAppsWithPriority } from "../utils/data-processing/appFiltering";
+import { processAppsPipeline } from "../utils/data-processing/appFiltering";
 
 const DOWNLOADABLE_VERSIONS_PAGE_SIZE = 10;
 
@@ -66,11 +66,11 @@ export const useVersionFiltering = ({
 
   useEffect(() => {
     if (apps && apps.length > 0) {
-      filterAndSortAppsWithPriority(
-        apps,
+      processAppsPipeline(apps, {
         searchTerm,
-        selectedVersion?.version
-      )
+        priorityVersion: selectedVersion?.version,
+        onlyValid: true,
+      })
         .then(setDisplayedApps)
         .catch((error) => {
           console.error("Failed to filter apps:", error);
