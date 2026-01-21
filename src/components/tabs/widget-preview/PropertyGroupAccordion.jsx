@@ -45,11 +45,11 @@ const PropertyGroupAccordion = memo(({
         className="property-group-header"
         onClick={() => toggleGroup(groupId)}
       >
-        <span className="property-group-icon">{isExpanded ? "▼" : "▶"}</span>
+        <span className={`property-group-icon ${isExpanded ? "expanded" : ""}`}>🍓</span>
         <span className="property-group-title">{caption}</span>
         <span className="property-group-count">{visibleCount}</span>
       </button>
-      {isExpanded && (
+      <div className="property-group-content-wrapper">
         <div className={contentClassName}>
           {R.map(
             (prop) => renderPropertyInputField(properties, updateProperty, prop),
@@ -73,7 +73,7 @@ const PropertyGroupAccordion = memo(({
             visibleNestedGroups,
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 });
