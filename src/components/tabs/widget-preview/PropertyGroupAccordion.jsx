@@ -8,6 +8,7 @@ const PropertyGroupAccordion = memo(({
   depth,
   properties,
   updateProperty,
+  arrayHandlers,
   expandedGroups,
   toggleGroup,
   visibleKeys,
@@ -52,7 +53,7 @@ const PropertyGroupAccordion = memo(({
       <div className="property-group-content-wrapper">
         <div className={contentClassName}>
           {R.map(
-            (prop) => renderPropertyInputField(properties, updateProperty, prop),
+            (prop) => renderPropertyInputField(properties, updateProperty, arrayHandlers, prop),
             filteredProperties,
           )}
           {R.map(
@@ -64,6 +65,7 @@ const PropertyGroupAccordion = memo(({
                 depth={depth + 1}
                 properties={properties}
                 updateProperty={updateProperty}
+                arrayHandlers={arrayHandlers}
                 expandedGroups={expandedGroups}
                 toggleGroup={toggleGroup}
                 visibleKeys={visibleKeys}

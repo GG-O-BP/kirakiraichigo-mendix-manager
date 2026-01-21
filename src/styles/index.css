@@ -16,6 +16,7 @@
 @import "./components/app.css";
 @import "./components/functional.css";
 @import "./components/download-modal.css";
+@import "./components/object-list.css";
 
 /* ============= Utility Classes ============= */
 @import "./utilities/animations.css";

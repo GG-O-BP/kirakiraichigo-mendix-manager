@@ -25,7 +25,7 @@ const renderNoWidgetSelectedState = () => (
   </div>
 );
 
-const RootPropertyGroup = memo(({ properties, updateProperty, visibleKeys, rootProps }) => {
+const RootPropertyGroup = memo(({ properties, updateProperty, arrayHandlers, visibleKeys, rootProps }) => {
   if (R.isEmpty(rootProps)) return null;
 
   const filteredProps = visibleKeys
@@ -42,7 +42,7 @@ const RootPropertyGroup = memo(({ properties, updateProperty, visibleKeys, rootP
       </div>
       <div className="property-group-content">
         {R.map(
-          (prop) => renderPropertyInputField(properties, updateProperty, prop),
+          (prop) => renderPropertyInputField(properties, updateProperty, arrayHandlers, prop),
           filteredProps,
         )}
       </div>
@@ -55,6 +55,7 @@ RootPropertyGroup.displayName = "RootPropertyGroup";
 const WidgetPropertyGroups = memo(({
   properties,
   updateProperty,
+  arrayHandlers,
   expandedGroups,
   toggleGroup,
   visibleKeys,
@@ -85,6 +86,7 @@ const WidgetPropertyGroups = memo(({
       <RootPropertyGroup
         properties={properties}
         updateProperty={updateProperty}
+        arrayHandlers={arrayHandlers}
         visibleKeys={visibleKeys}
         rootProps={rootProperties}
       />
@@ -97,6 +99,7 @@ const WidgetPropertyGroups = memo(({
             depth={0}
             properties={properties}
             updateProperty={updateProperty}
+            arrayHandlers={arrayHandlers}
             expandedGroups={expandedGroups}
             toggleGroup={toggleGroup}
             visibleKeys={visibleKeys}
@@ -116,6 +119,7 @@ const PropertiesPanel = memo(({
   widgetDefinition,
   properties,
   updateProperty,
+  arrayHandlers,
   expandedGroups,
   toggleGroup,
   visibleKeys,
@@ -144,6 +148,7 @@ const PropertiesPanel = memo(({
           <WidgetPropertyGroups
             properties={properties}
             updateProperty={updateProperty}
+            arrayHandlers={arrayHandlers}
             expandedGroups={expandedGroups}
             toggleGroup={toggleGroup}
             visibleKeys={visibleKeys}

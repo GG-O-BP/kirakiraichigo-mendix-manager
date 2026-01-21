@@ -2,6 +2,7 @@ import * as R from "ramda";
 import { memo, useMemo } from "react";
 import { createTypedChangeHandler } from "../../utils";
 import Dropdown from "./Dropdown";
+import ObjectListPropertyInput from "./ObjectListPropertyInput";
 
 const DECIMAL_STEP = 0.01;
 const INTEGER_STEP = 1;
@@ -242,16 +243,31 @@ const extractDatasourceKeys = (allProperties, dataSourceKey) => {
   return extractKeysFromParsedJson(parsed);
 };
 
+const resolveDataSourcePath = (dataSourceKey, allProperties, parentProperties) => {
+  if (R.isNil(dataSourceKey)) {
+    return { resolvedKey: null, targetProperties: allProperties };
+  }
+  const isParentRef = R.startsWith("../", dataSourceKey);
+  const resolvedKey = isParentRef ? R.replace(/^\.\.\//, "", dataSourceKey) : dataSourceKey;
+  const targetProperties = isParentRef ? parentProperties : allProperties;
+  return { resolvedKey, targetProperties };
+};
+
 const renderAttributeSelect = R.curry(
-  (property, value, onChange, disabled, allProperties) => {
+  (property, value, onChange, disabled, allProperties, parentProperties) => {
     const dataSourceKey = R.prop("dataSource", property);
-    const extractResult = R.isNil(dataSourceKey)
+    const { resolvedKey, targetProperties } = resolveDataSourcePath(
+      dataSourceKey,
+      allProperties,
+      parentProperties
+    );
+    const extractResult = R.isNil(resolvedKey)
       ? []
-      : extractDatasourceKeys(allProperties, dataSourceKey);
+      : extractDatasourceKeys(targetProperties, resolvedKey);
     const datasourceKeys = Array.isArray(extractResult) ? extractResult : [];
 
     const hasNoDataSource = R.isNil(dataSourceKey);
-    const datasourceValue = R.prop(dataSourceKey, allProperties);
+    const datasourceValue = R.prop(resolvedKey, targetProperties);
     const hasNoDatasourceValue = R.and(
       R.complement(R.isNil)(dataSourceKey),
       R.either(R.isNil, R.isEmpty)(datasourceValue),
@@ -271,7 +287,7 @@ const renderAttributeSelect = R.curry(
         )}
         {hasNoDatasourceValue && (
           <div className="attribute-hint">
-            Enter JSON in "{dataSourceKey}" first
+            Enter JSON in "{resolvedKey}" first
           </div>
         )}
       </div>
@@ -325,25 +341,53 @@ const DynamicPropertyInput = memo(
     disabled = false,
     showValidation = true,
     allProperties = {},
+    parentProperties = {},
+    onAddArrayItem,
+    onRemoveArrayItem,
+    onUpdateArrayItemProperty,
   }) => {
     const type = R.prop("type", property);
     const caption = R.prop("caption", property);
     const description = R.prop("description", property);
     const required = R.prop("required", property);
+    const isList = R.prop("isList", property);
+    const propertyKey = R.prop("key", property);
+
+    const isObjectList = R.and(R.equals("object", type), isList);
 
     const validation = showValidation
       ? validateInput(property, value)
       : { isValid: true, error: null };
 
     const inputElement = useMemo(() => {
+      if (isObjectList) {
+        return (
+          <ObjectListPropertyInput
+            property={property}
+            items={value}
+            onAddItem={(defaultItem) => onAddArrayItem(propertyKey, defaultItem)}
+            onRemoveItem={(index) => onRemoveArrayItem(propertyKey, index)}
+            onUpdateItemProperty={(index, nestedKey, nestedValue) =>
+              onUpdateArrayItemProperty(propertyKey, index, nestedKey, nestedValue)
+            }
+            disabled={disabled}
+            parentProperties={allProperties}
+          />
+        );
+      }
+
       const isAttributeType = R.equals("attribute", type);
 
       return R.ifElse(
         R.always(isAttributeType),
-        R.always(renderAttributeSelect(property, value, onChange, disabled, allProperties)),
+        R.always(renderAttributeSelect(property, value, onChange, disabled, allProperties, parentProperties)),
         R.always(getRenderer(type)(property, value, onChange, disabled)),
       )();
-    }, [type, property, value, onChange, disabled, allProperties]);
+    }, [type, property, value, onChange, disabled, allProperties, parentProperties, isObjectList, propertyKey, onAddArrayItem, onRemoveArrayItem, onUpdateArrayItemProperty]);
+
+    if (isObjectList) {
+      return inputElement;
+    }
 
     const containerClass = R.pipe(
       R.always([

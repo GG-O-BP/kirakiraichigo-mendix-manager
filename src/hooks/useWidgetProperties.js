@@ -17,10 +17,17 @@ export const useWidgetProperties = (selectedWidget, baseProperties = {}) => {
 
   const combinedProperties = R.mergeRight(baseProperties, loader.dynamicProperties);
 
+  const arrayHandlers = {
+    addArrayItem: loader.addArrayItem,
+    removeArrayItem: loader.removeArrayItem,
+    updateArrayItemProperty: loader.updateArrayItemProperty,
+  };
+
   return {
     widgetDefinition: loader.widgetDefinition,
     dynamicProperties: loader.dynamicProperties,
     updateProperty: loader.updateProperty,
+    arrayHandlers,
     visiblePropertyKeys: visibility.visiblePropertyKeys,
     groupCounts: visibility.groupCounts,
     expandedGroups: groupUI.expandedGroups,
