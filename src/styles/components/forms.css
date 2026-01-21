@@ -328,6 +328,35 @@
     color: #4c4f69;
 }
 
+/* ============= Text Input Styles ============= */
+
+.text-input-container {
+    display: flex;
+    align-items: stretch;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--theme-border);
+    background: var(--theme-surface);
+    transition: all 0.3s ease;
+}
+
+.text-input-container:focus-within {
+    border-color: var(--theme-primary);
+    box-shadow: 0 0 0 3px var(--theme-focus-ring);
+}
+
+.property-input.text-input {
+    flex: 1;
+    border: none;
+    border-radius: 0;
+    min-width: 0;
+}
+
+.property-input.text-input:focus {
+    box-shadow: none;
+    background: var(--theme-hover-bg);
+}
+
 /* ============= Number Input Styles ============= */
 
 .number-input-container {

@@ -47,14 +47,16 @@ const validateInput = R.curry((property, value) => {
 });
 
 const renderTextInput = R.curry((property, value, onChange, disabled) => (
-  <input
-    type="text"
-    className="property-input"
-    value={value || ""}
-    onChange={createTypedChangeHandler(onChange, "string")}
-    disabled={disabled}
-    placeholder={R.prop("description", property)}
-  />
+  <div className="text-input-container">
+    <input
+      type="text"
+      className="property-input text-input"
+      value={value || ""}
+      onChange={createTypedChangeHandler(onChange, "string")}
+      disabled={disabled}
+      placeholder={R.prop("description", property)}
+    />
+  </div>
 ));
 
 const renderTextarea = R.curry((property, value, onChange, disabled) => (
