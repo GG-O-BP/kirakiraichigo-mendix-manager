@@ -244,6 +244,21 @@ const DownloadModal = memo(
       }
     }, [currentStep, onCancel]);
 
+    useEffect(() => {
+      const handleKeyDown = R.when(
+        R.propEq("Escape", "key"),
+        R.tap(() => {
+          R.cond([
+            [() => isCancellableStep(currentStep), handleCancel],
+            [() => R.includes(currentStep, [DOWNLOAD_STEPS.COMPLETED]), handleClose],
+            [R.T, R.identity],
+          ])(null);
+        }),
+      );
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [currentStep, handleCancel, handleClose]);
+
     if (!isOpen) {
       return null;
     }

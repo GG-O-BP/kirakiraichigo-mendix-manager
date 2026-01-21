@@ -1,5 +1,5 @@
 import * as R from "ramda";
-import { memo } from "react";
+import { memo, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { saveToStorage, STORAGE_KEYS, invokeCreateWidget } from "../../utils";
@@ -246,13 +246,30 @@ const renderWidgetActionSelectionModal = (props) => {
   );
 };
 
-const WidgetModal = memo((props) =>
-  R.cond([
+const WidgetModal = memo((props) => {
+  const { showWidgetModal, showAddWidgetForm } = props;
+  const isModalVisible = R.or(
+    isAddWidgetFormVisible(props),
+    isWidgetActionModalVisible(props),
+  );
+
+  useEffect(() => {
+    if (!isModalVisible) return;
+
+    const handleKeyDown = R.when(
+      R.propEq("Escape", "key"),
+      R.tap(() => handleCancelClick(props)),
+    );
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showWidgetModal, showAddWidgetForm, isModalVisible]);
+
+  return R.cond([
     [isAddWidgetFormVisible, renderAddWidgetFormModal],
     [isWidgetActionModalVisible, renderWidgetActionSelectionModal],
     [R.T, R.always(null)],
-  ])(props),
-);
+  ])(props);
+});
 
 WidgetModal.displayName = "WidgetModal";
 
