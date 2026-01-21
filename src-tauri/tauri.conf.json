@@ -1,7 +1,7 @@
 {
     "$schema": "https://schema.tauri.app/config/2",
     "productName": "KiraIchi",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "identifier": "dev.GG-O-BP.kirakiraichigo",
     "build": {
         "beforeDevCommand": "bun dev",
