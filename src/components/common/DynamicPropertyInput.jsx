@@ -54,7 +54,6 @@ const renderTextInput = R.curry((property, value, onChange, disabled) => (
       value={value || ""}
       onChange={createTypedChangeHandler(onChange, "string")}
       disabled={disabled}
-      placeholder={R.prop("description", property)}
     />
   </div>
 ));
