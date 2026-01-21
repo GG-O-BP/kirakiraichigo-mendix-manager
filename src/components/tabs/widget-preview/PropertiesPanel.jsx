@@ -19,9 +19,9 @@ const renderPropertiesLoadingState = () => (
 );
 
 const renderNoWidgetSelectedState = () => (
-  <div className="no-widget-selected">
-    <span className="no-widget-icon">🧩</span>
-    <p>Select a widget to view its properties</p>
+  <div className="empty-state">
+    <span className="empty-state-icon">🍓</span>
+    <p className="empty-state-message">Select a widget to view its properties</p>
   </div>
 );
 

@@ -540,8 +540,8 @@
     }
 }
 
-/* ============= Preview Instructions ============= */
-.preview-instructions {
+/* ============= Empty State Placeholder ============= */
+.empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -550,11 +550,11 @@
     gap: var(--space-md);
 }
 
-.preview-emoji {
+.empty-state-icon {
     font-size: 3.5rem;
 }
 
-.preview-message {
+.empty-state-message {
     font-size: var(--font-size-lg);
     color: var(--theme-text-secondary);
     text-align: center;
