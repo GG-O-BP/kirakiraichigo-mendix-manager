@@ -1,9 +1,5 @@
 import { useState } from "react";
 
-/**
- * Build/deploy state management hook
- * Manages loading states and results for build/deploy operations
- */
 export function useBuildDeployState() {
   const [isInstalling, setIsInstalling] = useState(false);
   const [isBuilding, setIsBuilding] = useState(false);

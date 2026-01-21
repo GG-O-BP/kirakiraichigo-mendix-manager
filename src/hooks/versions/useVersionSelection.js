@@ -1,10 +1,6 @@
 import * as R from "ramda";
 import { useState, useCallback } from "react";
 
-/**
- * useVersionSelection - Pure selection state management for versions
- * Manages single version selection with toggle behavior
- */
 export function useVersionSelection() {
   const [selectedVersion, setSelectedVersion] = useState(null);
 

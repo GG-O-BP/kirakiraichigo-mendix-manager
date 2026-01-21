@@ -51,10 +51,8 @@ pub use validation::{has_build_failures, validate_build_deploy_selections};
 
 pub use data_processing::{
     mendix_filters::{
-        create_widget, filter_and_sort_apps_with_priority, filter_apps_by_selected_paths,
-        filter_mendix_apps, filter_mendix_versions, filter_widgets, filter_widgets_by_selected_ids,
-        process_apps_pipeline, process_widgets_pipeline, remove_widget_by_id, sort_widgets_by_order,
-        Widget,
+        create_widget, filter_mendix_versions, process_apps_pipeline, process_widgets_pipeline,
+        remove_widget_by_id, Widget,
     },
     FilterOptions, SearchFilter, VersionFilter,
 };
@@ -146,16 +144,8 @@ pub fn run() {
             process_widgets_pipeline,
             process_apps_pipeline,
             // ================================================================
-            // Legacy commands (deprecated - kept for backward compatibility)
-            // Use process_widgets_pipeline instead of individual widget commands
-            // Use process_apps_pipeline instead of individual app commands
+            // Error handling
             // ================================================================
-            filter_widgets,
-            filter_widgets_by_selected_ids,
-            sort_widgets_by_order,
-            filter_mendix_apps,
-            filter_apps_by_selected_paths,
-            filter_and_sort_apps_with_priority,
             create_catastrophic_error_result
         ])
         .run(tauri::generate_context!())

@@ -13,8 +13,7 @@ const VERSION_SUPPORT_BADGES = {
   LATEST: { text: "LATEST", className: "latest" },
 };
 
-// Uses consolidated compare_versions command
-export const invokeCheckVersionInstalled = async (version, installedVersions) =>
+const invokeCheckVersionInstalled = async (version, installedVersions) =>
   invoke("compare_versions", {
     comparisonType: "installed",
     value1: version,

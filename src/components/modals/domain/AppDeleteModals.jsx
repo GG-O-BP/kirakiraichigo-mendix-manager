@@ -5,11 +5,6 @@ import {
   useBuildDeployContext,
 } from "../../../contexts";
 
-/**
- * AppDeleteModals - Domain component for app deletion modal
- * Handles the confirmation dialog for deleting Mendix apps
- * Consumes domain-specific AppModalContext
- */
 function AppDeleteModals() {
   const {
     showAppDeleteModal,

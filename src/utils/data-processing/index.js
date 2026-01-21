@@ -1,19 +1,9 @@
 export { filterMendixVersions } from "./versionFiltering";
 
-export {
-  processAppsPipeline,
-  filterMendixApps,
-  filterAndSortAppsWithPriority,
-} from "./appFiltering";
+export { processAppsPipeline } from "./appFiltering";
 
-export {
-  processWidgetsPipeline,
-  filterWidgets,
-} from "./widgetFiltering";
+export { processWidgetsPipeline } from "./widgetFiltering";
 
-export {
-  initializePropertyValues,
-  countAllSpecGroupsVisibleProperties,
-} from "./propertyCalculation";
+export { countAllSpecGroupsVisibleProperties } from "./propertyCalculation";
 
 export { extractFolderNameFromPath } from "./pathUtils";

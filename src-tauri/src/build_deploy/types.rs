@@ -37,7 +37,6 @@ pub struct FailedDeployment {
     pub error: String,
 }
 
-/// Deploy result for a single app
 pub struct AppDeployResult {
     pub app_name: String,
     pub result: Result<Vec<String>, String>,

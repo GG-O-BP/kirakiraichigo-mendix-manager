@@ -8,11 +8,6 @@ import {
   useAppContext,
 } from "../../../contexts";
 
-/**
- * StudioProModals - Domain component for Studio Pro version modals
- * Handles uninstall confirmation and download modals
- * Consumes domain-specific StudioProModalContext
- */
 function StudioProModals() {
   const {
     showUninstallModal,

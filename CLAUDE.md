@@ -34,6 +34,7 @@ KiraKira Ichigo ("KiraIchi") is a **Windows-only** Tauri-based desktop applicati
 - Functional programming with Ramda.js - **mandatory for all code**
 - React Context for state distribution (no prop drilling)
 - Hook composition pattern for complex state management
+- Self-documenting code - minimize comments through clear naming
 
 **Import Conventions**:
 - Import utilities from `src/utils` (e.g., `import { STORAGE_KEYS, wrapAsync } from "../utils"`)
@@ -142,6 +143,12 @@ R.propOr([], "items", data)
 ```
 
 ## Implementation Notes
+
+### Self-Documenting Code
+- **No JSDoc comments** - Function and parameter names should be descriptive enough
+- **No inline comments** - Code logic should be self-explanatory through clear naming
+- **Descriptive naming** - Use names like `processAppsPipeline`, `useVersionFilters`, `handleBuildDeploy`
+- **Exception**: Complex algorithms or non-obvious business logic may have brief explanations
 
 ### State Persistence
 - Use `STORAGE_KEYS` constants for persistent state

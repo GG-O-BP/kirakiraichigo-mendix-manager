@@ -423,7 +423,6 @@ fn process_xml_event(state: ParseState, event: Event) -> ParseState {
     }
 }
 
-// Pure conversion functions
 fn state_to_widget_definition(state: ParseState) -> WidgetDefinition {
     WidgetDefinition {
         name: state.widget_name,
@@ -520,7 +519,6 @@ pub fn validate_mendix_widget(widget_path: String) -> Result<bool, String> {
     validate_mendix_package_xml(&widget_path).map_err(|e| e.to_string())
 }
 
-// EditorConfig response type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EditorConfigResult {
     pub found: bool,
@@ -528,7 +526,6 @@ pub struct EditorConfigResult {
     pub file_path: Option<String>,
 }
 
-// Combined widget data response type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WidgetCompleteData {
     pub definition: WidgetDefinitionSpec,
@@ -612,8 +609,6 @@ fn parse_widget_properties_as_spec_internal(widget_path: &str) -> Result<WidgetD
     Ok(transform_widget_definition_to_spec(&definition))
 }
 
-/// Combined command that loads all widget data in a single IPC call
-/// Replaces 3 separate calls: parse_widget_properties_as_spec, initialize_property_values, read_editor_config
 #[tauri::command]
 pub fn load_widget_complete_data(widget_path: String) -> Result<WidgetCompleteData, String> {
     let definition = parse_widget_properties_as_spec_internal(&widget_path)?;
@@ -688,7 +683,6 @@ fn extract_properties_from_group_with_category(
         data_source: p.data_source.clone(),
     }).collect();
 
-    // Recursively process nested groups
     for nested_group in &group.property_groups {
         result.extend(extract_properties_from_group_with_category(nested_group, &full_path));
     }
@@ -699,7 +693,6 @@ fn extract_properties_from_group_with_category(
 fn parse_widget_properties_enhanced(definition: &WidgetDefinition) -> Vec<ParsedProperty> {
     let mut result: Vec<ParsedProperty> = Vec::new();
 
-    // Root-level properties
     for p in &definition.properties {
         result.push(ParsedProperty {
             key: p.key.clone(),
@@ -714,7 +707,6 @@ fn parse_widget_properties_enhanced(definition: &WidgetDefinition) -> Vec<Parsed
         });
     }
 
-    // Properties from groups
     for group in &definition.property_groups {
         result.extend(extract_properties_from_group_with_category(group, ""));
     }
@@ -831,11 +823,10 @@ pub fn parse_widget_properties_as_spec(widget_path: String) -> Result<WidgetDefi
     parse_widget_properties_as_spec_internal(&widget_path)
 }
 
-fn count_visible_properties_in_spec_group_internal(
+fn count_visible_properties_in_spec_group(
     group: &PropertyGroupSpec,
     visible_keys: Option<&[String]>,
 ) -> usize {
-    // Count properties in this group
     let direct_count = match visible_keys {
         Some(keys) => group
             .properties
@@ -845,11 +836,10 @@ fn count_visible_properties_in_spec_group_internal(
         None => group.properties.len(),
     };
 
-    // Recursively count properties in nested groups
     let nested_count: usize = group
         .property_groups
         .iter()
-        .map(|nested| count_visible_properties_in_spec_group_internal(nested, visible_keys))
+        .map(|nested| count_visible_properties_in_spec_group(nested, visible_keys))
         .sum();
 
     direct_count + nested_count
@@ -868,14 +858,12 @@ fn count_all_spec_groups_recursive(
         format!("{}.{}", parent_path, caption)
     };
 
-    // Count for this group
-    let count = count_visible_properties_in_spec_group_internal(group, visible_keys);
+    let count = count_visible_properties_in_spec_group(group, visible_keys);
     results.push(GroupCountResult {
         group_path: group_path.clone(),
         count,
     });
 
-    // Recurse into nested groups
     for nested in &group.property_groups {
         count_all_spec_groups_recursive(nested, &group_path, visible_keys, results);
     }
@@ -933,7 +921,7 @@ mod tests {
         let caption_prop = &result.properties[0];
         assert_eq!(caption_prop.key, "caption");
         assert_eq!(caption_prop.property_type, "string");
-        assert_eq!(caption_prop.required, true);
+        assert!(caption_prop.required);
 
         let alignment_prop = &result.properties[2];
         assert_eq!(alignment_prop.options.len(), 3);
@@ -997,7 +985,7 @@ mod tests {
     #[test]
     fn test_count_visible_properties_no_filter() {
         let group = create_test_property_group_spec("General", vec!["prop1", "prop2", "prop3"], vec![]);
-        let count = count_visible_properties_in_spec_group_internal(&group, None);
+        let count = count_visible_properties_in_spec_group(&group, None);
         assert_eq!(count, 3);
     }
 
@@ -1005,7 +993,7 @@ mod tests {
     fn test_count_visible_properties_with_filter() {
         let group = create_test_property_group_spec("General", vec!["prop1", "prop2", "prop3"], vec![]);
         let visible = vec!["prop1".to_string(), "prop3".to_string()];
-        let count = count_visible_properties_in_spec_group_internal(&group, Some(&visible));
+        let count = count_visible_properties_in_spec_group(&group, Some(&visible));
         assert_eq!(count, 2);
     }
 
@@ -1014,7 +1002,7 @@ mod tests {
         let nested = create_test_property_group_spec("Nested", vec!["nested1", "nested2"], vec![]);
         let group = create_test_property_group_spec("Parent", vec!["prop1"], vec![nested]);
 
-        let count = count_visible_properties_in_spec_group_internal(&group, None);
+        let count = count_visible_properties_in_spec_group(&group, None);
         assert_eq!(count, 3); // 1 from parent + 2 from nested
     }
 
@@ -1024,7 +1012,7 @@ mod tests {
         let group = create_test_property_group_spec("Parent", vec!["prop1", "prop2"], vec![nested]);
 
         let visible = vec!["prop1".to_string(), "nested2".to_string()];
-        let count = count_visible_properties_in_spec_group_internal(&group, Some(&visible));
+        let count = count_visible_properties_in_spec_group(&group, Some(&visible));
         assert_eq!(count, 2); // prop1 + nested2
     }
 
@@ -1034,7 +1022,7 @@ mod tests {
         let nested = create_test_property_group_spec("Nested", vec!["nested1"], vec![deep]);
         let group = create_test_property_group_spec("Parent", vec!["prop1"], vec![nested]);
 
-        let count = count_visible_properties_in_spec_group_internal(&group, None);
+        let count = count_visible_properties_in_spec_group(&group, None);
         assert_eq!(count, 3); // 1 from each level
     }
 }

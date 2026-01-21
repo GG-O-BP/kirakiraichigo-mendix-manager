@@ -3,10 +3,6 @@ import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { createEditorConfigHandler } from "../../utils/editorConfigParser";
 
-/**
- * Hook for loading widget data using the consolidated load_widget_complete_data command.
- * This replaces 3 separate IPC calls with a single call for better performance.
- */
 export function useWidgetDataLoader(selectedWidget) {
   const [widgetDefinition, setWidgetDefinition] = useState(null);
   const [dynamicProperties, setDynamicProperties] = useState({});
@@ -35,7 +31,6 @@ export function useWidgetDataLoader(selectedWidget) {
 
     const loadWidgetData = async () => {
       try {
-        // Use consolidated command: 3 IPC calls → 1 IPC call
         const { definition, initial_values, editor_config } = await invoke(
           "load_widget_complete_data",
           { widgetPath }

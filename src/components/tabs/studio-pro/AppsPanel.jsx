@@ -5,7 +5,6 @@ import SearchBox from "../../common/SearchBox";
 import { renderPanel } from "../../common/Panel";
 import { MendixAppListItem } from "../../common/ListItems";
 
-// Uses consolidated compare_versions command
 export const invokeCheckAppVersionMismatch = async (selectedVersion, appVersion) =>
   invoke("compare_versions", {
     comparisonType: "mismatch",

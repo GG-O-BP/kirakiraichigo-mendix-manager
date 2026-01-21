@@ -6,7 +6,6 @@ import { renderPanel } from "../../common/Panel";
 import { MendixVersionListItem } from "../../common/ListItems";
 import { getVersionLoadingState } from "../../../utils";
 
-// Uses consolidated compare_versions command
 export const invokeCheckVersionSelected = async (selectedVersion, version) =>
   invoke("compare_versions", {
     comparisonType: "selected",

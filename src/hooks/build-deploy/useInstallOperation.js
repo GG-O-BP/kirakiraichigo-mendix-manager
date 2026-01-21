@@ -3,14 +3,6 @@ import { useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { hasItems } from "../../utils";
 
-/**
- * Install operation hook
- * Handles dependency installation for selected widgets using parallel Rust-based batch processing
- *
- * @param {Object} params - Hook parameters
- * @param {string} params.packageManager - Current package manager
- * @param {function} params.setIsInstalling - Loading state setter
- */
 export function useInstallOperation({ packageManager, setIsInstalling }) {
   const handleInstall = useCallback(
     async ({ selectedWidgets, widgets }) => {

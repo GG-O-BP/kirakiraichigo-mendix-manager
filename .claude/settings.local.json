@@ -9,7 +9,9 @@
       "Bash(cargo build:*)",
       "Bash(tree:*)",
       "Bash(find:*)",
-      "WebFetch(domain:ramdajs.com)"
+      "WebFetch(domain:ramdajs.com)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo +nightly clippy:*)"
     ]
   }
 }

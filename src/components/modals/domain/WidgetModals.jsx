@@ -6,11 +6,6 @@ import {
   useWidgetFormContext,
 } from "../../../contexts";
 
-/**
- * WidgetModals - Domain component for widget-related modals
- * Handles widget add/manage and widget delete confirmation dialogs
- * Consumes domain-specific WidgetModalContext
- */
 function WidgetModals() {
   const {
     showWidgetModal,
