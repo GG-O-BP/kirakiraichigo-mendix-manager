@@ -55,7 +55,7 @@ impl std::error::Error for ParseError {}
 #[derive(Debug, Clone)]
 struct ParseContext {
     depth: usize,
-    in_properties: bool,
+    properties_depth: usize, // Track nesting level of <properties> tags (only process at depth 1)
     property_group_depth: usize, // Track nesting level of property groups
     current_element: String,
     text_buffer: String,
@@ -75,7 +75,7 @@ struct ParseState {
 fn create_initial_context() -> ParseContext {
     ParseContext {
         depth: 0,
-        in_properties: false,
+        properties_depth: 0,
         property_group_depth: 0,
         current_element: String::new(),
         text_buffer: String::new(),
@@ -163,14 +163,28 @@ fn decrement_depth(state: ParseState) -> ParseState {
     }
 }
 
-fn set_in_properties(state: ParseState, value: bool) -> ParseState {
+fn increment_properties_depth(state: ParseState) -> ParseState {
     ParseState {
         context: ParseContext {
-            in_properties: value,
+            properties_depth: state.context.properties_depth + 1,
             ..state.context
         },
         ..state
     }
+}
+
+fn decrement_properties_depth(state: ParseState) -> ParseState {
+    ParseState {
+        context: ParseContext {
+            properties_depth: state.context.properties_depth.saturating_sub(1),
+            ..state.context
+        },
+        ..state
+    }
+}
+
+fn is_in_top_level_properties(state: &ParseState) -> bool {
+    state.context.properties_depth == 1
 }
 
 fn increment_property_group_depth(state: ParseState) -> ParseState {
@@ -320,18 +334,24 @@ fn process_start_event(
         b"widget" => incremented_state,
         b"name" => set_current_element(incremented_state, "name".to_string()),
         b"description" => set_current_element(incremented_state, "description".to_string()),
-        b"properties" => set_in_properties(incremented_state, true),
+        b"properties" => increment_properties_depth(incremented_state),
         b"propertyGroup" => {
-            let group_caption = extract_group_caption(attributes);
-            let group = WidgetPropertyGroup {
-                caption: group_caption,
-                properties: Vec::new(),
-                property_groups: Vec::new(),
-            };
-            push_group_to_stack(increment_property_group_depth(incremented_state), group)
+            // Only process propertyGroups at top-level properties (depth 1)
+            if is_in_top_level_properties(&incremented_state) {
+                let group_caption = extract_group_caption(attributes);
+                let group = WidgetPropertyGroup {
+                    caption: group_caption,
+                    properties: Vec::new(),
+                    property_groups: Vec::new(),
+                };
+                push_group_to_stack(increment_property_group_depth(incremented_state), group)
+            } else {
+                incremented_state
+            }
         }
         b"property" => {
-            if incremented_state.context.in_properties {
+            // Only process properties at top-level properties (depth 1)
+            if is_in_top_level_properties(&incremented_state) {
                 let property = extract_property_attributes(attributes);
                 set_current_property(incremented_state, property)
             } else {
@@ -354,9 +374,23 @@ fn process_end_event(state: ParseState, name: &[u8]) -> ParseState {
     let decremented_state = decrement_depth(state);
 
     match name {
-        b"properties" => set_in_properties(decremented_state, false),
-        b"propertyGroup" => finalize_current_group(decrement_property_group_depth(decremented_state)),
-        b"property" => finalize_current_property(decremented_state),
+        b"properties" => decrement_properties_depth(decremented_state),
+        b"propertyGroup" => {
+            // Only finalize propertyGroups at top-level properties (depth 1)
+            if is_in_top_level_properties(&decremented_state) {
+                finalize_current_group(decrement_property_group_depth(decremented_state))
+            } else {
+                decremented_state
+            }
+        }
+        b"property" => {
+            // Only finalize properties at top-level properties (depth 1)
+            if is_in_top_level_properties(&decremented_state) {
+                finalize_current_property(decremented_state)
+            } else {
+                decremented_state
+            }
+        }
         _ => set_current_element(decremented_state, String::new()),
     }
 }
