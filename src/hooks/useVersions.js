@@ -40,5 +40,3 @@ export function useVersions() {
     handleModalDownload: operations.handleModalDownload,
   };
 }
-
-export default useVersions;

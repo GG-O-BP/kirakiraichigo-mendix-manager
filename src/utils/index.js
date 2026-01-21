@@ -7,10 +7,7 @@ export {
 
 export { saveToStorage, loadFromStorage } from "./storage";
 
-export {
-  invokeValidateRequired,
-  invokeValidateBuildDeploySelections,
-} from "./validation";
+export { invokeValidateBuildDeploySelections } from "./validation";
 
 export {
   updateVersionLoadingStates,

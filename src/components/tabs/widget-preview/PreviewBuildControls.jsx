@@ -1,5 +1,8 @@
 import * as R from "ramda";
 import { memo } from "react";
+import Dropdown from "../../common/Dropdown";
+
+const PACKAGE_MANAGER_OPTIONS = ["npm", "yarn", "pnpm", "bun"];
 
 const PreviewBuildControls = memo(({
   selectedWidget,
@@ -11,17 +14,12 @@ const PreviewBuildControls = memo(({
 }) => (
   <>
     <div className="preview-controls">
-      <select
+      <Dropdown
         value={packageManager}
-        onChange={(e) => setPackageManager(e.target.value)}
+        onChange={setPackageManager}
+        options={PACKAGE_MANAGER_OPTIONS}
         disabled={isBuilding}
-        className="package-manager-select"
-      >
-        <option value="npm">npm</option>
-        <option value="yarn">yarn</option>
-        <option value="pnpm">pnpm</option>
-        <option value="bun">bun</option>
-      </select>
+      />
       <button
         className="run-preview-button"
         onClick={() => handleRunPreview(selectedWidget)}

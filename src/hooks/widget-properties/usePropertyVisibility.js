@@ -62,5 +62,3 @@ export function usePropertyVisibility({
     groupCounts,
   };
 }
-
-export default usePropertyVisibility;

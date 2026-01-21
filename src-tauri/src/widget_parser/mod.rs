@@ -15,6 +15,8 @@ pub struct WidgetProperty {
     pub required: bool,
     pub options: Vec<String>,
     pub category: Option<String>,
+    #[serde(rename = "dataSource", skip_serializing_if = "Option::is_none")]
+    pub data_source: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,6 +127,7 @@ fn extract_property_attributes(
         required: extract_bool_attribute(&attrs, b"required"),
         options: Vec::new(),
         category: None,
+        data_source: extract_string_attribute(&attrs, b"dataSource"),
     }
 }
 
@@ -420,7 +423,6 @@ fn process_xml_event(state: ParseState, event: Event) -> ParseState {
     }
 }
 
-// Pure conversion functions
 fn state_to_widget_definition(state: ParseState) -> WidgetDefinition {
     WidgetDefinition {
         name: state.widget_name,
@@ -513,21 +515,22 @@ pub fn parse_widget_xml(widget_path: &str) -> Result<WidgetDefinition, ParseErro
 }
 
 #[tauri::command]
-pub fn parse_widget_properties(widget_path: String) -> Result<WidgetDefinition, String> {
-    parse_widget_xml(&widget_path).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
 pub fn validate_mendix_widget(widget_path: String) -> Result<bool, String> {
     validate_mendix_package_xml(&widget_path).map_err(|e| e.to_string())
 }
 
-// EditorConfig response type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EditorConfigResult {
     pub found: bool,
     pub content: Option<String>,
     pub file_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WidgetCompleteData {
+    pub definition: WidgetDefinitionSpec,
+    pub initial_values: HashMap<String, PropertyValue>,
+    pub editor_config: EditorConfigResult,
 }
 
 fn is_editor_config_file(path: &Path) -> bool {
@@ -554,7 +557,11 @@ fn find_editor_config_file(widget_path: &str) -> Option<String> {
 
 #[tauri::command]
 pub fn read_editor_config(widget_path: String) -> Result<EditorConfigResult, String> {
-    match find_editor_config_file(&widget_path) {
+    read_editor_config_internal(&widget_path)
+}
+
+fn read_editor_config_internal(widget_path: &str) -> Result<EditorConfigResult, String> {
+    match find_editor_config_file(widget_path) {
         Some(config_path) => {
             match read_file_content(&config_path) {
                 Ok(content) => Ok(EditorConfigResult {
@@ -573,51 +580,46 @@ pub fn read_editor_config(widget_path: String) -> Result<EditorConfigResult, Str
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UITypeMapping {
-    pub property_type: String,
-    pub ui_type: String,
-}
+fn initialize_property_values_internal(widget_path: &str) -> Result<HashMap<String, PropertyValue>, String> {
+    let definition = parse_widget_xml(widget_path).map_err(|e| e.to_string())?;
+    let properties = parse_widget_properties_enhanced(&definition);
 
-fn map_property_type_to_ui_type_internal(property_type: &str) -> &'static str {
-    match property_type {
-        "string" => "text",
-        "boolean" => "checkbox",
-        "integer" => "number",
-        "decimal" => "number",
-        "enumeration" => "select",
-        "expression" => "textarea",
-        "textTemplate" => "textarea",
-        "action" => "select",
-        "attribute" => "select",
-        "association" => "select",
-        "object" => "select",
-        "file" => "file",
-        "datasource" => "select",
-        "icon" => "icon",
-        "image" => "image",
-        "widgets" => "widgets",
-        _ => "text",
+    let mut values: HashMap<String, PropertyValue> = HashMap::new();
+
+    for prop in properties {
+        let value = if let Some(default) = prop.default_value {
+            match prop.property_type.as_str() {
+                "boolean" => PropertyValue::Boolean(default == "true"),
+                "integer" => PropertyValue::Integer(default.parse().unwrap_or(0)),
+                "decimal" => PropertyValue::Decimal(default.parse().unwrap_or(0.0)),
+                _ => PropertyValue::String(default),
+            }
+        } else {
+            get_default_value_for_type_internal(&prop.property_type)
+        };
+
+        values.insert(prop.key, value);
     }
+
+    Ok(values)
+}
+
+fn parse_widget_properties_as_spec_internal(widget_path: &str) -> Result<WidgetDefinitionSpec, String> {
+    let definition = parse_widget_xml(widget_path).map_err(|e| e.to_string())?;
+    Ok(transform_widget_definition_to_spec(&definition))
 }
 
 #[tauri::command]
-pub fn map_property_type_to_ui_type(property_type: String) -> Result<String, String> {
-    Ok(map_property_type_to_ui_type_internal(&property_type).to_string())
-}
+pub fn load_widget_complete_data(widget_path: String) -> Result<WidgetCompleteData, String> {
+    let definition = parse_widget_properties_as_spec_internal(&widget_path)?;
+    let initial_values = initialize_property_values_internal(&widget_path)?;
+    let editor_config = read_editor_config_internal(&widget_path)?;
 
-#[tauri::command]
-pub fn get_ui_type_mappings() -> Result<Vec<UITypeMapping>, String> {
-    let types = vec![
-        "string", "boolean", "integer", "decimal", "enumeration", "expression",
-        "textTemplate", "action", "attribute", "association", "object", "file",
-        "datasource", "icon", "image", "widgets",
-    ];
-
-    Ok(types.iter().map(|t| UITypeMapping {
-        property_type: t.to_string(),
-        ui_type: map_property_type_to_ui_type_internal(t).to_string(),
-    }).collect())
+    Ok(WidgetCompleteData {
+        definition,
+        initial_values,
+        editor_config,
+    })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -642,91 +644,6 @@ fn get_default_value_for_type_internal(property_type: &str) -> PropertyValue {
     }
 }
 
-#[tauri::command]
-pub fn get_default_value_for_type(property_type: String) -> Result<PropertyValue, String> {
-    Ok(get_default_value_for_type_internal(&property_type))
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ValidationResult {
-    pub is_valid: bool,
-    pub error: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PropertyForValidation {
-    pub property_type: String,
-    pub required: bool,
-    pub options: Option<Vec<String>>,
-}
-
-fn validate_property_value_internal(
-    property: &PropertyForValidation,
-    value: &str,
-) -> ValidationResult {
-    // Check if required field is empty
-    if property.required && value.trim().is_empty() {
-        return ValidationResult {
-            is_valid: false,
-            error: Some("This field is required".to_string()),
-        };
-    }
-
-    // Type-specific validation
-    match property.property_type.as_str() {
-        "integer" => {
-            if value.trim().is_empty() {
-                return ValidationResult { is_valid: true, error: None };
-            }
-            match value.parse::<i64>() {
-                Ok(_) => ValidationResult { is_valid: true, error: None },
-                Err(_) => ValidationResult {
-                    is_valid: false,
-                    error: Some("Must be a valid integer".to_string()),
-                },
-            }
-        }
-        "decimal" => {
-            if value.trim().is_empty() {
-                return ValidationResult { is_valid: true, error: None };
-            }
-            match value.parse::<f64>() {
-                Ok(_) => ValidationResult { is_valid: true, error: None },
-                Err(_) => ValidationResult {
-                    is_valid: false,
-                    error: Some("Must be a valid decimal number".to_string()),
-                },
-            }
-        }
-        "enumeration" => {
-            if value.trim().is_empty() {
-                return ValidationResult { is_valid: true, error: None };
-            }
-            if let Some(ref options) = property.options {
-                if options.contains(&value.to_string()) {
-                    ValidationResult { is_valid: true, error: None }
-                } else {
-                    ValidationResult {
-                        is_valid: false,
-                        error: Some("Must be one of the available options".to_string()),
-                    }
-                }
-            } else {
-                ValidationResult { is_valid: true, error: None }
-            }
-        }
-        _ => ValidationResult { is_valid: true, error: None },
-    }
-}
-
-#[tauri::command]
-pub fn validate_property_value(
-    property: PropertyForValidation,
-    value: String,
-) -> Result<ValidationResult, String> {
-    Ok(validate_property_value_internal(&property, &value))
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParsedProperty {
     pub key: String,
@@ -738,32 +655,8 @@ pub struct ParsedProperty {
     pub default_value: Option<String>,
     pub options: Vec<String>,
     pub category: String,
-}
-
-fn property_matches_search(property: &ParsedProperty, search_term: &str) -> bool {
-    let search_lower = search_term.to_lowercase();
-
-    property.caption.to_lowercase().contains(&search_lower)
-        || property.key.to_lowercase().contains(&search_lower)
-        || property.description
-            .as_ref()
-            .map(|d| d.to_lowercase().contains(&search_lower))
-            .unwrap_or(false)
-}
-
-#[tauri::command]
-pub fn filter_properties_by_search(
-    properties: Vec<ParsedProperty>,
-    search_term: String,
-) -> Result<Vec<ParsedProperty>, String> {
-    if search_term.trim().is_empty() {
-        return Ok(properties);
-    }
-
-    Ok(properties
-        .into_iter()
-        .filter(|p| property_matches_search(p, &search_term))
-        .collect())
+    #[serde(rename = "dataSource", skip_serializing_if = "Option::is_none")]
+    pub data_source: Option<String>,
 }
 
 fn extract_properties_from_group_with_category(
@@ -787,9 +680,9 @@ fn extract_properties_from_group_with_category(
         default_value: p.default_value.clone(),
         options: p.options.clone(),
         category: if full_path.is_empty() { "General".to_string() } else { full_path.clone() },
+        data_source: p.data_source.clone(),
     }).collect();
 
-    // Recursively process nested groups
     for nested_group in &group.property_groups {
         result.extend(extract_properties_from_group_with_category(nested_group, &full_path));
     }
@@ -800,7 +693,6 @@ fn extract_properties_from_group_with_category(
 fn parse_widget_properties_enhanced(definition: &WidgetDefinition) -> Vec<ParsedProperty> {
     let mut result: Vec<ParsedProperty> = Vec::new();
 
-    // Root-level properties
     for p in &definition.properties {
         result.push(ParsedProperty {
             key: p.key.clone(),
@@ -811,10 +703,10 @@ fn parse_widget_properties_enhanced(definition: &WidgetDefinition) -> Vec<Parsed
             default_value: p.default_value.clone(),
             options: p.options.clone(),
             category: "General".to_string(),
+            data_source: p.data_source.clone(),
         });
     }
 
-    // Properties from groups
     for group in &definition.property_groups {
         result.extend(extract_properties_from_group_with_category(group, ""));
     }
@@ -823,388 +715,14 @@ fn parse_widget_properties_enhanced(definition: &WidgetDefinition) -> Vec<Parsed
 }
 
 #[tauri::command]
-pub fn parse_widget_properties_to_parsed(widget_path: String) -> Result<Vec<ParsedProperty>, String> {
-    let definition = parse_widget_xml(&widget_path).map_err(|e| e.to_string())?;
-    Ok(parse_widget_properties_enhanced(&definition))
-}
-
-#[tauri::command]
 pub fn initialize_property_values(widget_path: String) -> Result<HashMap<String, PropertyValue>, String> {
-    let definition = parse_widget_xml(&widget_path).map_err(|e| e.to_string())?;
-    let properties = parse_widget_properties_enhanced(&definition);
-
-    let mut values: HashMap<String, PropertyValue> = HashMap::new();
-
-    for prop in properties {
-        let value = if let Some(default) = prop.default_value {
-            // Use default value based on type
-            match prop.property_type.as_str() {
-                "boolean" => PropertyValue::Boolean(default == "true"),
-                "integer" => PropertyValue::Integer(default.parse().unwrap_or(0)),
-                "decimal" => PropertyValue::Decimal(default.parse().unwrap_or(0.0)),
-                _ => PropertyValue::String(default),
-            }
-        } else {
-            get_default_value_for_type_internal(&prop.property_type)
-        };
-
-        values.insert(prop.key, value);
-    }
-
-    Ok(values)
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PropertyGroup {
-    pub category: String,
-    pub properties: Vec<ParsedProperty>,
-}
-
-#[tauri::command]
-pub fn group_properties_by_category(properties: Vec<ParsedProperty>) -> Result<Vec<PropertyGroup>, String> {
-    let mut groups: HashMap<String, Vec<ParsedProperty>> = HashMap::new();
-
-    for prop in properties {
-        groups.entry(prop.category.clone()).or_default().push(prop);
-    }
-
-    let mut result: Vec<PropertyGroup> = groups.into_iter()
-        .map(|(category, properties)| PropertyGroup { category, properties })
-        .collect();
-
-    // Sort groups: "General" first, then alphabetically
-    result.sort_by(|a, b| {
-        if a.category == "General" { std::cmp::Ordering::Less }
-        else if b.category == "General" { std::cmp::Ordering::Greater }
-        else { a.category.cmp(&b.category) }
-    });
-
-    Ok(result)
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EditorProperty {
-    pub key: String,
-    #[serde(rename = "type")]
-    pub property_type: String,
-    pub caption: String,
-    pub description: Option<String>,
-    #[serde(rename = "defaultValue")]
-    pub default_value: Option<String>,
-    pub required: bool,
-    pub options: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EditorPropertyGroup {
-    pub caption: String,
-    pub properties: Vec<EditorProperty>,
-    #[serde(rename = "propertyGroups")]
-    pub property_groups: Vec<EditorPropertyGroup>,
-}
-
-fn transform_property_to_editor_format(prop: &WidgetProperty) -> EditorProperty {
-    EditorProperty {
-        key: prop.key.clone(),
-        property_type: prop.property_type.clone(),
-        caption: prop.caption.clone(),
-        description: if prop.description.is_empty() {
-            None
-        } else {
-            Some(prop.description.clone())
-        },
-        default_value: prop.default_value.clone(),
-        required: prop.required,
-        options: prop.options.clone(),
-    }
-}
-
-fn transform_property_group_to_editor_format(group: &WidgetPropertyGroup) -> EditorPropertyGroup {
-    EditorPropertyGroup {
-        caption: group.caption.clone(),
-        properties: group
-            .properties
-            .iter()
-            .map(transform_property_to_editor_format)
-            .collect(),
-        property_groups: group
-            .property_groups
-            .iter()
-            .map(transform_property_group_to_editor_format)
-            .collect(),
-    }
-}
-
-fn transform_widget_definition_to_editor_format_internal(
-    definition: &WidgetDefinition,
-) -> Vec<EditorPropertyGroup> {
-    definition
-        .property_groups
-        .iter()
-        .map(transform_property_group_to_editor_format)
-        .collect()
-}
-
-fn extract_keys_from_editor_group(group: &EditorPropertyGroup) -> Vec<String> {
-    let mut keys: Vec<String> = group.properties.iter().map(|p| p.key.clone()).collect();
-
-    for nested_group in &group.property_groups {
-        keys.extend(extract_keys_from_editor_group(nested_group));
-    }
-
-    keys
-}
-
-fn extract_all_property_keys_from_groups_internal(groups: &[EditorPropertyGroup]) -> Vec<String> {
-    let mut all_keys: Vec<String> = Vec::new();
-
-    for group in groups {
-        all_keys.extend(extract_keys_from_editor_group(group));
-    }
-
-    // Remove duplicates while preserving order
-    let mut seen = std::collections::HashSet::new();
-    all_keys.retain(|key| seen.insert(key.clone()));
-
-    all_keys
-}
-
-fn is_key_in_editor_group(group: &EditorPropertyGroup, key: &str) -> bool {
-    if group.properties.iter().any(|p| p.key == key) {
-        return true;
-    }
-
-    group
-        .property_groups
-        .iter()
-        .any(|g| is_key_in_editor_group(g, key))
-}
-
-fn is_property_key_in_groups_internal(groups: &[EditorPropertyGroup], key: &str) -> bool {
-    groups.iter().any(|group| is_key_in_editor_group(group, key))
-}
-
-fn filter_parsed_properties_by_keys_internal(
-    visible_keys: Option<&[String]>,
-    parsed_properties: Vec<ParsedProperty>,
-) -> Vec<ParsedProperty> {
-    match visible_keys {
-        None => parsed_properties,
-        Some(keys) => parsed_properties
-            .into_iter()
-            .filter(|prop| keys.contains(&prop.key))
-            .collect(),
-    }
-}
-
-#[tauri::command]
-pub fn transform_widget_definition_to_editor_format(
-    widget_path: String,
-) -> Result<Vec<EditorPropertyGroup>, String> {
-    let definition = parse_widget_xml(&widget_path).map_err(|e| e.to_string())?;
-    Ok(transform_widget_definition_to_editor_format_internal(&definition))
-}
-
-#[tauri::command]
-pub fn extract_all_property_keys_from_groups(
-    groups: Vec<EditorPropertyGroup>,
-) -> Result<Vec<String>, String> {
-    Ok(extract_all_property_keys_from_groups_internal(&groups))
-}
-
-#[tauri::command]
-pub fn filter_parsed_properties_by_keys(
-    visible_keys: Option<Vec<String>>,
-    parsed_properties: Vec<ParsedProperty>,
-) -> Result<Vec<ParsedProperty>, String> {
-    Ok(filter_parsed_properties_by_keys_internal(
-        visible_keys.as_deref(),
-        parsed_properties,
-    ))
-}
-
-#[tauri::command]
-pub fn is_property_key_in_groups(
-    groups: Vec<EditorPropertyGroup>,
-    property_key: String,
-) -> Result<bool, String> {
-    Ok(is_property_key_in_groups_internal(&groups, &property_key))
-}
-
-fn count_visible_properties_in_group_internal(
-    group: &EditorPropertyGroup,
-    visible_keys: Option<&[String]>,
-) -> usize {
-    // Count properties in this group
-    let direct_count = match visible_keys {
-        Some(keys) => group
-            .properties
-            .iter()
-            .filter(|p| keys.contains(&p.key))
-            .count(),
-        None => group.properties.len(),
-    };
-
-    // Recursively count properties in nested groups
-    let nested_count: usize = group
-        .property_groups
-        .iter()
-        .map(|nested| count_visible_properties_in_group_internal(nested, visible_keys))
-        .sum();
-
-    direct_count + nested_count
-}
-
-#[tauri::command]
-pub fn count_visible_properties_in_group(
-    group: EditorPropertyGroup,
-    visible_keys: Option<Vec<String>>,
-) -> Result<usize, String> {
-    Ok(count_visible_properties_in_group_internal(
-        &group,
-        visible_keys.as_deref(),
-    ))
-}
-
-fn count_visible_properties_in_widget_group_internal(
-    group: &WidgetPropertyGroup,
-    visible_keys: Option<&[String]>,
-) -> usize {
-    // Count properties in this group
-    let direct_count = match visible_keys {
-        Some(keys) => group
-            .properties
-            .iter()
-            .filter(|p| keys.contains(&p.key))
-            .count(),
-        None => group.properties.len(),
-    };
-
-    // Recursively count properties in nested groups
-    let nested_count: usize = group
-        .property_groups
-        .iter()
-        .map(|nested| count_visible_properties_in_widget_group_internal(nested, visible_keys))
-        .sum();
-
-    direct_count + nested_count
-}
-
-#[tauri::command]
-pub fn count_visible_properties_in_widget_group(
-    group: WidgetPropertyGroup,
-    visible_keys: Option<Vec<String>>,
-) -> Result<usize, String> {
-    Ok(count_visible_properties_in_widget_group_internal(
-        &group,
-        visible_keys.as_deref(),
-    ))
+    initialize_property_values_internal(&widget_path)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroupCountResult {
     pub group_path: String,
     pub count: usize,
-}
-
-fn count_all_groups_recursive(
-    group: &EditorPropertyGroup,
-    parent_path: &str,
-    visible_keys: Option<&[String]>,
-    results: &mut Vec<GroupCountResult>,
-) {
-    let caption = &group.caption;
-    let group_path = if parent_path.is_empty() {
-        caption.clone()
-    } else {
-        format!("{}.{}", parent_path, caption)
-    };
-
-    // Count for this group
-    let count = count_visible_properties_in_group_internal(group, visible_keys);
-    results.push(GroupCountResult {
-        group_path: group_path.clone(),
-        count,
-    });
-
-    // Recurse into nested groups
-    for nested in &group.property_groups {
-        count_all_groups_recursive(nested, &group_path, visible_keys, results);
-    }
-}
-
-fn count_all_groups_in_definition_internal(
-    property_groups: &[EditorPropertyGroup],
-    visible_keys: Option<&[String]>,
-) -> Vec<GroupCountResult> {
-    let mut results = Vec::new();
-
-    for group in property_groups {
-        count_all_groups_recursive(group, "", visible_keys, &mut results);
-    }
-
-    results
-}
-
-#[tauri::command]
-pub fn count_all_groups_visible_properties(
-    property_groups: Vec<EditorPropertyGroup>,
-    visible_keys: Option<Vec<String>>,
-) -> Result<Vec<GroupCountResult>, String> {
-    Ok(count_all_groups_in_definition_internal(
-        &property_groups,
-        visible_keys.as_deref(),
-    ))
-}
-
-fn count_all_widget_groups_recursive(
-    group: &WidgetPropertyGroup,
-    parent_path: &str,
-    visible_keys: Option<&[String]>,
-    results: &mut Vec<GroupCountResult>,
-) {
-    let caption = &group.caption;
-    let group_path = if parent_path.is_empty() {
-        caption.clone()
-    } else {
-        format!("{}.{}", parent_path, caption)
-    };
-
-    // Count for this group
-    let count = count_visible_properties_in_widget_group_internal(group, visible_keys);
-    results.push(GroupCountResult {
-        group_path: group_path.clone(),
-        count,
-    });
-
-    // Recurse into nested groups
-    for nested in &group.property_groups {
-        count_all_widget_groups_recursive(nested, &group_path, visible_keys, results);
-    }
-}
-
-fn count_all_widget_groups_in_definition_internal(
-    property_groups: &[WidgetPropertyGroup],
-    visible_keys: Option<&[String]>,
-) -> Vec<GroupCountResult> {
-    let mut results = Vec::new();
-
-    for group in property_groups {
-        count_all_widget_groups_recursive(group, "", visible_keys, &mut results);
-    }
-
-    results
-}
-
-#[tauri::command]
-pub fn count_all_widget_groups_visible_properties(
-    property_groups: Vec<WidgetPropertyGroup>,
-    visible_keys: Option<Vec<String>>,
-) -> Result<Vec<GroupCountResult>, String> {
-    Ok(count_all_widget_groups_in_definition_internal(
-        &property_groups,
-        visible_keys.as_deref(),
-    ))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1219,6 +737,8 @@ pub struct PropertySpec {
     #[serde(rename = "defaultValue", skip_serializing_if = "Option::is_none")]
     pub default_value: Option<String>,
     pub options: Vec<String>,
+    #[serde(rename = "dataSource", skip_serializing_if = "Option::is_none")]
+    pub data_source: Option<String>,
 }
 
 fn transform_widget_property_to_spec(prop: &WidgetProperty) -> PropertySpec {
@@ -1234,6 +754,7 @@ fn transform_widget_property_to_spec(prop: &WidgetProperty) -> PropertySpec {
         required: prop.required,
         default_value: prop.default_value.clone(),
         options: prop.options.clone(),
+        data_source: prop.data_source.clone(),
     }
 }
 
@@ -1299,15 +820,13 @@ fn transform_widget_definition_to_spec(definition: &WidgetDefinition) -> WidgetD
 
 #[tauri::command]
 pub fn parse_widget_properties_as_spec(widget_path: String) -> Result<WidgetDefinitionSpec, String> {
-    let definition = parse_widget_xml(&widget_path).map_err(|e| e.to_string())?;
-    Ok(transform_widget_definition_to_spec(&definition))
+    parse_widget_properties_as_spec_internal(&widget_path)
 }
 
-fn count_visible_properties_in_spec_group_internal(
+fn count_visible_properties_in_spec_group(
     group: &PropertyGroupSpec,
     visible_keys: Option<&[String]>,
 ) -> usize {
-    // Count properties in this group
     let direct_count = match visible_keys {
         Some(keys) => group
             .properties
@@ -1317,11 +836,10 @@ fn count_visible_properties_in_spec_group_internal(
         None => group.properties.len(),
     };
 
-    // Recursively count properties in nested groups
     let nested_count: usize = group
         .property_groups
         .iter()
-        .map(|nested| count_visible_properties_in_spec_group_internal(nested, visible_keys))
+        .map(|nested| count_visible_properties_in_spec_group(nested, visible_keys))
         .sum();
 
     direct_count + nested_count
@@ -1340,14 +858,12 @@ fn count_all_spec_groups_recursive(
         format!("{}.{}", parent_path, caption)
     };
 
-    // Count for this group
-    let count = count_visible_properties_in_spec_group_internal(group, visible_keys);
+    let count = count_visible_properties_in_spec_group(group, visible_keys);
     results.push(GroupCountResult {
         group_path: group_path.clone(),
         count,
     });
 
-    // Recurse into nested groups
     for nested in &group.property_groups {
         count_all_spec_groups_recursive(nested, &group_path, visible_keys, results);
     }
@@ -1405,15 +921,48 @@ mod tests {
         let caption_prop = &result.properties[0];
         assert_eq!(caption_prop.key, "caption");
         assert_eq!(caption_prop.property_type, "string");
-        assert_eq!(caption_prop.required, true);
+        assert!(caption_prop.required);
 
         let alignment_prop = &result.properties[2];
         assert_eq!(alignment_prop.options.len(), 3);
         assert!(alignment_prop.options.contains(&"left".to_string()));
     }
 
-    fn create_test_editor_property(key: &str) -> EditorProperty {
-        EditorProperty {
+    #[test]
+    fn test_parse_datasource_attribute() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<widget id="com.example.MyWidget" needsEntityContext="true" xmlns="http://www.mendix.com/widget/1.0/">
+    <name>My Widget</name>
+    <description>Test widget with datasource</description>
+    <properties>
+        <property key="datasource" type="datasource" isList="true" required="false">
+            <caption>Data Source</caption>
+            <description>Data source for items</description>
+        </property>
+        <property key="idAttribute" type="attribute" dataSource="datasource" required="false">
+            <caption>ID Attribute</caption>
+            <description>Attribute for ID</description>
+        </property>
+    </properties>
+</widget>"#;
+
+        let result = parse_xml_content(xml).unwrap();
+
+        assert_eq!(result.properties.len(), 2);
+
+        let datasource_prop = &result.properties[0];
+        assert_eq!(datasource_prop.key, "datasource");
+        assert_eq!(datasource_prop.property_type, "datasource");
+        assert!(datasource_prop.data_source.is_none());
+
+        let attribute_prop = &result.properties[1];
+        assert_eq!(attribute_prop.key, "idAttribute");
+        assert_eq!(attribute_prop.property_type, "attribute");
+        assert_eq!(attribute_prop.data_source, Some("datasource".to_string()));
+    }
+
+    fn create_test_property_spec(key: &str) -> PropertySpec {
+        PropertySpec {
             key: key.to_string(),
             property_type: "string".to_string(),
             caption: format!("Caption for {}", key),
@@ -1421,58 +970,59 @@ mod tests {
             default_value: None,
             required: false,
             options: vec![],
+            data_source: None,
         }
     }
 
-    fn create_test_editor_group(caption: &str, props: Vec<&str>, nested: Vec<EditorPropertyGroup>) -> EditorPropertyGroup {
-        EditorPropertyGroup {
+    fn create_test_property_group_spec(caption: &str, props: Vec<&str>, nested: Vec<PropertyGroupSpec>) -> PropertyGroupSpec {
+        PropertyGroupSpec {
             caption: caption.to_string(),
-            properties: props.into_iter().map(create_test_editor_property).collect(),
+            properties: props.into_iter().map(create_test_property_spec).collect(),
             property_groups: nested,
         }
     }
 
     #[test]
     fn test_count_visible_properties_no_filter() {
-        let group = create_test_editor_group("General", vec!["prop1", "prop2", "prop3"], vec![]);
-        let count = count_visible_properties_in_group_internal(&group, None);
+        let group = create_test_property_group_spec("General", vec!["prop1", "prop2", "prop3"], vec![]);
+        let count = count_visible_properties_in_spec_group(&group, None);
         assert_eq!(count, 3);
     }
 
     #[test]
     fn test_count_visible_properties_with_filter() {
-        let group = create_test_editor_group("General", vec!["prop1", "prop2", "prop3"], vec![]);
+        let group = create_test_property_group_spec("General", vec!["prop1", "prop2", "prop3"], vec![]);
         let visible = vec!["prop1".to_string(), "prop3".to_string()];
-        let count = count_visible_properties_in_group_internal(&group, Some(&visible));
+        let count = count_visible_properties_in_spec_group(&group, Some(&visible));
         assert_eq!(count, 2);
     }
 
     #[test]
     fn test_count_visible_properties_nested() {
-        let nested = create_test_editor_group("Nested", vec!["nested1", "nested2"], vec![]);
-        let group = create_test_editor_group("Parent", vec!["prop1"], vec![nested]);
+        let nested = create_test_property_group_spec("Nested", vec!["nested1", "nested2"], vec![]);
+        let group = create_test_property_group_spec("Parent", vec!["prop1"], vec![nested]);
 
-        let count = count_visible_properties_in_group_internal(&group, None);
+        let count = count_visible_properties_in_spec_group(&group, None);
         assert_eq!(count, 3); // 1 from parent + 2 from nested
     }
 
     #[test]
     fn test_count_visible_properties_nested_with_filter() {
-        let nested = create_test_editor_group("Nested", vec!["nested1", "nested2"], vec![]);
-        let group = create_test_editor_group("Parent", vec!["prop1", "prop2"], vec![nested]);
+        let nested = create_test_property_group_spec("Nested", vec!["nested1", "nested2"], vec![]);
+        let group = create_test_property_group_spec("Parent", vec!["prop1", "prop2"], vec![nested]);
 
         let visible = vec!["prop1".to_string(), "nested2".to_string()];
-        let count = count_visible_properties_in_group_internal(&group, Some(&visible));
+        let count = count_visible_properties_in_spec_group(&group, Some(&visible));
         assert_eq!(count, 2); // prop1 + nested2
     }
 
     #[test]
     fn test_count_visible_properties_deeply_nested() {
-        let deep = create_test_editor_group("Deep", vec!["deep1"], vec![]);
-        let nested = create_test_editor_group("Nested", vec!["nested1"], vec![deep]);
-        let group = create_test_editor_group("Parent", vec!["prop1"], vec![nested]);
+        let deep = create_test_property_group_spec("Deep", vec!["deep1"], vec![]);
+        let nested = create_test_property_group_spec("Nested", vec!["nested1"], vec![deep]);
+        let group = create_test_property_group_spec("Parent", vec!["prop1"], vec![nested]);
 
-        let count = count_visible_properties_in_group_internal(&group, None);
+        let count = count_visible_properties_in_spec_group(&group, None);
         assert_eq!(count, 3); // 1 from each level
     }
 }

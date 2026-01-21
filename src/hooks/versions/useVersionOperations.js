@@ -8,11 +8,6 @@ import {
 
 const LAUNCH_LOADING_RESET_DELAY_MS = 60000;
 
-/**
- * useVersionOperations - Handles version operations (launch, uninstall, download)
- * @param {Object} params - Parameters object
- * @param {Function} params.onLoadVersions - Callback to reload versions after operations
- */
 export function useVersionOperations({ onLoadVersions }) {
   const [versionLoadingStates, setVersionLoadingStates] = useState({});
 
@@ -148,5 +143,3 @@ export function useVersionOperations({ onLoadVersions }) {
     handleModalDownload,
   };
 }
-
-export default useVersionOperations;

@@ -1,25 +1,8 @@
 import * as R from "ramda";
 import { useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  invokeValidateBuildDeploySelections,
-  invokeCreateCatastrophicErrorResult,
-  invokeHasBuildFailures,
-} from "../../utils";
-import { filterWidgetsBySelectedIds } from "../../utils/data-processing/widgetFiltering";
-import { filterAppsBySelectedPaths } from "../../utils/data-processing/appFiltering";
+import { invokeCreateCatastrophicErrorResult } from "../../utils";
 
-/**
- * Build and deploy operation hook
- * Handles building widgets and deploying to selected apps
- *
- * @param {Object} params - Hook parameters
- * @param {string} params.packageManager - Current package manager
- * @param {function} params.setIsBuilding - Loading state setter
- * @param {function} params.setBuildResults - Results state setter
- * @param {function} params.setInlineResults - Inline results state setter
- * @param {function} params.onShowResultModal - Optional callback when result modal should be shown
- */
 export function useBuildDeployOperation({
   packageManager,
   setIsBuilding,
@@ -29,49 +12,48 @@ export function useBuildDeployOperation({
 }) {
   const handleBuildDeploy = useCallback(
     async ({ selectedWidgets, selectedApps, widgets, apps }) => {
-      const validationError = await invokeValidateBuildDeploySelections(
-        selectedWidgets,
-        selectedApps,
-      );
-
-      if (validationError) {
-        alert(validationError);
-        return;
-      }
-
-      const initializeBuildState = R.pipe(
-        R.tap(() => onShowResultModal && onShowResultModal(false)),
-        R.tap(() => setBuildResults({ successful: [], failed: [] })),
-        R.tap(() => setIsBuilding(true)),
-        R.always(null),
-      );
-
-      initializeBuildState();
-
       const selectedWidgetIds = Array.from(selectedWidgets);
       const selectedAppPaths = Array.from(selectedApps);
 
-      const widgetsList = await filterWidgetsBySelectedIds(widgets, selectedWidgetIds);
-      const appsList = await filterAppsBySelectedPaths(apps, selectedAppPaths);
+      R.pipe(
+        R.tap(() => onShowResultModal && onShowResultModal(false)),
+        R.tap(() => setBuildResults({ successful: [], failed: [] })),
+        R.tap(() => setIsBuilding(true)),
+      )({});
 
-      let results;
+      let response;
       try {
-        results = await invoke("build_and_deploy_from_selections", {
-          widgets: widgetsList,
-          apps: appsList,
+        response = await invoke("validate_and_build_deploy", {
+          widgets,
+          apps,
           packageManager,
+          selectedWidgetIds,
+          selectedAppPaths,
         });
       } catch (error) {
-        results = await invokeCreateCatastrophicErrorResult(error);
+        const errorResult = await invokeCreateCatastrophicErrorResult(error);
+        setBuildResults(errorResult);
+        setInlineResults(errorResult);
+        setIsBuilding(false);
+        R.when(R.identity, () => onShowResultModal(true))(onShowResultModal);
+        return;
       }
+
+      if (response.validation_error) {
+        setIsBuilding(false);
+        alert(response.validation_error);
+        return;
+      }
+
+      const results = response.results;
       setBuildResults(results);
       setInlineResults(results);
       setIsBuilding(false);
 
-      const hasFailures = await invokeHasBuildFailures(results);
-      if (hasFailures && onShowResultModal) {
-        onShowResultModal(true);
-      }
+      R.when(
+        R.always(response.has_failures && onShowResultModal),
+        () => onShowResultModal(true)
+      )({});
     },
     [packageManager, setIsBuilding, setBuildResults, setInlineResults, onShowResultModal],
   );

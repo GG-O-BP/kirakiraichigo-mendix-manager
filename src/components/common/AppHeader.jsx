@@ -1,6 +1,3 @@
-/**
- * AppHeader component - renders the app title and theme selector
- */
 function AppHeader({ currentTheme, currentLogo, handleThemeChange }) {
   return (
     <div className="app-header">

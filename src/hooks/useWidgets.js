@@ -1,13 +1,8 @@
 import * as R from "ramda";
 import { useState, useCallback, useEffect } from "react";
-import {
-  STORAGE_KEYS,
-  loadFromStorage,
-  saveToStorage,
-  invokeCreateWidget,
-  invokeValidateRequired,
-} from "../utils";
-import { filterWidgets, sortWidgetsByOrder, removeWidgetById } from "../utils/data-processing/widgetFiltering";
+import { invoke } from "@tauri-apps/api/core";
+import { STORAGE_KEYS, saveToStorage } from "../utils";
+import { processWidgetsPipeline } from "../utils/data-processing/widgetFiltering";
 import { useCollection } from "./useCollection";
 
 export function useWidgets() {
@@ -21,16 +16,7 @@ export function useWidgets() {
 
   const loadWidgets = useCallback(async () => {
     try {
-      const savedWidgets = await loadFromStorage(STORAGE_KEYS.WIDGETS, []);
-      const savedOrder = await loadFromStorage(STORAGE_KEYS.WIDGET_ORDER, []);
-
-      const processWidgets = R.ifElse(
-        R.complement(R.isEmpty),
-        () => sortWidgetsByOrder(savedWidgets, savedOrder),
-        R.always(Promise.resolve(savedWidgets)),
-      );
-
-      const orderedWidgets = await processWidgets(savedOrder);
+      const orderedWidgets = await invoke("load_widgets_ordered");
       collection.setItems(orderedWidgets);
     } catch (error) {
       console.error("Failed to load widgets:", error);
@@ -40,18 +26,15 @@ export function useWidgets() {
 
   const handleAddWidget = useCallback(
     async (onSuccess) => {
-      const isValid = invokeValidateRequired(["caption", "path"], {
-        caption: newWidgetCaption,
-        path: newWidgetPath,
-      });
-
+      const isValid = R.all(R.complement(R.isEmpty), [newWidgetCaption, newWidgetPath]);
       if (!isValid) return;
 
       try {
-        const newWidget = await invokeCreateWidget(newWidgetCaption, newWidgetPath);
+        const newWidget = await invoke("add_widget_and_save", {
+          caption: newWidgetCaption,
+          path: newWidgetPath,
+        });
         const updatedWidgets = R.append(newWidget, collection.items);
-
-        await saveToStorage(STORAGE_KEYS.WIDGETS, updatedWidgets);
         collection.setItems(updatedWidgets);
         setNewWidgetCaption("");
         setNewWidgetPath("");
@@ -71,10 +54,8 @@ export function useWidgets() {
 
       try {
         const widgetId = R.prop("id", widgetToDelete);
-        const newWidgets = await removeWidgetById(collection.items, widgetId);
+        const newWidgets = await invoke("delete_widget_and_save", { widgetId });
         collection.setItems(newWidgets);
-        saveToStorage(STORAGE_KEYS.WIDGETS, newWidgets).catch(console.error);
-
         collection.removeFromSelection(widgetToDelete);
 
         return true;
@@ -83,7 +64,7 @@ export function useWidgets() {
         return false;
       }
     },
-    [collection.items, collection.setItems, collection.removeFromSelection],
+    [collection.setItems, collection.removeFromSelection],
   );
 
   useEffect(() => {
@@ -104,8 +85,9 @@ export function useWidgets() {
   useEffect(() => {
     const filterWidgetsBySearchTerm = async () => {
       try {
-        const searchTerm = R.defaultTo(null, collection.searchTerm);
-        const filtered = await filterWidgets(collection.items, searchTerm);
+        const filtered = await processWidgetsPipeline(collection.items, {
+          searchTerm: collection.searchTerm,
+        });
         collection.setFilteredItems(filtered);
       } catch (error) {
         console.error("Failed to filter widgets:", error);
@@ -137,5 +119,3 @@ export function useWidgets() {
     handleWidgetDelete,
   };
 }
-
-export default useWidgets;

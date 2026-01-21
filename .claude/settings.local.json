@@ -8,7 +8,10 @@
       "Bash(dir \"C:\\\\Users\\\\dohye\\\\workspace\\\\kirakiraichigo-mendix-manager\\\\src-tauri\\\\src\" /b)",
       "Bash(cargo build:*)",
       "Bash(tree:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "WebFetch(domain:ramdajs.com)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo +nightly clippy:*)"
     ]
   }
 }

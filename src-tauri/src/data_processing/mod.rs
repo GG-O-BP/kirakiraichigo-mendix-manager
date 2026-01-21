@@ -1,5 +1,7 @@
+pub mod extractors;
 pub mod mendix_filters;
 pub mod version_utils;
+pub mod widget;
 
 use serde::{Deserialize, Serialize};
 
@@ -130,18 +132,6 @@ fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
     }
 }
 
-pub fn sort_by_version<F>(mut items: Vec<F>, version_extractor: fn(&F) -> Option<String>) -> Vec<F>
-where
-    F: Clone,
-{
-    items.sort_by(|a, b| {
-        let version_a = version_extractor(a).unwrap_or_default();
-        let version_b = version_extractor(b).unwrap_or_default();
-        compare_versions(&version_a, &version_b)
-    });
-    items
-}
-
 pub fn sort_by_version_with_date_fallback<F>(
     items: Vec<F>,
     version_extractor: fn(&F) -> Option<String>,
@@ -194,53 +184,26 @@ pub fn filter_valid_items<F>(items: Vec<F>, is_valid_extractor: fn(&F) -> bool) 
 where
     F: Clone,
 {
-    items
-        .into_iter()
-        .filter(|item| is_valid_extractor(item))
-        .collect()
+    items.into_iter().filter(is_valid_extractor).collect()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaginationOptions {
-    pub page: usize,
-    pub items_per_page: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaginatedResult<T> {
-    pub items: Vec<T>,
-    pub total_items: usize,
-    pub total_pages: usize,
-    pub current_page: usize,
-    pub has_next_page: bool,
-    pub has_previous_page: bool,
-}
-
-pub fn paginate<T>(items: Vec<T>, options: &PaginationOptions) -> PaginatedResult<T>
+/// Filter items by a set of keys using a key extractor function
+pub fn filter_by_key_set<T, K>(
+    items: &[T],
+    keys: &[K],
+    key_extractor: fn(&T) -> &K,
+) -> Vec<T>
 where
     T: Clone,
+    K: std::hash::Hash + Eq,
 {
-    let total_items = items.len();
-    let total_pages = (total_items + options.items_per_page - 1) / options.items_per_page;
-    let current_page = options.page.min(total_pages.saturating_sub(1));
-
-    let start_index = current_page * options.items_per_page;
-    let end_index = (start_index + options.items_per_page).min(total_items);
-
-    let paginated_items = if start_index < total_items {
-        items[start_index..end_index].to_vec()
-    } else {
-        Vec::new()
-    };
-
-    PaginatedResult {
-        items: paginated_items,
-        total_items,
-        total_pages,
-        current_page,
-        has_next_page: current_page < total_pages.saturating_sub(1),
-        has_previous_page: current_page > 0,
-    }
+    use std::collections::HashSet;
+    let key_set: HashSet<&K> = keys.iter().collect();
+    items
+        .iter()
+        .filter(|item| key_set.contains(key_extractor(item)))
+        .cloned()
+        .collect()
 }
 
 pub fn apply_filters_and_sort<F>(
@@ -313,16 +276,11 @@ mod tests {
     #[derive(Debug, Clone)]
     struct TestItem {
         name: String,
-        version: String,
         is_valid: bool,
     }
 
     fn test_name_extractor(item: &TestItem) -> Option<String> {
         Some(item.name.clone())
-    }
-
-    fn test_version_extractor(item: &TestItem) -> Option<String> {
-        Some(item.version.clone())
     }
 
     fn test_is_valid(item: &TestItem) -> bool {
@@ -334,17 +292,14 @@ mod tests {
         let items = vec![
             TestItem {
                 name: "Widget A".to_string(),
-                version: "1.0.0".to_string(),
                 is_valid: true,
             },
             TestItem {
                 name: "Widget B".to_string(),
-                version: "2.0.0".to_string(),
                 is_valid: true,
             },
             TestItem {
                 name: "Component C".to_string(),
-                version: "1.5.0".to_string(),
                 is_valid: true,
             },
         ];
@@ -359,77 +314,23 @@ mod tests {
     }
 
     #[test]
-    fn test_sort_by_version() {
-        let items = vec![
-            TestItem {
-                name: "A".to_string(),
-                version: "1.0.0".to_string(),
-                is_valid: true,
-            },
-            TestItem {
-                name: "B".to_string(),
-                version: "10.4.0".to_string(),
-                is_valid: true,
-            },
-            TestItem {
-                name: "C".to_string(),
-                version: "2.0.0".to_string(),
-                is_valid: true,
-            },
-        ];
-
-        let sorted = sort_by_version(items, test_version_extractor);
-        assert_eq!(sorted[0].version, "10.4.0");
-        assert_eq!(sorted[1].version, "2.0.0");
-        assert_eq!(sorted[2].version, "1.0.0");
-    }
-
-    #[test]
     fn test_filter_valid_items() {
         let items = vec![
             TestItem {
                 name: "A".to_string(),
-                version: "1.0.0".to_string(),
                 is_valid: true,
             },
             TestItem {
                 name: "B".to_string(),
-                version: "2.0.0".to_string(),
                 is_valid: false,
             },
             TestItem {
                 name: "C".to_string(),
-                version: "3.0.0".to_string(),
                 is_valid: true,
             },
         ];
 
         let filtered = filter_valid_items(items, test_is_valid);
         assert_eq!(filtered.len(), 2);
-    }
-
-    #[test]
-    fn test_paginate() {
-        let items: Vec<i32> = (1..=25).collect();
-        let options = PaginationOptions {
-            page: 0,
-            items_per_page: 10,
-        };
-
-        let result = paginate(items.clone(), &options);
-        assert_eq!(result.items.len(), 10);
-        assert_eq!(result.total_items, 25);
-        assert_eq!(result.total_pages, 3);
-        assert!(result.has_next_page);
-        assert!(!result.has_previous_page);
-
-        let options_page2 = PaginationOptions {
-            page: 2,
-            items_per_page: 10,
-        };
-        let result_page2 = paginate(items, &options_page2);
-        assert_eq!(result_page2.items.len(), 5);
-        assert!(!result_page2.has_next_page);
-        assert!(result_page2.has_previous_page);
     }
 }

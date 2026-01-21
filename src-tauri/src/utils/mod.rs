@@ -203,8 +203,7 @@ fn validate_widget_copy_inputs(widget_path: &str, app_paths: &[String]) -> Resul
 
 fn extract_folder_name_internal(path: &str) -> String {
     path.split(&['\\', '/'][..])
-        .filter(|s| !s.is_empty())
-        .last()
+        .rfind(|s| !s.is_empty())
         .unwrap_or("")
         .to_string()
 }
@@ -217,12 +216,7 @@ pub fn extract_folder_name_from_path(path: String) -> Result<String, String> {
     Ok(extract_folder_name_internal(&path))
 }
 
-#[tauri::command]
-pub fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[tauri::command]
+// Used internally by build_deploy module
 pub fn copy_widget_to_apps(
     widget_path: String,
     app_paths: Vec<String>,
@@ -249,12 +243,6 @@ pub fn copy_widget_to_apps(
 mod tests {
     use super::*;
     use std::path::Path;
-
-    #[test]
-    fn test_greet_function() {
-        let result = greet("World");
-        assert_eq!(result, "Hello, World! You've been greeted from Rust!");
-    }
 
     #[test]
     fn test_construct_widget_source_path() {

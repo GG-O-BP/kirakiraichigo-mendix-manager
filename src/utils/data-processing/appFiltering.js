@@ -1,31 +1,23 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export async function filterMendixApps(
+export async function processAppsPipeline(
   apps,
-  searchTerm = null,
-  targetVersion = null,
-  onlyValid = true,
+  {
+    searchTerm = null,
+    targetVersion = null,
+    selectedPaths = null,
+    priorityVersion = null,
+    onlyValid = true,
+  } = {},
 ) {
-  return await invoke("filter_mendix_apps", {
-    apps,
-    searchTerm,
-    targetVersion,
-    onlyValid,
+  return await invoke("process_apps_pipeline", {
+    params: {
+      apps,
+      search_term: searchTerm && searchTerm.trim() !== "" ? searchTerm : null,
+      target_version: targetVersion,
+      selected_paths: selectedPaths,
+      priority_version: priorityVersion,
+      only_valid: onlyValid,
+    },
   });
-}
-
-export async function filterAndSortAppsWithPriority(
-  apps,
-  searchTerm = null,
-  priorityVersion = null,
-) {
-  return await invoke("filter_and_sort_apps_with_priority", {
-    apps,
-    searchTerm: searchTerm && searchTerm.trim() !== "" ? searchTerm : null,
-    priorityVersion,
-  });
-}
-
-export async function filterAppsBySelectedPaths(apps, selectedPaths) {
-  return await invoke("filter_apps_by_selected_paths", { apps, selectedPaths });
 }

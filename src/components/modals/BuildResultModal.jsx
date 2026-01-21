@@ -1,5 +1,5 @@
 import * as R from "ramda";
-import { memo } from "react";
+import { memo, useEffect } from "react";
 
 const shouldShowModal = R.prop("showResultModal");
 
@@ -67,8 +67,15 @@ const renderFailedSection = R.ifElse(
   R.always(null),
 );
 
-const renderModalContent = (props) => {
+const ModalContent = (props) => {
   const { setShowResultModal, setBuildResults } = props;
+  const closeModal = () => handleClose(setShowResultModal, setBuildResults);
+
+  useEffect(() => {
+    const handleKeyDown = R.when(R.propEq("Escape", "key"), R.tap(closeModal));
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [setShowResultModal, setBuildResults]);
 
   return (
     <div className="modal-overlay">
@@ -80,7 +87,7 @@ const renderModalContent = (props) => {
         <div className="modal-footer">
           <button
             className="modal-button confirm-button"
-            onClick={() => handleClose(setShowResultModal, setBuildResults)}
+            onClick={closeModal}
           >
             Close
           </button>
@@ -91,7 +98,7 @@ const renderModalContent = (props) => {
 };
 
 const BuildResultModal = memo(
-  R.ifElse(shouldShowModal, renderModalContent, R.always(null)),
+  R.ifElse(shouldShowModal, ModalContent, R.always(null)),
 );
 
 BuildResultModal.displayName = "BuildResultModal";

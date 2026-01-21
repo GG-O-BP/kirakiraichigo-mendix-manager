@@ -4,24 +4,6 @@ const extractPropertyGroupsFromDefinition = R.curry((widgetDefinition) => {
   return R.propOr([], "propertyGroups", widgetDefinition);
 });
 
-const isPropertyKeyInGroupsInternal = R.curry((filteredGroups, propertyKey) => {
-  const searchPropertyKeyInGroup = (group) => {
-    const properties = R.prop("properties", group) || [];
-    const propertyGroups = R.prop("propertyGroups", group) || [];
-
-    const foundInDirectProperties = R.any(
-      R.pipe(R.prop("key"), R.equals(propertyKey)),
-      properties,
-    );
-
-    if (foundInDirectProperties) return true;
-
-    return R.any(searchPropertyKeyInGroup, propertyGroups);
-  };
-
-  return R.any(searchPropertyKeyInGroup, filteredGroups);
-});
-
 const extractAllPropertyKeysFromGroupsInternal = R.curry((filteredGroups) => {
   const extractKeysFromGroup = (group) => {
     const properties = R.prop("properties", group) || [];

@@ -2,16 +2,7 @@ import * as R from "ramda";
 import { useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { hasItems } from "../../utils";
-import { filterWidgetsBySelectedIds } from "../../utils/data-processing/widgetFiltering";
 
-/**
- * Install operation hook
- * Handles dependency installation for selected widgets
- *
- * @param {Object} params - Hook parameters
- * @param {string} params.packageManager - Current package manager
- * @param {function} params.setIsInstalling - Loading state setter
- */
 export function useInstallOperation({ packageManager, setIsInstalling }) {
   const handleInstall = useCallback(
     async ({ selectedWidgets, widgets }) => {
@@ -22,34 +13,24 @@ export function useInstallOperation({ packageManager, setIsInstalling }) {
 
       setIsInstalling(true);
 
-      const selectedIds = Array.from(selectedWidgets);
-      const widgetsList = await filterWidgetsBySelectedIds(widgets, selectedIds);
+      const selectedWidgetIds = Array.from(selectedWidgets);
 
-      const createInstallOperation = R.curry((widget) =>
-        R.tryCatch(
-          async () => {
-            await invoke("run_package_manager_command", {
-              packageManager,
-              command: "install",
-              workingDirectory: R.prop("path", widget),
-            });
-            return R.assoc("success", true, widget);
-          },
-          (error) => {
-            alert(
-              `Failed to install dependencies for ${R.prop("caption", widget)}: ${error}`,
-            );
-            return R.assoc("success", false, widget);
-          },
-        )(),
-      );
+      try {
+        const summary = await invoke("batch_install_widgets", {
+          widgets,
+          packageManager,
+          selectedWidgetIds,
+        });
 
-      const executeInstallations = R.pipe(
-        R.map(createInstallOperation),
-        (promises) => Promise.all(promises),
-      );
-
-      await executeInstallations(widgetsList);
+        R.unless(
+          R.isEmpty,
+          R.pipe(R.join(", "), (failedWidgets) =>
+            alert(`Failed to install dependencies for: ${failedWidgets}`),
+          ),
+        )(R.prop("failed_widget_names", summary));
+      } catch (error) {
+        alert(`Installation failed: ${error}`);
+      }
 
       setIsInstalling(false);
     },

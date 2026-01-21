@@ -1,5 +1,5 @@
 import * as R from "ramda";
-import { memo } from "react";
+import { memo, useEffect } from "react";
 
 const isModalOpen = R.prop("isOpen");
 
@@ -54,8 +54,18 @@ const ModalContent = ({
   onConfirmWithApps,
   isLoading,
   relatedApps,
-}) => (
-  <div className="modal-overlay">
+}) => {
+  useEffect(() => {
+    const handleKeyDown = R.when(
+      R.both(R.propEq("Escape", "key"), () => !isLoading),
+      R.tap(onCancel),
+    );
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onCancel, isLoading]);
+
+  return (
+    <div className="modal-overlay">
     <div className="modal-content">
       <div className="modal-header">
         <h3>{title}</h3>
@@ -83,7 +93,8 @@ const ModalContent = ({
       </div>
     </div>
   </div>
-);
+  );
+};
 
 const ConfirmModal = memo(
   R.ifElse(isModalOpen, ModalContent, R.always(null)),

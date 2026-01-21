@@ -6,7 +6,12 @@ import { renderPanel } from "../../common/Panel";
 import { MendixAppListItem } from "../../common/ListItems";
 
 export const invokeCheckAppVersionMismatch = async (selectedVersion, appVersion) =>
-  invoke("is_app_version_mismatch", { selectedVersion, appVersion });
+  invoke("compare_versions", {
+    comparisonType: "mismatch",
+    value1: selectedVersion,
+    value2: appVersion,
+    installedVersions: null,
+  });
 
 const createAppSelectionHandler = R.curry(
   (handleClick, app) => () => handleClick(app),

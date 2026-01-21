@@ -1,6 +1,7 @@
 import * as R from "ramda";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { createTypedChangeHandler } from "../../utils";
+import Dropdown from "./Dropdown";
 
 const DECIMAL_STEP = 0.01;
 const INTEGER_STEP = 1;
@@ -46,14 +47,15 @@ const validateInput = R.curry((property, value) => {
 });
 
 const renderTextInput = R.curry((property, value, onChange, disabled) => (
-  <input
-    type="text"
-    className="property-input"
-    value={value || ""}
-    onChange={createTypedChangeHandler(onChange, "string")}
-    disabled={disabled}
-    placeholder={R.prop("description", property)}
-  />
+  <div className="text-input-container">
+    <input
+      type="text"
+      className="property-input text-input"
+      value={value || ""}
+      onChange={createTypedChangeHandler(onChange, "string")}
+      disabled={disabled}
+    />
+  </div>
 ));
 
 const renderTextarea = R.curry((property, value, onChange, disabled) => (
@@ -141,25 +143,16 @@ const renderCheckbox = R.curry((property, value, onChange, disabled) => (
 
 const renderSelect = R.curry((property, value, onChange, disabled) => {
   const options = R.prop("options", property);
-  const needsPlaceholderOption = !R.includes("", options);
+  const needsPlaceholder = !R.includes("", options);
 
   return (
-    <select
-      className="property-select"
+    <Dropdown
       value={value || ""}
-      onChange={createTypedChangeHandler(onChange, "enumeration")}
+      onChange={onChange}
+      options={options}
       disabled={disabled}
-    >
-      {needsPlaceholderOption && <option value="">Select...</option>}
-      {R.map(
-        (option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ),
-        options,
-      )}
-    </select>
+      placeholder={needsPlaceholder ? "Select..." : null}
+    />
   );
 });
 
@@ -181,6 +174,111 @@ const renderPlaceholder = R.curry((property, value, onChange, disabled) => (
   </div>
 ));
 
+const renderDatasourceTextarea = R.curry((property, value, onChange, disabled) => {
+  const handleChange = (e) => {
+    const newValue = R.path(["target", "value"], e);
+    onChange(newValue);
+  };
+
+  const isValidJson = R.tryCatch(
+    R.pipe(JSON.parse, R.always(true)),
+    R.always(false),
+  );
+
+  const jsonValid = R.ifElse(
+    R.either(R.isNil, R.isEmpty),
+    R.always(true),
+    isValidJson,
+  )(value);
+
+  return (
+    <div className="datasource-textarea-container">
+      <textarea
+        className={`property-textarea datasource-json ${jsonValid ? "" : "invalid-json"}`}
+        rows="6"
+        value={value || ""}
+        onChange={handleChange}
+        disabled={disabled}
+        placeholder='{"key1": "value1", "key2": "value2"}'
+      />
+      {R.not(jsonValid) && (
+        <div className="json-error-hint">Invalid JSON format</div>
+      )}
+    </div>
+  );
+});
+
+const extractKeysFromParsedJson = R.cond([
+  [R.isNil, R.always([])],
+  [
+    R.is(Array),
+    R.pipe(
+      R.head,
+      R.ifElse(R.both(R.complement(R.isNil), R.is(Object)), R.keys, R.always([])),
+    ),
+  ],
+  [R.is(Object), R.keys],
+  [R.T, R.always([])],
+]);
+
+const isStringType = R.pipe(R.type, R.equals("String"));
+
+const safeJsonParse = R.tryCatch(JSON.parse, R.always(null));
+
+const extractDatasourceKeys = (allProperties, dataSourceKey) => {
+  const datasourceValue = R.prop(dataSourceKey, allProperties);
+  const isValidString = R.both(R.complement(R.isNil), isStringType)(datasourceValue);
+
+  if (!isValidString) {
+    return [];
+  }
+
+  const parsed = safeJsonParse(datasourceValue);
+
+  if (R.isNil(parsed)) {
+    return [];
+  }
+
+  return extractKeysFromParsedJson(parsed);
+};
+
+const renderAttributeSelect = R.curry(
+  (property, value, onChange, disabled, allProperties) => {
+    const dataSourceKey = R.prop("dataSource", property);
+    const extractResult = R.isNil(dataSourceKey)
+      ? []
+      : extractDatasourceKeys(allProperties, dataSourceKey);
+    const datasourceKeys = Array.isArray(extractResult) ? extractResult : [];
+
+    const hasNoDataSource = R.isNil(dataSourceKey);
+    const datasourceValue = R.prop(dataSourceKey, allProperties);
+    const hasNoDatasourceValue = R.and(
+      R.complement(R.isNil)(dataSourceKey),
+      R.either(R.isNil, R.isEmpty)(datasourceValue),
+    );
+
+    return (
+      <div className="attribute-select-container">
+        <Dropdown
+          value={value || ""}
+          onChange={onChange}
+          options={datasourceKeys}
+          disabled={R.or(disabled, R.isEmpty(datasourceKeys))}
+          placeholder="Select attribute..."
+        />
+        {hasNoDataSource && (
+          <div className="attribute-hint">No datasource linked</div>
+        )}
+        {hasNoDatasourceValue && (
+          <div className="attribute-hint">
+            Enter JSON in "{dataSourceKey}" first
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+
 const inputRenderers = {
   string: renderTextInput,
   boolean: renderCheckbox,
@@ -191,10 +289,10 @@ const inputRenderers = {
   textTemplate: renderTextarea,
   file: renderFileInput,
   action: renderPlaceholder,
-  attribute: renderPlaceholder,
+  attribute: null,
   association: renderPlaceholder,
   object: renderPlaceholder,
-  datasource: renderPlaceholder,
+  datasource: renderDatasourceTextarea,
   icon: renderPlaceholder,
   image: renderPlaceholder,
   widgets: renderPlaceholder,
@@ -220,7 +318,14 @@ const renderDescription = R.curry((description) =>
 );
 
 const DynamicPropertyInput = memo(
-  ({ property, value, onChange, disabled = false, showValidation = true }) => {
+  ({
+    property,
+    value,
+    onChange,
+    disabled = false,
+    showValidation = true,
+    allProperties = {},
+  }) => {
     const type = R.prop("type", property);
     const caption = R.prop("caption", property);
     const description = R.prop("description", property);
@@ -230,9 +335,15 @@ const DynamicPropertyInput = memo(
       ? validateInput(property, value)
       : { isValid: true, error: null };
 
-    const renderer = getRenderer(type);
+    const inputElement = useMemo(() => {
+      const isAttributeType = R.equals("attribute", type);
 
-    const inputElement = renderer(property, value, onChange, disabled);
+      return R.ifElse(
+        R.always(isAttributeType),
+        R.always(renderAttributeSelect(property, value, onChange, disabled, allProperties)),
+        R.always(getRenderer(type)(property, value, onChange, disabled)),
+      )();
+    }, [type, property, value, onChange, disabled, allProperties]);
 
     const containerClass = R.pipe(
       R.always([

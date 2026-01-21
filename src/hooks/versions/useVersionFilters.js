@@ -1,9 +1,5 @@
 import { useState } from "react";
 
-/**
- * useVersionFilters - Pure filter state management for versions
- * Manages search term and filter toggles (LTS, MTS, Beta, downloadable-only)
- */
 export function useVersionFilters() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showOnlyDownloadableVersions, setShowOnlyDownloadableVersions] = useState(false);
@@ -24,5 +20,3 @@ export function useVersionFilters() {
     setShowBetaOnly,
   };
 }
-
-export default useVersionFilters;

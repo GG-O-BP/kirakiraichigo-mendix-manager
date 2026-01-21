@@ -37,11 +37,8 @@ body {
 /* ============= Global Icon Styles ============= */
 
 .berry-icon,
-.file-icon,
 .info-icon,
-.error-icon,
-.success-icon,
-.warning-icon {
+.error-icon {
     display: inline-block;
     line-height: 1;
 }

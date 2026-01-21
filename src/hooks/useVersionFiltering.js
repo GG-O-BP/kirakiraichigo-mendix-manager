@@ -2,7 +2,7 @@ import * as R from "ramda";
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { filterMendixVersions } from "../utils/data-processing/versionFiltering";
-import { filterAndSortAppsWithPriority } from "../utils/data-processing/appFiltering";
+import { processAppsPipeline } from "../utils/data-processing/appFiltering";
 
 const DOWNLOADABLE_VERSIONS_PAGE_SIZE = 10;
 
@@ -11,6 +11,25 @@ export const invokeExcludeInstalledVersions = async (versions, installedVersions
 
 export const invokeFilterByVersionSupportType = async (versions, showLtsOnly, showMtsOnly, showBetaOnly) =>
   invoke("filter_by_version_support_type", { versions, showLtsOnly, showMtsOnly, showBetaOnly });
+
+export const invokeFilterDownloadableVersions = async (
+  versions,
+  installedVersions,
+  showOnlyDownloadable,
+  showLtsOnly,
+  showMtsOnly,
+  showBetaOnly,
+  searchTerm,
+) =>
+  invoke("filter_downloadable_versions", {
+    versions,
+    installedVersions,
+    showOnlyDownloadable,
+    showLtsOnly,
+    showMtsOnly,
+    showBetaOnly,
+    searchTerm,
+  });
 
 export const invokeCalculateNextPageNumber = async (totalItems, itemsPerPage) =>
   invoke("calculate_next_page_number", { totalItems, itemsPerPage });
@@ -47,11 +66,11 @@ export const useVersionFiltering = ({
 
   useEffect(() => {
     if (apps && apps.length > 0) {
-      filterAndSortAppsWithPriority(
-        apps,
+      processAppsPipeline(apps, {
         searchTerm,
-        selectedVersion?.version
-      )
+        priorityVersion: selectedVersion?.version,
+        onlyValid: true,
+      })
         .then(setDisplayedApps)
         .catch((error) => {
           console.error("Failed to filter apps:", error);
@@ -70,25 +89,19 @@ export const useVersionFiltering = ({
       }
 
       try {
-        let filtered = await invokeExcludeInstalledVersions(
+        const filtered = await invokeFilterDownloadableVersions(
           downloadableVersions,
           installedVersions || [],
-          showOnlyDownloadableVersions
-        );
-
-        filtered = await invokeFilterByVersionSupportType(
-          filtered,
+          showOnlyDownloadableVersions,
           showLTSOnly,
           showMTSOnly,
-          showBetaOnly
+          showBetaOnly,
+          R.ifElse(
+            R.both(R.complement(R.isNil), R.pipe(R.trim, R.complement(R.isEmpty))),
+            R.identity,
+            R.always(null),
+          )(searchTerm),
         );
-
-        if (searchTerm && searchTerm.trim() !== "") {
-          const normalizedSearchTerm = searchTerm.toLowerCase();
-          filtered = filtered.filter(v =>
-            v.version.toLowerCase().includes(normalizedSearchTerm)
-          );
-        }
 
         setDisplayedDownloadableVersions(filtered);
       } catch (error) {

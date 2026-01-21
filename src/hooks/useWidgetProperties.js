@@ -13,7 +13,7 @@ export const useWidgetProperties = (selectedWidget, baseProperties = {}) => {
     dynamicProperties: loader.dynamicProperties,
     baseProperties,
   });
-  const groupUI = usePropertyGroupUI();
+  const groupUI = usePropertyGroupUI(loader.widgetDefinition);
 
   const combinedProperties = R.mergeRight(baseProperties, loader.dynamicProperties);
 
@@ -28,5 +28,3 @@ export const useWidgetProperties = (selectedWidget, baseProperties = {}) => {
     combinedProperties,
   };
 };
-
-export default useWidgetProperties;

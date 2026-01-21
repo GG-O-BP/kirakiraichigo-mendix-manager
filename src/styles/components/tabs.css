@@ -335,9 +335,14 @@
 }
 
 .property-group-icon {
-    font-size: 10px;
-    color: var(--theme-text-secondary);
-    transition: transform var(--transition-fast);
+    font-size: 14px;
+    display: inline-block;
+    transform: rotate(-90deg);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.property-group-icon.expanded {
+    transform: rotate(0deg);
 }
 
 .property-group-title {
@@ -353,12 +358,31 @@
     border-radius: var(--border-radius-sm);
 }
 
+.property-group-content-wrapper {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.property-group.collapsed .property-group-content-wrapper {
+    grid-template-rows: 0fr;
+}
+
 .property-group-content {
     padding: var(--space-md);
     display: flex;
     flex-direction: column;
     gap: var(--space-sm);
     border-top: 1px solid var(--theme-border);
+    overflow: hidden;
+    transition: padding 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                border-top-color 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.property-group.collapsed .property-group-content {
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-color: transparent;
 }
 
 .property-group.collapsed .property-group-header {
@@ -404,9 +428,10 @@
     gap: 0 !important;
 }
 
-/* 아코디언 그룹만 있을 때 padding 제거 */
+/* 아코디언 그룹만 있을 때 padding, gap 제거 */
 .property-group-content.groups-only {
     padding: 0 !important;
+    gap: 0 !important;
 }
 
 /* depth-2 이상 그룹들 스타일 */
@@ -424,8 +449,6 @@
 .property-group.depth-4:last-child {
     border-bottom: none !important;
 }
-
-
 
 /* Depth 2+ header styles */
 .property-group.depth-2 > .property-group-header {
@@ -540,8 +563,8 @@
     }
 }
 
-/* ============= Preview Instructions ============= */
-.preview-instructions {
+/* ============= Empty State Placeholder ============= */
+.empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -550,11 +573,11 @@
     gap: var(--space-md);
 }
 
-.preview-emoji {
+.empty-state-icon {
     font-size: 3.5rem;
 }
 
-.preview-message {
+.empty-state-message {
     font-size: var(--font-size-lg);
     color: var(--theme-text-secondary);
     text-align: center;
