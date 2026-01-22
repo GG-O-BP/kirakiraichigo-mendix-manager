@@ -39,11 +39,20 @@ const ObjectListItem = memo(
 
     const itemPreview = getItemPreview();
 
+    const handleHeaderKeyDown = (e) => {
+      if (R.includes(R.prop("key", e), ["Enter", " "])) {
+        e.preventDefault();
+        onToggleExpanded();
+      }
+    };
+
     const renderItemHeader = () => (
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         className="object-list-item-header"
         onClick={onToggleExpanded}
+        onKeyDown={handleHeaderKeyDown}
         aria-expanded={isExpanded}
       >
         <span className={`object-list-item-icon ${isExpanded ? "expanded" : ""}`}>
@@ -65,7 +74,7 @@ const ObjectListItem = memo(
         >
           ✕
         </button>
-      </button>
+      </div>
     );
 
     const renderPropertyGroup = (group, groupIndex, depth = 0) => {

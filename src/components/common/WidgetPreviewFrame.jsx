@@ -214,6 +214,7 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
 
                 const createMockAttribute = (selectedKey) => {
                   return {
+                    id: selectedKey,
                     get: (item) => {
                       const value = item ? item[selectedKey] : undefined;
                       return {
@@ -232,6 +233,10 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                   validation: undefined,
                   displayValue: value !== undefined && value !== null ? String(value) : '',
                   setValue: () => {}
+                });
+
+                const createMockTextTemplate = (value) => ({
+                  value: value !== undefined && value !== null ? String(value) : ''
                 });
 
                 const getAllProperties = (definition) => {
@@ -255,6 +260,45 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                   return props;
                 };
 
+                const getObjectPropertyDefs = (propertyDef) => {
+                  const objectProps = [];
+                  if (propertyDef && propertyDef.nestedPropertyGroups) {
+                    propertyDef.nestedPropertyGroups.forEach(group => {
+                      if (group.properties) {
+                        objectProps.push(...group.properties);
+                      }
+                      if (group.propertyGroups) {
+                        group.propertyGroups.forEach(nestedGroup => {
+                          if (nestedGroup.properties) {
+                            objectProps.push(...nestedGroup.properties);
+                          }
+                        });
+                      }
+                    });
+                  }
+                  return objectProps;
+                };
+
+                const mapObjectItem = (item, objectPropertyDefs, datasourceItems) => {
+                  const mappedItem = {};
+                  Object.keys(item).forEach(itemKey => {
+                    const itemValue = item[itemKey];
+                    const itemPropDef = objectPropertyDefs.find(p => p.key === itemKey);
+                    const itemPropType = itemPropDef ? itemPropDef.type : null;
+
+                    if (itemPropType === 'attribute') {
+                      mappedItem[itemKey] = createMockAttribute(itemValue);
+                    } else if (itemPropType === 'textTemplate') {
+                      mappedItem[itemKey] = createMockTextTemplate(itemValue);
+                    } else if (itemPropType === 'expression') {
+                      mappedItem[itemKey] = createMockExpression(itemValue);
+                    } else {
+                      mappedItem[itemKey] = itemValue;
+                    }
+                  });
+                  return mappedItem;
+                };
+
                 const mapPropsToWidgetFormat = (props, definition) => {
                   const widgetProps = {};
                   const allPropertyDefs = getAllProperties(definition);
@@ -274,6 +318,18 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                       }
                     } else if (propType === 'expression' || key.includes('expression')) {
                       widgetProps[key] = createMockExpression(value);
+                    } else if (propType === 'textTemplate') {
+                      widgetProps[key] = createMockTextTemplate(value);
+                    } else if (propType === 'object') {
+                      const objectPropertyDefs = getObjectPropertyDefs(propertyDef);
+                      const datasourceItems = widgetProps['datasource']?.items || [];
+                      if (Array.isArray(value)) {
+                        widgetProps[key] = value.map(item => mapObjectItem(item, objectPropertyDefs, datasourceItems));
+                      } else if (value && typeof value === 'object') {
+                        widgetProps[key] = mapObjectItem(value, objectPropertyDefs, datasourceItems);
+                      } else {
+                        widgetProps[key] = value;
+                      }
                     } else {
                       widgetProps[key] = value;
                     }

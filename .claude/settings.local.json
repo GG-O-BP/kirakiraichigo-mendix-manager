@@ -14,7 +14,8 @@
       "Bash(cargo +nightly clippy:*)",
       "Bash(git fetch:*)",
       "Bash(git cat-file:*)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "Bash(cargo test:*)"
     ]
   }
 }
