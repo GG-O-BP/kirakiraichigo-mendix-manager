@@ -47,6 +47,7 @@ const WidgetPreview = memo(() => {
   const {
     widgetDefinition,
     updateProperty,
+    arrayHandlers,
     visiblePropertyKeys,
     groupCounts,
     expandedGroups,
@@ -88,6 +89,7 @@ const WidgetPreview = memo(() => {
         widgetDefinition={widgetDefinition}
         properties={combinedProperties}
         updateProperty={updateProperty}
+        arrayHandlers={arrayHandlers}
         expandedGroups={expandedGroups}
         toggleGroup={toggleGroup}
         visibleKeys={visiblePropertyKeys}

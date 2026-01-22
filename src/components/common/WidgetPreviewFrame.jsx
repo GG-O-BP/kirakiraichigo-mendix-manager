@@ -87,10 +87,33 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                 window.React = React;
                 window.ReactDOM = ReactDOM;
 
+                // Rollup CommonJS interop helpers
+                window.React__default = React;
+                window.ReactDOM__default = ReactDOM;
+                window['react'] = React;
+                window['react-dom'] = ReactDOM;
+
                 const jsxRuntime = {
                   jsx: React.createElement,
                   jsxs: React.createElement,
                   Fragment: React.Fragment,
+                };
+                window.jsxRuntime = jsxRuntime;
+                window['react/jsx-runtime'] = jsxRuntime;
+
+                // Rollup interop helper functions
+                window._interopDefaultLegacy = function(e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; };
+                window._interopDefault = function(e) { return e && e.__esModule ? e : { default: e }; };
+                window._interopNamespace = function(e) {
+                  if (e && e.__esModule) return e;
+                  var n = Object.create(null);
+                  if (e) {
+                    Object.keys(e).forEach(function(k) {
+                      n[k] = e[k];
+                    });
+                  }
+                  n.default = e;
+                  return n;
                 };
 
                 if (typeof define !== 'undefined' && define.amd) {
@@ -101,23 +124,52 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
 
                 let WidgetModule = null;
 
+                // CommonJS require shim for nested requires
+                const moduleCache = {
+                  'react': React,
+                  'react-dom': ReactDOM,
+                  'react/jsx-runtime': jsxRuntime,
+                };
+                window.require = function(dep) {
+                  if (moduleCache[dep]) return moduleCache[dep];
+                  console.warn('[Widget Preview] Unknown require:', dep);
+                  return undefined;
+                };
+
                 const originalDefine = window.define;
-                window.define = function(deps, factory) {
+                window.define = function(nameOrDeps, depsOrFactory, maybeFactory) {
+                  // Handle different define signatures:
+                  // define(deps, factory)
+                  // define(name, deps, factory)
+                  let deps, factory;
+                  if (typeof nameOrDeps === 'string') {
+                    deps = depsOrFactory || [];
+                    factory = maybeFactory;
+                  } else {
+                    deps = nameOrDeps || [];
+                    factory = depsOrFactory;
+                  }
+
                   if (typeof factory === 'function') {
                     try {
                       const exportsObject = {};
+                      const moduleObject = { exports: exportsObject };
                       const resolvedDeps = deps.map(dep => {
                         if (dep === 'react') return React;
                         if (dep === 'react-dom') return ReactDOM;
                         if (dep === 'react/jsx-runtime') return jsxRuntime;
                         if (dep === 'exports') return exportsObject;
-                        return undefined;
+                        if (dep === 'module') return moduleObject;
+                        if (dep === 'require') return window.require;
+                        return moduleCache[dep] || undefined;
                       });
 
                       const result = factory.apply(null, resolvedDeps);
 
                       if (result) {
                         WidgetModule = result;
+                      } else if (moduleObject.exports !== exportsObject || Object.keys(exportsObject).length > 0) {
+                        WidgetModule = moduleObject.exports;
                       } else if (Object.keys(exportsObject).length > 0) {
                         WidgetModule = exportsObject;
                       }
@@ -162,6 +214,7 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
 
                 const createMockAttribute = (selectedKey) => {
                   return {
+                    id: selectedKey,
                     get: (item) => {
                       const value = item ? item[selectedKey] : undefined;
                       return {
@@ -180,6 +233,10 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                   validation: undefined,
                   displayValue: value !== undefined && value !== null ? String(value) : '',
                   setValue: () => {}
+                });
+
+                const createMockTextTemplate = (value) => ({
+                  value: value !== undefined && value !== null ? String(value) : ''
                 });
 
                 const getAllProperties = (definition) => {
@@ -203,6 +260,45 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                   return props;
                 };
 
+                const getObjectPropertyDefs = (propertyDef) => {
+                  const objectProps = [];
+                  if (propertyDef && propertyDef.nestedPropertyGroups) {
+                    propertyDef.nestedPropertyGroups.forEach(group => {
+                      if (group.properties) {
+                        objectProps.push(...group.properties);
+                      }
+                      if (group.propertyGroups) {
+                        group.propertyGroups.forEach(nestedGroup => {
+                          if (nestedGroup.properties) {
+                            objectProps.push(...nestedGroup.properties);
+                          }
+                        });
+                      }
+                    });
+                  }
+                  return objectProps;
+                };
+
+                const mapObjectItem = (item, objectPropertyDefs, datasourceItems) => {
+                  const mappedItem = {};
+                  Object.keys(item).forEach(itemKey => {
+                    const itemValue = item[itemKey];
+                    const itemPropDef = objectPropertyDefs.find(p => p.key === itemKey);
+                    const itemPropType = itemPropDef ? itemPropDef.type : null;
+
+                    if (itemPropType === 'attribute') {
+                      mappedItem[itemKey] = createMockAttribute(itemValue);
+                    } else if (itemPropType === 'textTemplate') {
+                      mappedItem[itemKey] = createMockTextTemplate(itemValue);
+                    } else if (itemPropType === 'expression') {
+                      mappedItem[itemKey] = createMockExpression(itemValue);
+                    } else {
+                      mappedItem[itemKey] = itemValue;
+                    }
+                  });
+                  return mappedItem;
+                };
+
                 const mapPropsToWidgetFormat = (props, definition) => {
                   const widgetProps = {};
                   const allPropertyDefs = getAllProperties(definition);
@@ -222,6 +318,18 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                       }
                     } else if (propType === 'expression' || key.includes('expression')) {
                       widgetProps[key] = createMockExpression(value);
+                    } else if (propType === 'textTemplate') {
+                      widgetProps[key] = createMockTextTemplate(value);
+                    } else if (propType === 'object') {
+                      const objectPropertyDefs = getObjectPropertyDefs(propertyDef);
+                      const datasourceItems = widgetProps['datasource']?.items || [];
+                      if (Array.isArray(value)) {
+                        widgetProps[key] = value.map(item => mapObjectItem(item, objectPropertyDefs, datasourceItems));
+                      } else if (value && typeof value === 'object') {
+                        widgetProps[key] = mapObjectItem(value, objectPropertyDefs, datasourceItems);
+                      } else {
+                        widgetProps[key] = value;
+                      }
                     } else {
                       widgetProps[key] = value;
                     }

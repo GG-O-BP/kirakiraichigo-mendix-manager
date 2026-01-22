@@ -1,0 +1,432 @@
+/* ============= Object List Property Styles - Kirakira Ichigo Mendix Manager ============= */
+
+/* ============= Object List Container (Main Accordion) ============= */
+
+.object-list-container {
+    border: 1px solid var(--theme-border);
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    background: var(--theme-surface);
+    flex-shrink: 0;
+}
+
+/* ============= Object List Header (Accordion Trigger) ============= */
+
+.object-list-header {
+    display: flex;
+    align-items: center;
+    background: var(--theme-surface-secondary);
+}
+
+.object-list-header-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex: 1;
+    padding: var(--space-sm) var(--space-md);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--theme-text);
+    transition: background 0.2s ease;
+}
+
+.object-list-header-toggle:hover {
+    background: var(--theme-hover-bg);
+}
+
+.object-list-add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin-right: var(--space-sm);
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--theme-primary);
+    font-size: 20px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.object-list-add-btn:hover:not(:disabled) {
+    background: var(--theme-hover-bg);
+    color: var(--theme-primary);
+}
+
+.object-list-add-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.object-list-icon {
+    font-size: 14px;
+    display: inline-block;
+    transform: rotate(-90deg);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.object-list-icon.expanded {
+    transform: rotate(0deg);
+}
+
+.object-list-title-text {
+    flex: 1;
+    font-weight: 600;
+    color: var(--theme-primary);
+}
+
+/* ============= Datasource Connection Indicator ============= */
+
+.object-list-datasource-link {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    background: var(--theme-surface);
+    border: 1px solid var(--theme-border);
+    border-radius: 12px;
+    font-size: 11px;
+}
+
+.datasource-link-icon {
+    font-size: 12px;
+    color: var(--theme-primary);
+}
+
+.datasource-link-text {
+    color: var(--theme-text);
+    font-weight: 500;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ============= Object List Count Badge ============= */
+
+.object-list-count {
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--theme-text-secondary);
+    background: var(--theme-surface);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* ============= Object List Content Wrapper (Accordion Animation) ============= */
+
+.object-list-content-wrapper {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.object-list-container.collapsed .object-list-content-wrapper {
+    grid-template-rows: 0fr;
+}
+
+.object-list-content {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-top: 1px solid var(--theme-border);
+    overflow: hidden;
+}
+
+.object-list-container.collapsed .object-list-content {
+    border-top-color: transparent;
+}
+
+/* ============= Object List Empty State ============= */
+
+.object-list-empty {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-lg);
+    background: var(--theme-surface-secondary);
+}
+
+.object-list-empty .empty-text {
+    font-size: 13px;
+    color: var(--theme-text-muted);
+    font-style: italic;
+}
+
+/* ============= Object List Item (Nested Accordion) ============= */
+
+.object-list-item {
+    border: none;
+    border-bottom: 1px solid var(--theme-border);
+    background: var(--theme-surface);
+    overflow: hidden;
+}
+
+.object-list-item:last-child {
+    border-bottom: none;
+}
+
+/* ============= Object List Item Header ============= */
+
+.object-list-item-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    padding-left: var(--space-lg);
+    border: none;
+    background: var(--theme-surface-tertiary, var(--theme-surface-secondary));
+    cursor: pointer;
+    text-align: left;
+    font-size: var(--font-size-sm);
+    color: var(--theme-text);
+    transition: background 0.2s ease;
+}
+
+.object-list-item-header:hover {
+    background: var(--theme-hover-bg);
+}
+
+.object-list-item-icon {
+    font-size: 12px;
+    display: inline-block;
+    transform: rotate(-90deg);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.object-list-item-icon.expanded {
+    transform: rotate(0deg);
+}
+
+.object-list-item-title {
+    font-weight: 500;
+    color: var(--theme-text);
+}
+
+.object-list-item-preview {
+    flex: 1;
+    font-size: 12px;
+    color: var(--theme-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-left: var(--space-sm);
+    padding: 2px 8px;
+    background: var(--theme-surface);
+    border-radius: 4px;
+    max-width: 200px;
+}
+
+.object-list-item-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--theme-text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: auto;
+}
+
+.object-list-item-remove:hover:not(:disabled) {
+    background: var(--theme-error);
+    color: white;
+}
+
+.object-list-item-remove:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* ============= Object List Item Content Wrapper (Accordion Animation) ============= */
+
+.object-list-item-content-wrapper {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.object-list-item.collapsed .object-list-item-content-wrapper {
+    grid-template-rows: 0fr;
+}
+
+.object-list-item-content {
+    overflow: hidden;
+}
+
+.object-list-item.collapsed .object-list-item-content {
+    padding: 0;
+}
+
+/* ============= Object List Property Groups (Inner Accordion) ============= */
+
+.object-list-property-group {
+    border: none;
+    border-bottom: 1px solid var(--theme-border-light, var(--theme-border));
+    background: transparent;
+}
+
+.object-list-property-group:last-child {
+    border-bottom: none;
+}
+
+/* Nested groups - indent header based on depth */
+/* Item header has padding-left: var(--space-lg), so depth-0 should be more */
+.object-list-property-group.depth-0 > .object-list-group-header {
+    padding-left: calc(var(--space-lg) + var(--space-md));
+}
+
+.object-list-property-group.depth-1 > .object-list-group-header {
+    padding-left: calc(var(--space-lg) + var(--space-md) + var(--space-lg));
+}
+
+.object-list-property-group.depth-2 > .object-list-group-header {
+    padding-left: calc(var(--space-lg) + var(--space-md) + var(--space-lg) * 2);
+}
+
+.object-list-property-group.depth-3 > .object-list-group-header {
+    padding-left: calc(var(--space-lg) + var(--space-md) + var(--space-lg) * 3);
+}
+
+/* ============= Property Group Header ============= */
+
+.object-list-group-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font-size: var(--font-size-xs);
+    color: var(--theme-text);
+    transition: background 0.2s ease;
+}
+
+.object-list-group-header:hover {
+    background: var(--theme-hover-bg);
+}
+
+.object-list-group-icon {
+    font-size: 11px;
+    display: inline-block;
+    transform: rotate(-90deg);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.object-list-group-icon.expanded {
+    transform: rotate(0deg);
+}
+
+.object-list-group-caption {
+    flex: 1;
+    font-weight: 600;
+    color: var(--theme-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.object-list-group-count {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--theme-text-secondary);
+    background: var(--theme-surface-secondary);
+    padding: 1px 6px;
+    border-radius: 8px;
+}
+
+/* ============= Property Group Content Wrapper ============= */
+
+.object-list-group-content-wrapper {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.object-list-property-group.collapsed .object-list-group-content-wrapper {
+    grid-template-rows: 0fr;
+}
+
+.object-list-group-content {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow: hidden;
+}
+
+/* ============= Properties List ============= */
+
+.object-list-properties {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+}
+
+/* ============= Responsive Adjustments ============= */
+
+@media (max-width: 768px) {
+    .object-list-header {
+        flex-wrap: wrap;
+    }
+
+    .object-list-datasource-link {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+        margin-top: var(--space-xs);
+    }
+
+    .object-list-item-preview {
+        display: none;
+    }
+}
+
+/* ============= High Contrast Mode Support ============= */
+
+@media (prefers-contrast: high) {
+    .object-list-container {
+        border-width: 2px;
+    }
+
+    .object-list-item {
+        border-width: 2px;
+    }
+
+    .object-list-datasource-link {
+        border-width: 2px;
+    }
+}
+
+/* ============= Reduced Motion Support ============= */
+
+@media (prefers-reduced-motion: reduce) {
+    .object-list-content-wrapper,
+    .object-list-item-content-wrapper,
+    .object-list-group-content-wrapper,
+    .object-list-icon,
+    .object-list-item-icon,
+    .object-list-group-icon,
+    .object-list-add-btn,
+    .object-list-item-remove {
+        transition: none;
+    }
+}

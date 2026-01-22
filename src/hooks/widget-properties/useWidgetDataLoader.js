@@ -2,6 +2,7 @@ import * as R from "ramda";
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { createEditorConfigHandler } from "../../utils/editorConfigParser";
+import { useArrayPropertyOperations } from "./useArrayPropertyOperations";
 
 export function useWidgetDataLoader(selectedWidget) {
   const [widgetDefinition, setWidgetDefinition] = useState(null);
@@ -20,6 +21,8 @@ export function useWidgetDataLoader(selectedWidget) {
     ),
     []
   );
+
+  const arrayOperations = useArrayPropertyOperations(setDynamicProperties);
 
   useEffect(() => {
     if (!selectedWidget) {
@@ -62,5 +65,6 @@ export function useWidgetDataLoader(selectedWidget) {
     dynamicProperties,
     editorConfigHandler,
     updateProperty,
+    ...arrayOperations,
   };
 }

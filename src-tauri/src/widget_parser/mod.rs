@@ -17,6 +17,10 @@ pub struct WidgetProperty {
     pub category: Option<String>,
     #[serde(rename = "dataSource", skip_serializing_if = "Option::is_none")]
     pub data_source: Option<String>,
+    #[serde(rename = "isList", default)]
+    pub is_list: bool,
+    #[serde(rename = "nestedPropertyGroups", skip_serializing_if = "Option::is_none")]
+    pub nested_property_groups: Option<Vec<WidgetPropertyGroup>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,7 +59,7 @@ impl std::error::Error for ParseError {}
 #[derive(Debug, Clone)]
 struct ParseContext {
     depth: usize,
-    in_properties: bool,
+    properties_depth: usize, // Track nesting level of <properties> tags (only process at depth 1)
     property_group_depth: usize, // Track nesting level of property groups
     current_element: String,
     text_buffer: String,
@@ -70,12 +74,19 @@ struct ParseState {
     property_groups: Vec<WidgetPropertyGroup>,
     current_property: Option<WidgetProperty>,
     group_stack: Vec<WidgetPropertyGroup>, // Stack for nested groups
+    // For nested object list properties
+    in_object_list_property: bool,
+    nested_properties_depth: usize,
+    nested_group_stack: Vec<WidgetPropertyGroup>,
+    nested_group_depth: usize, // Track depth within nested property groups
+    completed_nested_groups: Vec<WidgetPropertyGroup>, // Completed top-level nested groups
+    current_nested_property: Option<WidgetProperty>,
 }
 
 fn create_initial_context() -> ParseContext {
     ParseContext {
         depth: 0,
-        in_properties: false,
+        properties_depth: 0,
         property_group_depth: 0,
         current_element: String::new(),
         text_buffer: String::new(),
@@ -91,6 +102,12 @@ fn create_initial_state() -> ParseState {
         property_groups: Vec::new(),
         current_property: None,
         group_stack: Vec::new(),
+        in_object_list_property: false,
+        nested_properties_depth: 0,
+        nested_group_stack: Vec::new(),
+        nested_group_depth: 0,
+        completed_nested_groups: Vec::new(),
+        current_nested_property: None,
     }
 }
 
@@ -128,6 +145,8 @@ fn extract_property_attributes(
         options: Vec::new(),
         category: None,
         data_source: extract_string_attribute(&attrs, b"dataSource"),
+        is_list: extract_bool_attribute(&attrs, b"isList"),
+        nested_property_groups: None,
     }
 }
 
@@ -163,14 +182,28 @@ fn decrement_depth(state: ParseState) -> ParseState {
     }
 }
 
-fn set_in_properties(state: ParseState, value: bool) -> ParseState {
+fn increment_properties_depth(state: ParseState) -> ParseState {
     ParseState {
         context: ParseContext {
-            in_properties: value,
+            properties_depth: state.context.properties_depth + 1,
             ..state.context
         },
         ..state
     }
+}
+
+fn decrement_properties_depth(state: ParseState) -> ParseState {
+    ParseState {
+        context: ParseContext {
+            properties_depth: state.context.properties_depth.saturating_sub(1),
+            ..state.context
+        },
+        ..state
+    }
+}
+
+fn is_in_top_level_properties(state: &ParseState) -> bool {
+    state.context.properties_depth == 1
 }
 
 fn increment_property_group_depth(state: ParseState) -> ParseState {
@@ -309,6 +342,104 @@ fn finalize_current_group(mut state: ParseState) -> ParseState {
     state
 }
 
+fn is_in_nested_properties(state: &ParseState) -> bool {
+    state.in_object_list_property && state.nested_properties_depth > 0
+}
+
+fn increment_nested_properties_depth(mut state: ParseState) -> ParseState {
+    state.nested_properties_depth += 1;
+    state
+}
+
+fn decrement_nested_properties_depth(mut state: ParseState) -> ParseState {
+    state.nested_properties_depth = state.nested_properties_depth.saturating_sub(1);
+    state
+}
+
+fn push_nested_group_to_stack(mut state: ParseState, group: WidgetPropertyGroup) -> ParseState {
+    state.nested_group_stack.push(group);
+    state.nested_group_depth += 1;
+    state
+}
+
+fn set_current_nested_property(mut state: ParseState, property: WidgetProperty) -> ParseState {
+    state.current_nested_property = Some(property);
+    state
+}
+
+fn add_option_to_current_nested_property(mut state: ParseState, option: String) -> ParseState {
+    if let Some(mut prop) = state.current_nested_property.take() {
+        prop.options.push(option);
+        state.current_nested_property = Some(prop);
+    }
+    state
+}
+
+fn update_nested_property_caption(mut state: ParseState) -> ParseState {
+    if let Some(mut prop) = state.current_nested_property.take() {
+        prop.caption = state.context.text_buffer.clone();
+        state.current_nested_property = Some(prop);
+    }
+    state
+}
+
+fn update_nested_property_description(mut state: ParseState) -> ParseState {
+    if let Some(mut prop) = state.current_nested_property.take() {
+        prop.description = state.context.text_buffer.clone();
+        state.current_nested_property = Some(prop);
+    }
+    state
+}
+
+fn finalize_nested_property(mut state: ParseState) -> ParseState {
+    if let Some(property) = state.current_nested_property.take() {
+        if let Some(group) = state.nested_group_stack.last_mut() {
+            group.properties.push(property);
+        }
+    }
+    state
+}
+
+fn finalize_nested_group(mut state: ParseState) -> ParseState {
+    state.nested_group_depth = state.nested_group_depth.saturating_sub(1);
+    if let Some(completed_group) = state.nested_group_stack.pop() {
+        if state.nested_group_depth > 0 {
+            // This group has a parent, push to parent's property_groups
+            if let Some(parent_group) = state.nested_group_stack.last_mut() {
+                parent_group.property_groups.push(completed_group);
+            }
+        } else {
+            // This is a top-level nested group - add to completed list
+            state.completed_nested_groups.push(completed_group);
+        }
+    }
+    state
+}
+
+fn enter_object_list_property(mut state: ParseState) -> ParseState {
+    state.in_object_list_property = true;
+    state.nested_properties_depth = 0;
+    state.nested_group_stack.clear();
+    state.nested_group_depth = 0;
+    state.completed_nested_groups.clear();
+    state.current_nested_property = None;
+    state
+}
+
+fn exit_object_list_property(mut state: ParseState) -> ParseState {
+    // Collect all completed top-level nested groups and attach to current property
+    if let Some(mut prop) = state.current_property.take() {
+        if !state.completed_nested_groups.is_empty() {
+            prop.nested_property_groups = Some(state.completed_nested_groups.drain(..).collect());
+        }
+        state.current_property = Some(prop);
+    }
+    state.in_object_list_property = false;
+    state.nested_properties_depth = 0;
+    state.nested_group_depth = 0;
+    state
+}
+
 fn process_start_event(
     state: ParseState,
     name: &[u8],
@@ -316,24 +447,79 @@ fn process_start_event(
 ) -> ParseState {
     let incremented_state = increment_depth(state);
 
+    // Handle nested properties inside object list property
+    if incremented_state.in_object_list_property {
+        return match name {
+            b"properties" => increment_nested_properties_depth(incremented_state),
+            b"propertyGroup" => {
+                if incremented_state.nested_properties_depth > 0 {
+                    let group_caption = extract_group_caption(attributes);
+                    let group = WidgetPropertyGroup {
+                        caption: group_caption,
+                        properties: Vec::new(),
+                        property_groups: Vec::new(),
+                    };
+                    push_nested_group_to_stack(incremented_state, group)
+                } else {
+                    incremented_state
+                }
+            }
+            b"property" => {
+                if incremented_state.nested_properties_depth > 0 {
+                    let property = extract_property_attributes(attributes);
+                    set_current_nested_property(incremented_state, property)
+                } else {
+                    incremented_state
+                }
+            }
+            b"caption" => set_current_element(incremented_state, "caption".to_string()),
+            b"description" => set_current_element(incremented_state, "description".to_string()),
+            b"enumerationValue" => extract_enumeration_value(attributes)
+                .map_or(incremented_state.clone(), |value| {
+                    add_option_to_current_nested_property(incremented_state, value)
+                }),
+            _ => {
+                let element_name = String::from_utf8_lossy(name).to_string();
+                set_current_element(incremented_state, element_name)
+            }
+        };
+    }
+
     match name {
         b"widget" => incremented_state,
         b"name" => set_current_element(incremented_state, "name".to_string()),
         b"description" => set_current_element(incremented_state, "description".to_string()),
-        b"properties" => set_in_properties(incremented_state, true),
+        b"properties" => increment_properties_depth(incremented_state),
         b"propertyGroup" => {
-            let group_caption = extract_group_caption(attributes);
-            let group = WidgetPropertyGroup {
-                caption: group_caption,
-                properties: Vec::new(),
-                property_groups: Vec::new(),
-            };
-            push_group_to_stack(increment_property_group_depth(incremented_state), group)
+            // Only process propertyGroups at top-level properties (depth 1)
+            if is_in_top_level_properties(&incremented_state) {
+                let group_caption = extract_group_caption(attributes);
+                let group = WidgetPropertyGroup {
+                    caption: group_caption,
+                    properties: Vec::new(),
+                    property_groups: Vec::new(),
+                };
+                push_group_to_stack(increment_property_group_depth(incremented_state), group)
+            } else {
+                incremented_state
+            }
         }
         b"property" => {
-            if incremented_state.context.in_properties {
-                let property = extract_property_attributes(attributes);
-                set_current_property(incremented_state, property)
+            // Only process properties at top-level properties (depth 1)
+            if is_in_top_level_properties(&incremented_state) {
+                let property = extract_property_attributes(attributes.clone());
+                let with_property = set_current_property(incremented_state, property);
+                // Check if this is an object list property
+                let attrs: Vec<_> = attributes.into_iter().collect();
+                let is_object = extract_string_attribute(&attrs, b"type")
+                    .map(|t| t == "object")
+                    .unwrap_or(false);
+                let is_list = extract_bool_attribute(&attrs, b"isList");
+                if is_object && is_list {
+                    enter_object_list_property(with_property)
+                } else {
+                    with_property
+                }
             } else {
                 incremented_state
             }
@@ -353,10 +539,59 @@ fn process_start_event(
 fn process_end_event(state: ParseState, name: &[u8]) -> ParseState {
     let decremented_state = decrement_depth(state);
 
+    // Handle end events when inside object list property
+    if decremented_state.in_object_list_property {
+        return match name {
+            b"properties" => {
+                if decremented_state.nested_properties_depth > 0 {
+                    decrement_nested_properties_depth(decremented_state)
+                } else {
+                    decremented_state
+                }
+            }
+            b"propertyGroup" => {
+                if decremented_state.nested_properties_depth > 0 {
+                    finalize_nested_group(decremented_state)
+                } else {
+                    decremented_state
+                }
+            }
+            b"property" => {
+                if decremented_state.nested_properties_depth > 0 {
+                    // Finalize nested property
+                    finalize_nested_property(decremented_state)
+                } else {
+                    // End of the object list property itself
+                    let exited_state = exit_object_list_property(decremented_state);
+                    if is_in_top_level_properties(&exited_state) {
+                        finalize_current_property(exited_state)
+                    } else {
+                        exited_state
+                    }
+                }
+            }
+            _ => set_current_element(decremented_state, String::new()),
+        };
+    }
+
     match name {
-        b"properties" => set_in_properties(decremented_state, false),
-        b"propertyGroup" => finalize_current_group(decrement_property_group_depth(decremented_state)),
-        b"property" => finalize_current_property(decremented_state),
+        b"properties" => decrement_properties_depth(decremented_state),
+        b"propertyGroup" => {
+            // Only finalize propertyGroups at top-level properties (depth 1)
+            if is_in_top_level_properties(&decremented_state) {
+                finalize_current_group(decrement_property_group_depth(decremented_state))
+            } else {
+                decremented_state
+            }
+        }
+        b"property" => {
+            // Only finalize properties at top-level properties (depth 1)
+            if is_in_top_level_properties(&decremented_state) {
+                finalize_current_property(decremented_state)
+            } else {
+                decremented_state
+            }
+        }
         _ => set_current_element(decremented_state, String::new()),
     }
 }
@@ -364,6 +599,15 @@ fn process_end_event(state: ParseState, name: &[u8]) -> ParseState {
 fn process_text_event(state: ParseState, text: &str) -> ParseState {
     let text_updated_state = append_text_buffer(state, text);
     let element = text_updated_state.context.current_element.clone();
+
+    // Handle text in nested properties
+    if is_in_nested_properties(&text_updated_state) {
+        return match element.as_str() {
+            "caption" => update_nested_property_caption(text_updated_state),
+            "description" => update_nested_property_description(text_updated_state),
+            _ => text_updated_state,
+        };
+    }
 
     match element.as_str() {
         "name" => update_widget_name(text_updated_state),
@@ -587,7 +831,9 @@ fn initialize_property_values_internal(widget_path: &str) -> Result<HashMap<Stri
     let mut values: HashMap<String, PropertyValue> = HashMap::new();
 
     for prop in properties {
-        let value = if let Some(default) = prop.default_value {
+        let value = if prop.is_list && prop.property_type == "object" {
+            PropertyValue::Array(Vec::new())
+        } else if let Some(default) = prop.default_value {
             match prop.property_type.as_str() {
                 "boolean" => PropertyValue::Boolean(default == "true"),
                 "integer" => PropertyValue::Integer(default.parse().unwrap_or(0)),
@@ -595,7 +841,7 @@ fn initialize_property_values_internal(widget_path: &str) -> Result<HashMap<Stri
                 _ => PropertyValue::String(default),
             }
         } else {
-            get_default_value_for_type_internal(&prop.property_type)
+            get_default_value_for_type_internal(&prop.property_type, prop.is_list)
         };
 
         values.insert(prop.key, value);
@@ -625,13 +871,17 @@ pub fn load_widget_complete_data(widget_path: String) -> Result<WidgetCompleteDa
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PropertyValue {
+    Array(Vec<HashMap<String, PropertyValue>>),
     String(String),
     Boolean(bool),
     Integer(i64),
     Decimal(f64),
 }
 
-fn get_default_value_for_type_internal(property_type: &str) -> PropertyValue {
+fn get_default_value_for_type_internal(property_type: &str, is_list: bool) -> PropertyValue {
+    if is_list && property_type == "object" {
+        return PropertyValue::Array(Vec::new());
+    }
     match property_type {
         "string" => PropertyValue::String(String::new()),
         "boolean" => PropertyValue::Boolean(false),
@@ -657,6 +907,8 @@ pub struct ParsedProperty {
     pub category: String,
     #[serde(rename = "dataSource", skip_serializing_if = "Option::is_none")]
     pub data_source: Option<String>,
+    #[serde(rename = "isList", default)]
+    pub is_list: bool,
 }
 
 fn extract_properties_from_group_with_category(
@@ -681,6 +933,7 @@ fn extract_properties_from_group_with_category(
         options: p.options.clone(),
         category: if full_path.is_empty() { "General".to_string() } else { full_path.clone() },
         data_source: p.data_source.clone(),
+        is_list: p.is_list,
     }).collect();
 
     for nested_group in &group.property_groups {
@@ -704,6 +957,7 @@ fn parse_widget_properties_enhanced(definition: &WidgetDefinition) -> Vec<Parsed
             options: p.options.clone(),
             category: "General".to_string(),
             data_source: p.data_source.clone(),
+            is_list: p.is_list,
         });
     }
 
@@ -739,6 +993,10 @@ pub struct PropertySpec {
     pub options: Vec<String>,
     #[serde(rename = "dataSource", skip_serializing_if = "Option::is_none")]
     pub data_source: Option<String>,
+    #[serde(rename = "isList", default)]
+    pub is_list: bool,
+    #[serde(rename = "nestedPropertyGroups", skip_serializing_if = "Option::is_none")]
+    pub nested_property_groups: Option<Vec<PropertyGroupSpec>>,
 }
 
 fn transform_widget_property_to_spec(prop: &WidgetProperty) -> PropertySpec {
@@ -755,6 +1013,10 @@ fn transform_widget_property_to_spec(prop: &WidgetProperty) -> PropertySpec {
         default_value: prop.default_value.clone(),
         options: prop.options.clone(),
         data_source: prop.data_source.clone(),
+        is_list: prop.is_list,
+        nested_property_groups: prop.nested_property_groups.as_ref().map(|groups| {
+            groups.iter().map(transform_property_group_to_spec).collect()
+        }),
     }
 }
 
@@ -971,6 +1233,8 @@ mod tests {
             required: false,
             options: vec![],
             data_source: None,
+            is_list: false,
+            nested_property_groups: None,
         }
     }
 
@@ -1024,5 +1288,118 @@ mod tests {
 
         let count = count_visible_properties_in_spec_group(&group, None);
         assert_eq!(count, 3); // 1 from each level
+    }
+
+    #[test]
+    fn test_parse_object_list_property() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<widget id="com.example.Grid" needsEntityContext="true" xmlns="http://www.mendix.com/widget/1.0/">
+    <name>Grid Widget</name>
+    <description>A grid with columns</description>
+    <properties>
+        <property key="columns" type="object" isList="true">
+            <caption>Columns</caption>
+            <description>Column definitions</description>
+            <properties>
+                <propertyGroup caption="General">
+                    <property key="attribute" type="attribute" dataSource="../dataSource">
+                        <caption>Attribute</caption>
+                        <description>The attribute to display</description>
+                    </property>
+                    <property key="header" type="string">
+                        <caption>Header</caption>
+                        <description>Column header text</description>
+                    </property>
+                </propertyGroup>
+                <propertyGroup caption="Appearance">
+                    <property key="width" type="integer" defaultValue="100">
+                        <caption>Width</caption>
+                        <description>Column width in pixels</description>
+                    </property>
+                </propertyGroup>
+            </properties>
+        </property>
+    </properties>
+</widget>"#;
+
+        let result = parse_xml_content(xml).unwrap();
+
+        assert_eq!(result.name, "Grid Widget");
+        assert_eq!(result.properties.len(), 1);
+
+        let columns_prop = &result.properties[0];
+        assert_eq!(columns_prop.key, "columns");
+        assert_eq!(columns_prop.property_type, "object");
+        assert!(columns_prop.is_list);
+        assert_eq!(columns_prop.caption, "Columns");
+
+        // Check nested property groups
+        assert!(columns_prop.nested_property_groups.is_some());
+        let nested_groups = columns_prop.nested_property_groups.as_ref().unwrap();
+        assert_eq!(nested_groups.len(), 2);
+
+        // First group: General
+        let general_group = &nested_groups[0];
+        assert_eq!(general_group.caption, "General");
+        assert_eq!(general_group.properties.len(), 2);
+
+        let attr_prop = &general_group.properties[0];
+        assert_eq!(attr_prop.key, "attribute");
+        assert_eq!(attr_prop.property_type, "attribute");
+        assert_eq!(attr_prop.data_source, Some("../dataSource".to_string()));
+
+        let header_prop = &general_group.properties[1];
+        assert_eq!(header_prop.key, "header");
+        assert_eq!(header_prop.property_type, "string");
+        assert_eq!(header_prop.caption, "Header");
+
+        // Second group: Appearance
+        let appearance_group = &nested_groups[1];
+        assert_eq!(appearance_group.caption, "Appearance");
+        assert_eq!(appearance_group.properties.len(), 1);
+
+        let width_prop = &appearance_group.properties[0];
+        assert_eq!(width_prop.key, "width");
+        assert_eq!(width_prop.property_type, "integer");
+        assert_eq!(width_prop.default_value, Some("100".to_string()));
+    }
+
+    #[test]
+    fn test_parse_is_list_attribute() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<widget id="com.example.MyWidget" needsEntityContext="true" xmlns="http://www.mendix.com/widget/1.0/">
+    <name>My Widget</name>
+    <description>Test widget with isList</description>
+    <properties>
+        <property key="items" type="object" isList="true">
+            <caption>Items</caption>
+            <description>List of items</description>
+        </property>
+        <property key="single" type="object" isList="false">
+            <caption>Single Object</caption>
+            <description>A single object</description>
+        </property>
+        <property key="regular" type="string">
+            <caption>Regular Property</caption>
+            <description>A regular property</description>
+        </property>
+    </properties>
+</widget>"#;
+
+        let result = parse_xml_content(xml).unwrap();
+
+        assert_eq!(result.properties.len(), 3);
+
+        let items_prop = &result.properties[0];
+        assert_eq!(items_prop.key, "items");
+        assert!(items_prop.is_list);
+
+        let single_prop = &result.properties[1];
+        assert_eq!(single_prop.key, "single");
+        assert!(!single_prop.is_list);
+
+        let regular_prop = &result.properties[2];
+        assert_eq!(regular_prop.key, "regular");
+        assert!(!regular_prop.is_list);
     }
 }

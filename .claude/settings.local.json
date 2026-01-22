@@ -11,7 +11,11 @@
       "Bash(find:*)",
       "WebFetch(domain:ramdajs.com)",
       "Bash(cargo clippy:*)",
-      "Bash(cargo +nightly clippy:*)"
+      "Bash(cargo +nightly clippy:*)",
+      "Bash(git fetch:*)",
+      "Bash(git cat-file:*)",
+      "Bash(git show:*)",
+      "Bash(cargo test:*)"
     ]
   }
 }

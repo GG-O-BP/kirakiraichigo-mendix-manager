@@ -1,3 +1,4 @@
+use semver::Version;
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -23,17 +24,35 @@ pub struct FileTreeNode {
     pub source_path: PathBuf,
 }
 
+fn find_highest_version_in_dist(widget_path: &str) -> Option<PathBuf> {
+    let dist_path = Path::new(widget_path).join("dist");
+
+    if !dist_path.exists() || !dist_path.is_dir() {
+        return None;
+    }
+
+    fs::read_dir(&dist_path)
+        .ok()?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().is_dir())
+        .filter_map(|entry| {
+            let dir_name = entry.file_name().to_string_lossy().to_string();
+            Version::parse(&dir_name).ok().map(|ver| (ver, entry.path()))
+        })
+        .max_by(|(ver_a, _), (ver_b, _)| ver_a.cmp(ver_b))
+        .map(|(_, path)| path)
+}
+
 fn is_valid_widget_path(widget_path: &str) -> bool {
-    let dist_path = Path::new(widget_path).join("dist").join("1.0.0");
-    dist_path.exists()
+    find_highest_version_in_dist(widget_path).is_some()
 }
 
 fn is_valid_app_path(app_path: &str) -> bool {
     Path::new(app_path).exists()
 }
 
-fn construct_widget_source_path(widget_path: &str) -> PathBuf {
-    Path::new(widget_path).join("dist").join("1.0.0")
+fn construct_widget_source_path(widget_path: &str) -> Option<PathBuf> {
+    find_highest_version_in_dist(widget_path)
 }
 
 fn construct_app_target_path(app_path: &str) -> PathBuf {
@@ -187,9 +206,10 @@ fn process_all_app_copies(file_nodes: &[FileTreeNode], app_paths: Vec<String>) -
 
 fn validate_widget_copy_inputs(widget_path: &str, app_paths: &[String]) -> Result<(), String> {
     if !is_valid_widget_path(widget_path) {
+        let dist_path = Path::new(widget_path).join("dist");
         return Err(format!(
-            "Widget dist folder not found: {:?}",
-            construct_widget_source_path(widget_path)
+            "No valid version folder found in: {:?}",
+            dist_path
         ));
     }
 
@@ -224,7 +244,8 @@ pub fn copy_widget_to_apps(
     validate_widget_copy_inputs(&widget_path, &app_paths)?;
 
     let valid_app_paths = filter_valid_app_paths(app_paths);
-    let source_dir = construct_widget_source_path(&widget_path);
+    let source_dir = construct_widget_source_path(&widget_path)
+        .ok_or_else(|| format!("No valid version folder found in: {:?}", Path::new(&widget_path).join("dist")))?;
     let file_nodes = scan_directory_tree(&source_dir)?;
     let results = process_all_app_copies(&file_nodes, valid_app_paths);
 
@@ -243,14 +264,6 @@ pub fn copy_widget_to_apps(
 mod tests {
     use super::*;
     use std::path::Path;
-
-    #[test]
-    fn test_construct_widget_source_path() {
-        let widget_path = "my_widget";
-        let expected = Path::new("my_widget").join("dist").join("1.0.0");
-        let result = construct_widget_source_path(widget_path);
-        assert_eq!(result, expected);
-    }
 
     #[test]
     fn test_construct_app_target_path() {
