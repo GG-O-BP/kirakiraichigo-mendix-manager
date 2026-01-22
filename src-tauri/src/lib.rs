@@ -26,8 +26,9 @@ pub use web_scraper::{
 
 pub use build_deploy::{build_and_deploy_from_selections, check_multiple_dist_exists, create_catastrophic_error_result, validate_and_build_deploy, validate_and_deploy_only};
 pub use storage::{
-    add_widget_and_save, delete_widget_and_save, load_from_storage, load_widgets_ordered,
-    save_to_storage,
+    add_widget_and_save, clear_downloadable_versions_cache, delete_widget_and_save,
+    load_downloadable_versions_cache, load_from_storage, load_widgets_ordered,
+    merge_and_save_downloadable_versions, save_downloadable_versions_cache, save_to_storage,
 };
 pub use widget_parser::{
     count_all_spec_groups_visible_properties, initialize_property_values,
@@ -101,6 +102,10 @@ pub fn run() {
             load_widgets_ordered,
             delete_widget_and_save,
             add_widget_and_save,
+            load_downloadable_versions_cache,
+            save_downloadable_versions_cache,
+            merge_and_save_downloadable_versions,
+            clear_downloadable_versions_cache,
             // ================================================================
             // Version utilities
             // ================================================================

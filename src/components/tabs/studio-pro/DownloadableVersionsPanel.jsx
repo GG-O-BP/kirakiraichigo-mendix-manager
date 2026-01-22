@@ -132,6 +132,7 @@ const DownloadableVersionsPanel = memo(({
   setShowMTSOnly,
   showBetaOnly,
   setShowBetaOnly,
+  onRefreshCache,
 }) => {
   const renderVersionsList = () => {
     if (displayedDownloadableVersions.length === 0) {
@@ -154,11 +155,21 @@ const DownloadableVersionsPanel = memo(({
 
   const searchControls = (
     <div className="search-controls">
-      <SearchBox
-        placeholder="Search downloadable versions..."
-        value={searchTerm}
-        onChange={setSearchTerm}
-      />
+      <div className="search-row-with-action">
+        <SearchBox
+          placeholder="Search downloadable versions..."
+          value={searchTerm}
+          onChange={setSearchTerm}
+        />
+        <button
+          className="refresh-cache-button"
+          onClick={onRefreshCache}
+          disabled={isLoadingDownloadableVersions}
+          title="Clear cache and refresh versions"
+        >
+          {isLoadingDownloadableVersions ? "..." : "Refresh"}
+        </button>
+      </div>
       <div className="search-row">
         {renderFilterCheckbox(
           showOnlyDownloadableVersions,

@@ -1,4 +1,5 @@
 use crate::data_processing::mendix_filters::Widget;
+use crate::web_scraper::{DownloadableVersion, DownloadableVersionsCache};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -29,6 +30,7 @@ pub enum StorageKey {
     LastTab,
     SelectedWidgets,
     WidgetOrder,
+    DownloadableVersionsCache,
 }
 
 impl StorageKey {
@@ -46,6 +48,7 @@ impl StorageKey {
             StorageKey::LastTab => "lastTab",
             StorageKey::SelectedWidgets => "selectedWidgets",
             StorageKey::WidgetOrder => "widgetOrder",
+            StorageKey::DownloadableVersionsCache => "downloadableVersionsCache",
         }
     }
 
@@ -65,6 +68,7 @@ impl TryFrom<&str> for StorageKey {
             "lastTab" => Ok(StorageKey::LastTab),
             "selectedWidgets" => Ok(StorageKey::SelectedWidgets),
             "widgetOrder" => Ok(StorageKey::WidgetOrder),
+            "downloadableVersionsCache" => Ok(StorageKey::DownloadableVersionsCache),
             _ => Err(format!("Unknown storage key: {}", value)),
         }
     }
@@ -91,6 +95,7 @@ pub struct AppState {
     pub last_tab: Option<String>,
     pub selected_widgets: Option<Value>,
     pub widget_order: Option<Value>,
+    pub downloadable_versions_cache: Option<Value>,
 }
 
 impl Default for AppState {
@@ -105,6 +110,7 @@ impl Default for AppState {
             last_tab: Some("widgetManager".to_string()),
             selected_widgets: None,
             widget_order: None,
+            downloadable_versions_cache: None,
         }
     }
 }
@@ -122,6 +128,7 @@ impl AppState {
             StorageKey::LastTab => self.last_tab.clone().map(Value::String),
             StorageKey::SelectedWidgets => self.selected_widgets.clone(),
             StorageKey::WidgetOrder => self.widget_order.clone(),
+            StorageKey::DownloadableVersionsCache => self.downloadable_versions_cache.clone(),
         }
     }
 
@@ -145,6 +152,9 @@ impl AppState {
             }
             StorageKey::SelectedWidgets => self.selected_widgets = Some(value),
             StorageKey::WidgetOrder => self.widget_order = Some(value),
+            StorageKey::DownloadableVersionsCache => {
+                self.downloadable_versions_cache = Some(value)
+            }
         }
     }
 }
@@ -388,4 +398,128 @@ pub fn add_widget_and_save(caption: String, path: String) -> Result<Widget, Stri
     save_state_to_file(&state)?;
 
     Ok(new_widget)
+}
+
+// ============================================================================
+// Downloadable Versions Cache Management
+// ============================================================================
+
+fn merge_downloadable_versions(
+    cached: Vec<DownloadableVersion>,
+    fresh: Vec<DownloadableVersion>,
+) -> Vec<DownloadableVersion> {
+    let mut version_map: HashMap<String, DownloadableVersion> = cached
+        .into_iter()
+        .map(|v| (v.version.clone(), v))
+        .collect();
+
+    for v in fresh {
+        version_map.insert(v.version.clone(), v);
+    }
+
+    let mut versions: Vec<DownloadableVersion> = version_map.into_values().collect();
+    versions.sort_by(|a, b| compare_version_strings(&b.version, &a.version));
+    versions
+}
+
+fn compare_version_strings(a: &str, b: &str) -> std::cmp::Ordering {
+    let parse_parts = |s: &str| -> Vec<u32> {
+        s.split('.')
+            .filter_map(|part| part.parse::<u32>().ok())
+            .collect()
+    };
+
+    let a_parts = parse_parts(a);
+    let b_parts = parse_parts(b);
+
+    for (a_part, b_part) in a_parts.iter().zip(b_parts.iter()) {
+        match a_part.cmp(b_part) {
+            std::cmp::Ordering::Equal => continue,
+            other => return other,
+        }
+    }
+
+    a_parts.len().cmp(&b_parts.len())
+}
+
+fn parse_cache_from_value(value: &Value) -> Result<Vec<DownloadableVersion>, String> {
+    serde_json::from_value::<DownloadableVersionsCache>(value.clone())
+        .map(|cache| cache.versions)
+        .or_else(|_| {
+            serde_json::from_value::<Vec<DownloadableVersion>>(value.clone())
+                .map_err(|e| format!("Failed to parse cache: {}", e))
+        })
+}
+
+fn versions_to_cache_value(versions: &[DownloadableVersion]) -> Result<Value, String> {
+    let cache = DownloadableVersionsCache {
+        versions: versions.to_vec(),
+    };
+    serde_json::to_value(cache).map_err(|e| format!("Failed to serialize cache: {}", e))
+}
+
+#[tauri::command]
+pub fn load_downloadable_versions_cache() -> Result<Vec<DownloadableVersion>, String> {
+    let state = load_state_from_file().unwrap_or_default();
+
+    match state.get(StorageKey::DownloadableVersionsCache) {
+        Some(value) => parse_cache_from_value(&value),
+        None => Ok(Vec::new()),
+    }
+}
+
+#[tauri::command]
+pub fn save_downloadable_versions_cache(
+    versions: Vec<DownloadableVersion>,
+) -> Result<(), String> {
+    let _lock = STORAGE_MUTEX
+        .lock()
+        .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
+
+    let mut state = load_state_from_file().unwrap_or_default();
+    state.set(
+        StorageKey::DownloadableVersionsCache,
+        versions_to_cache_value(&versions)?,
+    );
+    save_state_to_file(&state)
+}
+
+#[tauri::command]
+pub fn merge_and_save_downloadable_versions(
+    fresh: Vec<DownloadableVersion>,
+) -> Result<Vec<DownloadableVersion>, String> {
+    let _lock = STORAGE_MUTEX
+        .lock()
+        .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
+
+    let mut state = load_state_from_file().unwrap_or_default();
+
+    let cached = match state.get(StorageKey::DownloadableVersionsCache) {
+        Some(value) => parse_cache_from_value(&value).unwrap_or_default(),
+        None => Vec::new(),
+    };
+
+    let merged = merge_downloadable_versions(cached, fresh);
+
+    state.set(
+        StorageKey::DownloadableVersionsCache,
+        versions_to_cache_value(&merged)?,
+    );
+    save_state_to_file(&state)?;
+
+    Ok(merged)
+}
+
+#[tauri::command]
+pub fn clear_downloadable_versions_cache() -> Result<(), String> {
+    let _lock = STORAGE_MUTEX
+        .lock()
+        .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
+
+    let mut state = load_state_from_file().unwrap_or_default();
+    state.set(
+        StorageKey::DownloadableVersionsCache,
+        versions_to_cache_value(&[])?,
+    );
+    save_state_to_file(&state)
 }

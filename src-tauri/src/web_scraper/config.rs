@@ -118,6 +118,11 @@ pub struct BuildInfo {
     pub download_url: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DownloadableVersionsCache {
+    pub versions: Vec<DownloadableVersion>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DownloadProgress {
     pub downloaded_bytes: u64,

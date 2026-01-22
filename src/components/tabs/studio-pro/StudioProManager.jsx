@@ -17,6 +17,7 @@ const StudioProManager = memo(() => {
     versionLoadingStates,
     handleLaunchStudioPro,
     fetchVersionsFromDatagrid,
+    refreshDownloadableVersions,
     showOnlyDownloadableVersions,
     setShowOnlyDownloadableVersions,
     showLTSOnly,
@@ -68,6 +69,7 @@ const StudioProManager = memo(() => {
         setShowMTSOnly={setShowMTSOnly}
         showBetaOnly={showBetaOnly}
         setShowBetaOnly={setShowBetaOnly}
+        onRefreshCache={refreshDownloadableVersions}
       />
       <InstalledVersionsPanel
         searchTerm={searchTerm}
