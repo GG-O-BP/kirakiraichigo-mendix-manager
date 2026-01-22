@@ -4,6 +4,7 @@
 @import "./themes/variables.css";
 
 /* ============= Base Styles ============= */
+@import "./base/fonts.css";
 @import "./base/reset.css";
 @import "./base/layout.css";
 
