@@ -5,8 +5,27 @@ import {
   usePropertyGroupUI,
 } from "./widget-properties";
 
-export const useWidgetProperties = (selectedWidget, baseProperties = {}) => {
-  const loader = useWidgetDataLoader(selectedWidget);
+export const useWidgetProperties = (selectedWidget, baseProperties = {}, externalState = {}) => {
+  const {
+    dynamicProperties,
+    setDynamicProperties,
+    lastLoadedWidgetId,
+    setLastLoadedWidgetId,
+    widgetDefinition,
+    setWidgetDefinition,
+    editorConfigHandler,
+    setEditorConfigHandler,
+  } = externalState;
+  const loader = useWidgetDataLoader(selectedWidget, {
+    dynamicProperties,
+    setDynamicProperties,
+    lastLoadedWidgetId,
+    setLastLoadedWidgetId,
+    widgetDefinition,
+    setWidgetDefinition,
+    editorConfigHandler,
+    setEditorConfigHandler,
+  });
   const visibility = usePropertyVisibility({
     editorConfigHandler: loader.editorConfigHandler,
     widgetDefinition: loader.widgetDefinition,

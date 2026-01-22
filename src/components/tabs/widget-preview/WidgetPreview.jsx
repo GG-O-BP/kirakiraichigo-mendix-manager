@@ -6,7 +6,7 @@ import {
   useWidgetFormContext,
   useModalContext,
 } from "../../../contexts";
-import { useWidgetProperties, usePreviewBuild } from "../../../hooks";
+import { useWidgetProperties } from "../../../hooks";
 import WidgetSelectionPanel from "./WidgetSelectionPanel";
 import PropertiesPanel from "./PropertiesPanel";
 import PreviewPanel from "./PreviewPanel";
@@ -29,6 +29,23 @@ const WidgetPreview = memo(() => {
     selectedWidgetForPreview,
     setSelectedWidgetForPreview,
     properties,
+    dynamicProperties,
+    setDynamicProperties,
+    lastLoadedWidgetId,
+    setLastLoadedWidgetId,
+    widgetDefinition: contextWidgetDefinition,
+    setWidgetDefinition,
+    editorConfigHandler: contextEditorConfigHandler,
+    setEditorConfigHandler,
+    previewData,
+    isBuilding,
+    buildError,
+    packageManager,
+    setPackageManager,
+    distExists,
+    checkDistExists,
+    handleBuildAndRun,
+    handleRunOnly,
   } = widgetPreviewContext;
 
   const { setNewWidgetCaption, setNewWidgetPath } = widgetFormContext;
@@ -53,19 +70,16 @@ const WidgetPreview = memo(() => {
     expandedGroups,
     toggleGroup,
     combinedProperties,
-  } = useWidgetProperties(selectedWidget, properties);
-
-  const {
-    previewData,
-    isBuilding,
-    buildError,
-    packageManager,
-    setPackageManager,
-    handleBuildAndRun,
-    handleRunOnly,
-    distExists,
-    checkDistExists,
-  } = usePreviewBuild();
+  } = useWidgetProperties(selectedWidget, properties, {
+    dynamicProperties,
+    setDynamicProperties,
+    lastLoadedWidgetId,
+    setLastLoadedWidgetId,
+    widgetDefinition: contextWidgetDefinition,
+    setWidgetDefinition,
+    editorConfigHandler: contextEditorConfigHandler,
+    setEditorConfigHandler,
+  });
 
   useEffect(() => {
     checkDistExists(R.prop("path", selectedWidget));
