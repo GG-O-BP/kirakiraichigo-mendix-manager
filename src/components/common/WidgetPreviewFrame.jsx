@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 
-const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, widgetDefinition }) => {
+const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, widgetDefinition, onDatasourceCommit }) => {
   const iframeRef = useRef(null);
   const iframeReadyRef = useRef(false);
   const bundleRef = useRef(null);
@@ -198,11 +198,30 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                   status: 'available'
                 });
 
-                const createMockDatasource = (jsonString) => {
+                const mxObjectSymbol = Symbol('mxObject');
+                const mxObjectStore = new Map();
+
+                const createMockDatasource = (jsonString, datasourceKey) => {
                   let items = [];
                   try {
                     const parsed = JSON.parse(jsonString);
-                    items = Array.isArray(parsed) ? parsed : [parsed];
+                    const rawItems = Array.isArray(parsed) ? parsed : [parsed];
+                    items = rawItems.map((item, index) => {
+                      const guid = item.id !== undefined ? String(item.id) : String(index);
+                      const mxObject = {
+                        _guid: guid,
+                        _data: { ...item },
+                        get: function(attr) { return this._data[attr]; },
+                        set: function(attr, value) { this._data[attr] = value; }
+                      };
+                      mxObjectStore.set(guid, { mxObject, datasourceKey });
+                      const itemWithSymbol = { ...item, id: guid };
+                      itemWithSymbol[mxObjectSymbol] = {
+                        _mxObject: mxObject,
+                        metaData: { attributes: Object.keys(item).reduce((acc, k) => ({ ...acc, [k]: { type: 'String' } }), {}) }
+                      };
+                      return itemWithSymbol;
+                    });
                   } catch (e) {
                     items = [];
                   }
@@ -210,6 +229,44 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                     items: items,
                     status: 'available'
                   };
+                };
+
+                window.mx = {
+                  data: {
+                    get: function(options) {
+                      const { guid, callback, error } = options;
+                      const stored = mxObjectStore.get(guid);
+                      if (stored) {
+                        callback(stored.mxObject);
+                      } else if (error) {
+                        error(new Error('Object not found'));
+                      }
+                    },
+                    commit: function(options) {
+                      const { mxobj, callback, error } = options;
+                      try {
+                        const guid = mxobj._guid;
+                        const stored = mxObjectStore.get(guid);
+                        if (stored) {
+                          const { datasourceKey } = stored;
+                          const allItems = [];
+                          mxObjectStore.forEach((value) => {
+                            if (value.datasourceKey === datasourceKey) {
+                              allItems.push({ ...value.mxObject._data });
+                            }
+                          });
+                          window.parent.postMessage({
+                            type: 'DATASOURCE_COMMIT',
+                            datasourceKey: datasourceKey,
+                            items: allItems
+                          }, '*');
+                        }
+                        if (callback) callback();
+                      } catch (e) {
+                        if (error) error(e);
+                      }
+                    }
+                  }
                 };
 
                 const createMockAttribute = (selectedKey) => {
@@ -309,7 +366,7 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                     const propType = propertyDef ? propertyDef.type : null;
 
                     if (propType === 'datasource') {
-                      widgetProps[key] = createMockDatasource(value);
+                      widgetProps[key] = createMockDatasource(value, key);
                     } else if (propType === 'attribute') {
                       if (value) {
                         widgetProps[key] = createMockAttribute(value);
@@ -435,16 +492,20 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
   }, [bundle, css, widgetName, widgetId]);
 
   useEffect(() => {
-    const handleIframeReady = (event) => {
+    const handleIframeMessage = (event) => {
       if (event.data && event.data.type === "IFRAME_READY") {
         iframeReadyRef.current = true;
         sendPropertiesToIframe(properties, widgetDefinition);
       }
+      if (event.data && event.data.type === "DATASOURCE_COMMIT" && onDatasourceCommit) {
+        const { datasourceKey, items } = event.data;
+        onDatasourceCommit(datasourceKey, JSON.stringify(items, null, 2));
+      }
     };
 
-    window.addEventListener("message", handleIframeReady);
-    return () => window.removeEventListener("message", handleIframeReady);
-  }, [properties, widgetDefinition, sendPropertiesToIframe]);
+    window.addEventListener("message", handleIframeMessage);
+    return () => window.removeEventListener("message", handleIframeMessage);
+  }, [properties, widgetDefinition, sendPropertiesToIframe, onDatasourceCommit]);
 
   useEffect(() => {
     if (iframeReadyRef.current && properties) {

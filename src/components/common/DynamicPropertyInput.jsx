@@ -175,8 +175,20 @@ const renderPlaceholder = R.curry((property, value, onChange, disabled) => (
   </div>
 ));
 
-const DATASOURCE_DEFAULT_VALUE =
-  '[{"id": 1, "name": "Item 1", "value": 100, "active": true}, {"id": 2, "name": "Item 2", "value": 200, "active": false}]';
+const DATASOURCE_DEFAULT_VALUE = `[
+  {
+    "id": 1,
+    "name": "Item 1",
+    "value": 100,
+    "active": true
+  },
+  {
+    "id": 2,
+    "name": "Item 2",
+    "value": 200,
+    "active": false
+  }
+]`;
 
 const DatasourceTextarea = ({ value, onChange, disabled }) => {
   useEffect(() => {

@@ -2,7 +2,7 @@ import * as R from "ramda";
 import { memo } from "react";
 import WidgetPreviewFrame from "../../common/WidgetPreviewFrame";
 
-const PreviewPanel = memo(({ previewData, properties, widgetDefinition, isBuilding }) => (
+const PreviewPanel = memo(({ previewData, properties, widgetDefinition, isBuilding, onDatasourceCommit }) => (
   <div className="preview-right">
     {R.cond([
       [
@@ -26,6 +26,7 @@ const PreviewPanel = memo(({ previewData, properties, widgetDefinition, isBuildi
             widgetId={previewData?.widgetId}
             properties={properties}
             widgetDefinition={widgetDefinition}
+            onDatasourceCommit={onDatasourceCommit}
           />
         ),
       ],

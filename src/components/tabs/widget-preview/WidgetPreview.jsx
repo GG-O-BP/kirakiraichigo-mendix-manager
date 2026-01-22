@@ -128,6 +128,7 @@ const WidgetPreview = memo(() => {
         properties={combinedProperties}
         widgetDefinition={widgetDefinition}
         isBuilding={isBuilding}
+        onDatasourceCommit={updateProperty}
       />
     </div>
   );
