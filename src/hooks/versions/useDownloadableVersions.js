@@ -25,8 +25,6 @@ export function useDownloadableVersions() {
   }, []);
 
   const fetchVersionsFromDatagrid = useCallback(async (page = 1) => {
-    const isFirstPage = R.equals(page, 1);
-
     try {
       const processedPage = R.pipe(R.defaultTo(1), R.max(1))(page);
 
@@ -40,16 +38,7 @@ export function useDownloadableVersions() {
         fresh: versions,
       });
 
-      R.when(
-        R.always(isFirstPage),
-        R.always(setDownloadableVersions(merged)),
-      )(null);
-
-      R.unless(
-        R.always(isFirstPage),
-        R.always(setDownloadableVersions(merged)),
-      )(null);
-
+      setDownloadableVersions(merged);
       setIsLoadingDownloadableVersions(false);
       return versions;
     } catch (error) {
@@ -77,11 +66,6 @@ export function useDownloadableVersions() {
   }, [clearCache, fetchVersionsFromDatagrid]);
 
   useEffect(() => {
-    R.when(
-      R.always(hasLoadedInitialVersions.current),
-      R.always(undefined),
-    )(null);
-
     if (hasLoadedInitialVersions.current) {
       return;
     }
@@ -93,12 +77,7 @@ export function useDownloadableVersions() {
         const cached = await loadCachedVersions();
         setIsCacheLoaded(true);
 
-        R.when(
-          R.complement(R.isEmpty),
-          R.always(fetchVersionsFromDatagrid(1)),
-        )(cached);
-
-        R.when(R.isEmpty, R.always(fetchVersionsFromDatagrid(1)))(cached);
+        await fetchVersionsFromDatagrid(1);
       } catch (error) {
         console.error("Failed to load initial downloadable versions:", error);
         hasLoadedInitialVersions.current = false;
