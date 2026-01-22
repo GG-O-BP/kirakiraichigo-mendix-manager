@@ -8,10 +8,21 @@ const isInstallButtonDisabled = R.curry((isInstalling, selectedWidgets) =>
 );
 
 const isBuildDeployButtonDisabled = R.curry(
-  (isBuilding, selectedWidgets, selectedApps) =>
+  (isBuilding, isDeploying, selectedWidgets, selectedApps) =>
     R.or(
-      R.or(isBuilding, R.equals(0, selectedWidgets.size)),
+      R.or(R.or(isBuilding, isDeploying), R.equals(0, selectedWidgets.size)),
       R.equals(0, selectedApps.size),
+    ),
+);
+
+const isDeployOnlyButtonDisabled = R.curry(
+  (isBuilding, isDeploying, selectedWidgets, selectedApps, allDistExist) =>
+    R.or(
+      R.or(
+        R.or(R.or(isBuilding, isDeploying), R.equals(0, selectedWidgets.size)),
+        R.equals(0, selectedApps.size),
+      ),
+      R.not(allDistExist),
     ),
 );
 
@@ -20,12 +31,16 @@ const BuildDeploySection = memo(({
   setPackageManager,
   handleInstall,
   handleBuildDeploy,
+  handleDeployOnly,
   isInstalling,
   isBuilding,
+  isDeploying,
   selectedWidgets,
   selectedApps,
   inlineResults,
   setInlineResults,
+  allDistExist,
+  lastOperationType,
 }) => (
   <div className="package-manager-section">
     <PackageManagerSelector
@@ -50,25 +65,56 @@ const BuildDeploySection = memo(({
       onClick={handleBuildDeploy}
       disabled={isBuildDeployButtonDisabled(
         isBuilding,
+        isDeploying,
         selectedWidgets,
         selectedApps,
       )}
       className={`install-button build-deploy-button ${
-        selectedWidgets.size > 0 && selectedApps.size > 0
+        R.and(R.gt(selectedWidgets.size, 0), R.gt(selectedApps.size, 0))
           ? "button-enabled"
           : "button-disabled"
       }`}
     >
-      <span className="button-icon">{isBuilding ? "⏳" : "🚀"}</span>
-      {isBuilding
-        ? "Building & Deploying..."
-        : `Build + Deploy (${selectedWidgets.size} widgets → ${selectedApps.size} apps)`}
+      <span className="button-icon">{R.or(isBuilding, isDeploying) ? "⏳" : "🚀"}</span>
+      {R.cond([
+        [R.always(isBuilding), R.always("Building & Deploying...")],
+        [R.always(isDeploying), R.always("Deploying...")],
+        [R.T, R.always(`Build + Deploy (${selectedWidgets.size} widgets → ${selectedApps.size} apps)`)],
+      ])()}
+    </button>
+
+    <button
+      onClick={handleDeployOnly}
+      disabled={isDeployOnlyButtonDisabled(
+        isBuilding,
+        isDeploying,
+        selectedWidgets,
+        selectedApps,
+        allDistExist,
+      )}
+      className={`install-button deploy-only-button ${
+        R.and(
+          R.and(R.gt(selectedWidgets.size, 0), R.gt(selectedApps.size, 0)),
+          allDistExist,
+        )
+          ? "button-enabled"
+          : "button-disabled"
+      }`}
+    >
+      <span className="button-icon">{R.or(isBuilding, isDeploying) ? "⏳" : "📤"}</span>
+      {R.cond([
+        [R.always(isBuilding), R.always("Building & Deploying...")],
+        [R.always(isDeploying), R.always("Deploying...")],
+        [R.T, R.always(`Deploy Only (${selectedWidgets.size} widgets → ${selectedApps.size} apps)`)],
+      ])()}
     </button>
 
     <InlineResults
       inlineResults={inlineResults}
       setInlineResults={setInlineResults}
       isBuilding={isBuilding}
+      isDeploying={isDeploying}
+      lastOperationType={lastOperationType}
     />
   </div>
 ));

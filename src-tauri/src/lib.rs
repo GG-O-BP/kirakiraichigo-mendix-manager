@@ -24,7 +24,7 @@ pub use web_scraper::{
     DownloadProgress, DownloadableVersion,
 };
 
-pub use build_deploy::{build_and_deploy_from_selections, create_catastrophic_error_result, validate_and_build_deploy};
+pub use build_deploy::{build_and_deploy_from_selections, check_multiple_dist_exists, create_catastrophic_error_result, validate_and_build_deploy, validate_and_deploy_only};
 pub use storage::{
     add_widget_and_save, delete_widget_and_save, load_from_storage, load_widgets_ordered,
     save_to_storage,
@@ -142,6 +142,8 @@ pub fn run() {
             // ================================================================
             load_widget_complete_data,
             validate_and_build_deploy,
+            validate_and_deploy_only,
+            check_multiple_dist_exists,
             compare_versions,
             process_widgets_pipeline,
             process_apps_pipeline,

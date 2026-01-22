@@ -7,6 +7,7 @@ import {
   useModalContext,
   useVersionsContext,
 } from "../../../contexts";
+import { useDistExistsCheck } from "../../../hooks/build-deploy";
 import AppsSelectionPanel from "./AppsSelectionPanel";
 import WidgetsSelectionPanel from "./WidgetsSelectionPanel";
 import BuildDeploySection from "./BuildDeploySection";
@@ -46,11 +47,16 @@ const WidgetManager = memo(() => {
     setPackageManager,
     handleInstall,
     handleBuildDeploy,
+    handleDeployOnly,
     isInstalling,
     isBuilding,
+    isDeploying,
     inlineResults,
     setInlineResults,
+    lastOperationType,
   } = buildDeployContext;
+
+  const { allDistExist } = useDistExistsCheck({ selectedWidgets, widgets });
 
   const {
     setShowWidgetModal,
@@ -93,12 +99,16 @@ const WidgetManager = memo(() => {
         setPackageManager={setPackageManager}
         handleInstall={handleInstall}
         handleBuildDeploy={handleBuildDeploy}
+        handleDeployOnly={handleDeployOnly}
         isInstalling={isInstalling}
         isBuilding={isBuilding}
+        isDeploying={isDeploying}
         selectedWidgets={selectedWidgets}
         selectedApps={selectedApps}
         inlineResults={inlineResults}
         setInlineResults={setInlineResults}
+        allDistExist={allDistExist}
+        lastOperationType={lastOperationType}
       />
     </div>
   );

@@ -10,13 +10,15 @@ import { useWidgetModal } from "../useWidgetModal";
 import { useWidgetDeleteModal } from "../useWidgetDeleteModal";
 import { useDownloadModal } from "../useDownloadModal";
 import { useResultModal } from "../useResultModal";
+import { usePackageManagerPersistence } from "../build-deploy/usePackageManagerPersistence";
 
 export function useHooksInitializer() {
   const theme = useTheme();
   const versions = useVersions();
   const appsHook = useApps();
   const widgetsHook = useWidgets();
-  const widgetPreviewHook = useWidgetPreview();
+  const packageManagerPersistence = usePackageManagerPersistence();
+  const widgetPreviewHook = useWidgetPreview({ packageManagerPersistence });
 
   const uninstallModal = useUninstallModal();
   const appDeleteModal = useAppDeleteModal();
@@ -27,6 +29,7 @@ export function useHooksInitializer() {
 
   const buildDeploy = useBuildDeploy({
     onShowResultModal: resultModal.setShowModal,
+    packageManagerPersistence,
   });
 
   return {

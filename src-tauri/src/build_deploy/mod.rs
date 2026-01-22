@@ -217,3 +217,150 @@ pub async fn validate_and_build_deploy(
         has_failures,
     })
 }
+
+fn deploy_only_single_widget(
+    widget: WidgetBuildRequest,
+    apps: &[AppInput],
+) -> Result<SuccessfulDeployment, FailedDeployment> {
+    let widget_caption = widget.caption.clone();
+    let widget_path = widget.widget_path.clone();
+
+    println!("[Deploy Only] Deploying widget: {}", widget_caption);
+
+    let deploy_results: Vec<AppDeployResult> = apps
+        .par_iter()
+        .map(|app| {
+            println!("[Deploy Only] Deploying {} to {}", widget_caption, app.path);
+
+            let result = copy_widget_to_apps_util(widget_path.clone(), vec![app.path.clone()]);
+
+            match &result {
+                Ok(_) => println!(
+                    "[Deploy Only] Successfully deployed {} to {}",
+                    widget_caption, app.path
+                ),
+                Err(e) => println!(
+                    "[Deploy Only] Failed to deploy {} to {}: {}",
+                    widget_caption, app.path, e
+                ),
+            }
+
+            AppDeployResult {
+                app_name: app.name.clone(),
+                result,
+            }
+        })
+        .collect();
+
+    let failed_apps: Vec<String> = deploy_results
+        .iter()
+        .filter_map(|deploy| {
+            deploy
+                .result
+                .as_ref()
+                .err()
+                .map(|e| format!("{}: {}", deploy.app_name, e))
+        })
+        .collect();
+
+    if !failed_apps.is_empty() {
+        return Err(FailedDeployment {
+            widget: widget_caption,
+            error: format!("Failed to deploy to some apps: {}", failed_apps.join(", ")),
+        });
+    }
+
+    let successful_app_names: Vec<String> = deploy_results
+        .into_iter()
+        .filter(|r| r.result.is_ok())
+        .map(|r| r.app_name)
+        .collect();
+
+    Ok(SuccessfulDeployment {
+        widget: widget_caption,
+        apps: successful_app_names,
+    })
+}
+
+async fn deploy_only_widgets(
+    widgets: Vec<WidgetBuildRequest>,
+    apps: Vec<AppInput>,
+) -> Result<BuildDeployResult, String> {
+    println!(
+        "[Deploy Only] Starting deploy for {} widgets to {} apps",
+        widgets.len(),
+        apps.len()
+    );
+
+    let results: Vec<Result<SuccessfulDeployment, FailedDeployment>> = widgets
+        .into_iter()
+        .map(|widget| deploy_only_single_widget(widget, &apps))
+        .collect();
+
+    let (successful, failed): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
+    let successful: Vec<_> = successful.into_iter().filter_map(Result::ok).collect();
+    let failed: Vec<_> = failed.into_iter().filter_map(Result::err).collect();
+
+    println!(
+        "[Deploy Only] Completed: {} successful, {} failed",
+        successful.len(),
+        failed.len()
+    );
+
+    Ok(BuildDeployResult { successful, failed })
+}
+
+#[tauri::command]
+pub async fn validate_and_deploy_only(
+    widgets: Vec<WidgetInput>,
+    apps: Vec<AppInput>,
+    selected_widget_ids: Option<Vec<String>>,
+    selected_app_paths: Option<Vec<String>>,
+) -> Result<ValidateAndBuildDeployResponse, String> {
+    let widget_count = selected_widget_ids
+        .as_ref()
+        .map(|ids| ids.len())
+        .unwrap_or(widgets.len());
+    let app_count = selected_app_paths
+        .as_ref()
+        .map(|paths| paths.len())
+        .unwrap_or(apps.len());
+
+    if let Some(error) = validate_selections(widget_count, app_count) {
+        return Ok(ValidateAndBuildDeployResponse {
+            validation_error: Some(error),
+            results: None,
+            has_failures: false,
+        });
+    }
+
+    let filtered_widgets = match selected_widget_ids {
+        Some(ids) if !ids.is_empty() => filter_by_key_set(&widgets, &ids, widget_id_extractor),
+        _ => widgets,
+    };
+
+    let filtered_apps = match selected_app_paths {
+        Some(paths) if !paths.is_empty() => filter_by_key_set(&apps, &paths, app_path_extractor),
+        _ => apps,
+    };
+
+    let widget_requests = transform_widgets_to_build_requests(&filtered_widgets);
+    let results = deploy_only_widgets(widget_requests, filtered_apps).await?;
+
+    let has_failures = has_any_failures(&results);
+
+    Ok(ValidateAndBuildDeployResponse {
+        validation_error: None,
+        results: Some(results),
+        has_failures,
+    })
+}
+
+#[tauri::command]
+pub fn check_multiple_dist_exists(widget_paths: Vec<String>) -> Vec<bool> {
+    use std::path::Path;
+    widget_paths
+        .iter()
+        .map(|path| Path::new(path).join("dist").exists())
+        .collect()
+}

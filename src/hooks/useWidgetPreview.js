@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { setProperty } from "../utils";
 
-export function useWidgetPreview() {
+export function useWidgetPreview({ packageManagerPersistence }) {
   const [widgetPreviewSearch, setWidgetPreviewSearch] = useState("");
   const [selectedWidgetForPreview, setSelectedWidgetForPreview] = useState(null);
   const [properties, setProperties] = useState({});
@@ -15,7 +15,7 @@ export function useWidgetPreview() {
   const [previewData, setPreviewData] = useState(null);
   const [isBuilding, setIsBuilding] = useState(false);
   const [buildError, setBuildError] = useState(null);
-  const [packageManager, setPackageManager] = useState("bun");
+  const { packageManager, setPackageManager } = packageManagerPersistence;
   const [distExists, setDistExists] = useState(false);
 
   const updateProperty = useCallback(
