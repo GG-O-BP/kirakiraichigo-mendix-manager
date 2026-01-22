@@ -44,6 +44,15 @@ export function useWidgetDataLoader(selectedWidget, externalState = {}) {
       return;
     }
 
+    const hasCachedData = R.both(
+      R.complement(R.isEmpty),
+      R.always(R.complement(R.isNil)(widgetDefinition)),
+    )(dynamicProperties);
+    if (hasCachedData) {
+      setLastLoadedWidgetId(widgetId);
+      return;
+    }
+
     const loadWidgetData = async () => {
       try {
         const { definition, initial_values, editor_config } = await invoke(
@@ -71,7 +80,7 @@ export function useWidgetDataLoader(selectedWidget, externalState = {}) {
     };
 
     loadWidgetData();
-  }, [selectedWidget, resetWidgetState, setDynamicProperties, lastLoadedWidgetId, setLastLoadedWidgetId, setWidgetDefinition, setEditorConfigHandler]);
+  }, [selectedWidget, resetWidgetState, setDynamicProperties, lastLoadedWidgetId, setLastLoadedWidgetId, setWidgetDefinition, setEditorConfigHandler, dynamicProperties, widgetDefinition]);
 
   return {
     widgetDefinition,
