@@ -1,7 +1,9 @@
+import * as R from "ramda";
 import { invoke } from "@tauri-apps/api/core";
 import { ConfirmModal } from "../../common";
 import DownloadModal from "../DownloadModal";
 import { getVersionLoadingState } from "../../../utils";
+import { useI18n } from "../../../i18n/useI18n";
 import {
   useStudioProModalContext,
   useVersionsContext,
@@ -9,6 +11,7 @@ import {
 } from "../../../contexts";
 
 function StudioProModals() {
+  const { t } = useI18n();
   const {
     showUninstallModal,
     versionToUninstall,
@@ -48,16 +51,26 @@ function StudioProModals() {
     }
   };
 
+  const uninstallTitle = R.pathOr(
+    "Say Goodbye to Studio Pro?",
+    ["modals", "studioPro", "uninstallTitle"],
+    t,
+  );
+
+  const uninstallMessage = versionToUninstall
+    ? R.pathOr(
+        `Are you really really sure you want to uninstall Studio Pro ${versionToUninstall.version}?\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay?`,
+        ["modals", "studioPro", "uninstallMessage"],
+        t,
+      ).replace("{version}", versionToUninstall.version)
+    : "";
+
   return (
     <>
       <ConfirmModal
         isOpen={showUninstallModal}
-        title="🍓 Say Goodbye to Studio Pro?"
-        message={
-          versionToUninstall
-            ? `Are you really really sure you want to uninstall Studio Pro ${versionToUninstall.version}? ✨\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay? 💝`
-            : ""
-        }
+        title={uninstallTitle}
+        message={uninstallMessage}
         onConfirm={() => handleConfirmUninstall(false)}
         onConfirmWithApps={
           relatedApps.length > 0

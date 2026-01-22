@@ -5,6 +5,7 @@ import SearchBox from "../../common/SearchBox";
 import { renderPanel } from "../../common/Panel";
 import { MendixVersionListItem } from "../../common/ListItems";
 import { getVersionLoadingState } from "../../../utils";
+import { useI18n } from "../../../i18n/useI18n";
 
 export const invokeCheckVersionSelected = async (selectedVersion, version) =>
   invoke("compare_versions", {
@@ -71,9 +72,13 @@ const InstalledVersionsPanel = memo(({
   handleVersionClick,
   selectedVersion,
 }) => {
+  const { t } = useI18n();
+
   const renderVersionsList = () => {
     if (displayedInstalledVersions.length === 0) {
-      return renderEmptyListMessage("No installed versions found");
+      return renderEmptyListMessage(
+        R.pathOr("No installed versions found", ["versions", "noInstalledVersions"], t),
+      );
     }
 
     return displayedInstalledVersions.map((version) => (
@@ -92,7 +97,7 @@ const InstalledVersionsPanel = memo(({
   const searchControls = (
     <div className="search-controls">
       <SearchBox
-        placeholder="Search installed versions..."
+        placeholder={R.pathOr("Search installed versions...", ["versions", "searchInstalled"], t)}
         value={searchTerm}
         onChange={setSearchTerm}
       />

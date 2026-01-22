@@ -4,6 +4,7 @@ import SearchBox from "../../common/SearchBox";
 import WidgetListItem from "../../common/WidgetListItem";
 import { renderLoadingIndicator } from "../../common/LoadingIndicator";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
+import { useI18n } from "../../../i18n/useI18n";
 
 const ADD_WIDGET_BUTTON_STYLE = {
   cursor: "pointer",
@@ -18,7 +19,7 @@ const toggleWidgetSelection = R.curry((currentSelection, widgetId) =>
   )(widgetId),
 );
 
-const renderAddWidgetButton = (modalHandlers) => (
+const renderAddWidgetButton = (modalHandlers, t) => (
   <div
     className="version-list-item"
     onClick={R.pipe(
@@ -33,8 +34,8 @@ const renderAddWidgetButton = (modalHandlers) => (
     <div className="version-info">
       <span className="version-icon">➕</span>
       <div className="version-details">
-        <span className="version-number">Add New Widget</span>
-        <span className="version-date">Click to add a widget</span>
+        <span className="version-number">{R.pathOr("Add a new widget", ["widgets", "addNewWidget"], t)}</span>
+        <span className="version-date">{R.pathOr("Click to add a widget~!", ["widgets", "clickToAdd"], t)}</span>
       </div>
     </div>
   </div>
@@ -51,6 +52,8 @@ const WidgetSelectionPanel = memo(({
   handleWidgetDeleteClick,
   modalHandlers,
 }) => {
+  const { t } = useI18n();
+
   const widgetsForDragDrop = R.ifElse(
     R.isEmpty,
     R.always(filteredWidgets),
@@ -71,11 +74,15 @@ const WidgetSelectionPanel = memo(({
 
   const renderWidgetsList = () => {
     if (hasWidgetsWithoutSearch) {
-      return renderLoadingIndicator("🧩", "No widgets registered");
+      return renderLoadingIndicator("🧩", R.pathOr("No widgets registered yet!", ["widgets", "noWidgetsRegistered"], t));
     }
 
     if (hasNoSearchResults) {
-      return renderLoadingIndicator("🔍", `No widgets found matching "${widgetSearchTerm}"`);
+      return renderLoadingIndicator(
+        "🔍",
+        R.pathOr(`Can't find "${widgetSearchTerm}"~`, ["widgets", "noWidgetsMatching"], t)
+          .replace("{term}", widgetSearchTerm)
+      );
     }
 
     return R.map(
@@ -98,12 +105,12 @@ const WidgetSelectionPanel = memo(({
   return (
     <div className="preview-left">
       <SearchBox
-        placeholder="Search widgets by caption..."
+        placeholder={R.pathOr("Search widgets~", ["widgets", "searchWidgets"], t)}
         value={widgetSearchTerm}
         onChange={setWidgetSearchTerm}
       />
       <div className="list-area">
-        {renderAddWidgetButton(modalHandlers)}
+        {renderAddWidgetButton(modalHandlers, t)}
         <div className="draggable-widget-list" ref={widgetListRef}>
           {renderWidgetsList()}
         </div>

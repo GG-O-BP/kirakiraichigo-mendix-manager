@@ -6,6 +6,7 @@ import { renderPanel } from "../../common/Panel";
 import { renderFilterCheckbox } from "../../common/FilterCheckbox";
 import { renderLoadMoreIndicator } from "../../common/LoadMoreIndicator";
 import { getVersionLoadingState } from "../../../utils";
+import { useI18n } from "../../../i18n/useI18n";
 
 const VERSION_SUPPORT_BADGES = {
   LTS: { text: "LTS", className: "lts" },
@@ -65,7 +66,8 @@ const DownloadableVersionItem = memo(({
   version,
   installedVersions,
   versionLoadingStates,
-  handleDownload
+  handleDownload,
+  t,
 }) => {
   const [isInstalled, setIsInstalled] = useState(false);
   const loadingState = getVersionLoadingState(versionLoadingStates, version.version);
@@ -105,7 +107,9 @@ const DownloadableVersionItem = memo(({
           disabled={isInstalled}
         >
           {!isInstalled && <span className="button-icon">💫</span>}
-          {isInstalled ? "Installed" : "Install"}
+          {isInstalled
+            ? R.pathOr("Installed", ["common", "installed"], t)
+            : R.pathOr("Install", ["common", "install"], t)}
         </button>
       )}
     </div>
@@ -134,9 +138,13 @@ const DownloadableVersionsPanel = memo(({
   setShowBetaOnly,
   onRefreshCache,
 }) => {
+  const { t } = useI18n();
+
   const renderVersionsList = () => {
     if (displayedDownloadableVersions.length === 0) {
-      return renderEmptyListMessage("No downloadable versions found");
+      return renderEmptyListMessage(
+        R.pathOr("No downloadable versions found", ["versions", "noDownloadableVersions"], t),
+      );
     }
 
     return [
@@ -147,9 +155,10 @@ const DownloadableVersionsPanel = memo(({
           installedVersions={installedVersions}
           versionLoadingStates={versionLoadingStates}
           handleDownload={handleDownloadVersion}
+          t={t}
         />
       )),
-      renderLoadMoreIndicator(loadMoreHandler, isLoadingDownloadableVersions, totalDownloadableCount),
+      renderLoadMoreIndicator(loadMoreHandler, isLoadingDownloadableVersions, totalDownloadableCount, t),
     ];
   };
 
@@ -157,7 +166,7 @@ const DownloadableVersionsPanel = memo(({
     <div className="search-controls">
       <div className="search-row-with-action">
         <SearchBox
-          placeholder="Search downloadable versions..."
+          placeholder={R.pathOr("Search downloadable versions...", ["versions", "searchDownloadable"], t)}
           value={searchTerm}
           onChange={setSearchTerm}
         />
@@ -165,33 +174,33 @@ const DownloadableVersionsPanel = memo(({
           className="refresh-cache-button"
           onClick={onRefreshCache}
           disabled={isLoadingDownloadableVersions}
-          title="Clear cache and refresh versions"
+          title={R.pathOr("Clear cache and refresh versions", ["versions", "clearCacheRefresh"], t)}
         >
-          {isLoadingDownloadableVersions ? "..." : "Refresh"}
+          {isLoadingDownloadableVersions ? "..." : R.pathOr("Refresh", ["common", "refresh"], t)}
         </button>
       </div>
       <div className="search-row">
         {renderFilterCheckbox(
           showOnlyDownloadableVersions,
           (e) => setShowOnlyDownloadableVersions(e.target.checked),
-          "Only Show Downloadable",
+          R.pathOr("Only Show Downloadable", ["versions", "onlyShowDownloadable"], t),
         )}
       </div>
       <div className="version-type-filters">
         {renderFilterCheckbox(
           showLTSOnly,
           (e) => setShowLTSOnly(e.target.checked),
-          "LTS",
+          R.pathOr("LTS", ["versions", "lts"], t),
         )}
         {renderFilterCheckbox(
           showMTSOnly,
           (e) => setShowMTSOnly(e.target.checked),
-          "MTS",
+          R.pathOr("MTS", ["versions", "mts"], t),
         )}
         {renderFilterCheckbox(
           showBetaOnly,
           (e) => setShowBetaOnly(e.target.checked),
-          "Beta",
+          R.pathOr("Beta", ["versions", "beta"], t),
         )}
       </div>
     </div>

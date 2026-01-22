@@ -1,5 +1,6 @@
 import * as R from "ramda";
 import { memo, useEffect } from "react";
+import { useI18n } from "../../i18n/useI18n";
 
 const isModalOpen = R.prop("isOpen");
 
@@ -20,19 +21,21 @@ const RelatedAppItem = (app) => (
   </li>
 );
 
-const RelatedAppsList = R.ifElse(
-  R.identity,
-  R.pipe(R.map(RelatedAppItem), (items) => (
-    <div className="related-apps-section">
-      <h4>Related Apps that will be deleted:</h4>
-      <ul className="related-apps-list">{items}</ul>
-    </div>
-  )),
-  R.always(null),
+const RelatedAppsList = R.curry((t, relatedApps) =>
+  R.ifElse(
+    R.identity,
+    R.pipe(R.map(RelatedAppItem), (items) => (
+      <div className="related-apps-section">
+        <h4>{R.pathOr("Related Apps that will be deleted:", ["apps", "relatedApps"], t)}</h4>
+        <ul className="related-apps-list">{items}</ul>
+      </div>
+    )),
+    R.always(null),
+  )(relatedApps),
 );
 
 const ConfirmWithAppsButton = R.curry(
-  (onConfirmWithApps, isLoading, relatedApps) =>
+  (t, onConfirmWithApps, isLoading, relatedApps) =>
     R.both(R.identity, () => hasRelatedApps({ relatedApps }))(
       onConfirmWithApps,
     ) ? (
@@ -41,12 +44,16 @@ const ConfirmWithAppsButton = R.curry(
         onClick={onConfirmWithApps}
         disabled={isLoading}
       >
-        {getLoadingOrDefaultText("Processing...", "Uninstall + Delete Apps", isLoading)}
+        {getLoadingOrDefaultText(
+          R.pathOr("Processing...", ["modals", "confirm", "processing"], t),
+          R.pathOr("Uninstall + Delete Apps", ["modals", "studioPro", "uninstallAndDeleteApps"], t),
+          isLoading,
+        )}
       </button>
     ) : null,
 );
 
-const ModalContent = ({
+const ModalContentComponent = ({
   title,
   message,
   onConfirm,
@@ -55,6 +62,8 @@ const ModalContent = ({
   isLoading,
   relatedApps,
 }) => {
+  const { t } = useI18n();
+
   useEffect(() => {
     const handleKeyDown = R.when(
       R.both(R.propEq("Escape", "key"), () => !isLoading),
@@ -72,7 +81,7 @@ const ModalContent = ({
       </div>
       <div className="modal-body">
         <p style={{ whiteSpace: "pre-line" }}>{message}</p>
-        {RelatedAppsList(relatedApps)}
+        {RelatedAppsList(t, relatedApps)}
       </div>
       <div className="modal-footer">
         <button
@@ -80,16 +89,20 @@ const ModalContent = ({
           onClick={onCancel}
           disabled={isLoading}
         >
-          Cancel
+          {R.pathOr("Cancel", ["common", "cancel"], t)}
         </button>
         <button
           className="modal-button confirm-button"
           onClick={onConfirm}
           disabled={isLoading}
         >
-          {getLoadingOrDefaultText("Processing...", "Uninstall Only", isLoading)}
+          {getLoadingOrDefaultText(
+            R.pathOr("Processing...", ["modals", "confirm", "processing"], t),
+            R.pathOr("Uninstall Only", ["modals", "studioPro", "uninstallOnly"], t),
+            isLoading,
+          )}
         </button>
-        {ConfirmWithAppsButton(onConfirmWithApps, isLoading, relatedApps)}
+        {ConfirmWithAppsButton(t, onConfirmWithApps, isLoading, relatedApps)}
       </div>
     </div>
   </div>
@@ -97,7 +110,7 @@ const ModalContent = ({
 };
 
 const ConfirmModal = memo(
-  R.ifElse(isModalOpen, ModalContent, R.always(null)),
+  R.ifElse(isModalOpen, ModalContentComponent, R.always(null)),
 );
 
 ConfirmModal.displayName = "ConfirmModal";

@@ -5,8 +5,7 @@ import Dropdown from "../../common/Dropdown";
 import SearchBox from "../../common/SearchBox";
 import { renderLoadingIndicator } from "../../common/LoadingIndicator";
 import { renderPanel } from "../../common/Panel";
-
-const DEFAULT_VERSION_FILTER = { value: "all", label: "📦 All Versions" };
+import { useI18n } from "../../../i18n/useI18n";
 
 const invokeCreateVersionOptions = async (versions) =>
   invoke("create_version_options", { versions });
@@ -47,14 +46,14 @@ const renderVersionBadge = R.ifElse(
   R.always(null),
 );
 
-const AppListItem = memo(({ app, selectedApps, handleAppClick }) => {
-  const [formattedDate, setFormattedDate] = useState("Loading...");
+const AppListItem = memo(({ app, selectedApps, handleAppClick, t }) => {
+  const [formattedDate, setFormattedDate] = useState(R.pathOr("Loading...", ["common", "loading"], t));
 
   useEffect(() => {
     invokeFormatDate(app.last_modified)
       .then(setFormattedDate)
-      .catch(() => setFormattedDate("Date unknown"));
-  }, [app.last_modified]);
+      .catch(() => setFormattedDate(R.pathOr("Date unknown", ["common", "dateUnknown"], t)));
+  }, [app.last_modified, t]);
 
   return (
     <div
@@ -77,10 +76,10 @@ const AppListItem = memo(({ app, selectedApps, handleAppClick }) => {
 
 AppListItem.displayName = "AppListItem";
 
-const renderAppsList = R.curry((selectedApps, handleAppClick, apps) =>
+const renderAppsList = R.curry((selectedApps, handleAppClick, apps, t) =>
   R.ifElse(
     R.isEmpty,
-    () => renderLoadingIndicator("🍓", "No Mendix apps found"),
+    () => renderLoadingIndicator("🍓", R.pathOr("No Mendix apps found", ["apps", "noAppsFound"], t)),
     (appList) => R.map(
       (app) => (
         <AppListItem
@@ -88,6 +87,7 @@ const renderAppsList = R.curry((selectedApps, handleAppClick, apps) =>
           app={app}
           selectedApps={selectedApps}
           handleAppClick={handleAppClick}
+          t={t}
         />
       ),
       appList
@@ -105,13 +105,18 @@ const AppsSelectionPanel = memo(({
   setVersionFilter,
   handleAppClick,
 }) => {
-  const [versionOptions, setVersionOptions] = useState([DEFAULT_VERSION_FILTER]);
+  const { t } = useI18n();
+  const defaultVersionFilter = {
+    value: "all",
+    label: R.pathOr("All Versions", ["apps", "allVersions"], t),
+  };
+  const [versionOptions, setVersionOptions] = useState([defaultVersionFilter]);
 
   useEffect(() => {
     if (versions && versions.length > 0) {
       invokeCreateVersionOptions(versions)
         .then(setVersionOptions)
-        .catch(() => setVersionOptions([DEFAULT_VERSION_FILTER]));
+        .catch(() => setVersionOptions([defaultVersionFilter]));
     }
   }, [versions]);
 
@@ -124,7 +129,7 @@ const AppsSelectionPanel = memo(({
       />
       <div className="search-row">
         <SearchBox
-          placeholder="Search Mendix apps..."
+          placeholder={R.pathOr("Search Mendix apps...", ["apps", "searchApps"], t)}
           value={appSearchTerm}
           onChange={setAppSearchTerm}
         />
@@ -136,7 +141,7 @@ const AppsSelectionPanel = memo(({
     key: "apps",
     className: "list-container",
     searchControls,
-    content: renderAppsList(selectedApps, handleAppClick, filteredApps),
+    content: renderAppsList(selectedApps, handleAppClick, filteredApps, t),
   });
 });
 

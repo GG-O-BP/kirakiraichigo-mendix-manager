@@ -1,0 +1,186 @@
+{
+  "app": {
+    "tabs": {
+      "studioProManager": "Studio Pro 관리",
+      "widgetManager": "위젯 관리",
+      "widgetPreview": "위젯 미리보기"
+    },
+    "common": {
+      "loading": "불러오는 중이야~ 기다려줘!",
+      "search": "찾아볼까~?",
+      "cancel": "취소할래",
+      "confirm": "응, 확인!",
+      "delete": "지울래!",
+      "install": "설치하기!",
+      "uninstall": "삭제하기",
+      "launch": "실행!",
+      "launching": "실행하는 중이야~ 슝!",
+      "download": "다운로드!",
+      "save": "저장!",
+      "close": "닫기",
+      "refresh": "새로고침!",
+      "select": "선택해줘~",
+      "selectAll": "전부 선택!",
+      "deselectAll": "전부 해제!",
+      "noResults": "엥? 아무것도 없어!",
+      "error": "어? 뭔가 잘못됐어!",
+      "success": "짜잔~! 성공이야! 헤헤",
+      "warning": "잠깐! 조심해~",
+      "pleaseWait": "조금만 기다려~ 금방 되니까!",
+      "areYouSure": "진짜진짜 할 거야?",
+      "yes": "응!",
+      "no": "아니!",
+      "add": "추가!",
+      "remove": "빼기",
+      "browse": "찾아보기",
+      "clear": "지우기",
+      "results": "결과",
+      "dateUnknown": "날짜 모름",
+      "installed": "설치됨!",
+      "comingSoon": "(곧 나와요~)"
+    },
+    "header": {
+      "title": "키라키라 이치고 매니저",
+      "language": "언어",
+      "themeAttribution": "Latte, Frappe, Macchiato, Mocha 테마 제공"
+    },
+    "themes": {
+      "kiraIchiDark": "키라이치 다크",
+      "kiraIchiLight": "키라이치 라이트",
+      "latte": "라떼",
+      "frappe": "프라페",
+      "macchiato": "마키아토",
+      "mocha": "모카"
+    },
+    "versions": {
+      "installed": "설치된 버전들",
+      "downloadable": "다운로드 가능한 버전들",
+      "noVersionsFound": "버전이 없넹?",
+      "noInstalledVersions": "설치된 버전이 없어!",
+      "noDownloadableVersions": "다운로드할 버전이 없어!",
+      "searchInstalled": "설치된 버전 찾기~",
+      "searchDownloadable": "다운로드 버전 찾기~",
+      "onlyShowDownloadable": "다운로드 가능한 것만",
+      "clearCacheRefresh": "캐시 지우고 새로고침!",
+      "loadingMore": "더 불러오는 중이야~",
+      "allLoaded": "전부 다 불러왔어!",
+      "clickToLoadMore": "더 불러오려면 클릭해줘!",
+      "lts": "LTS",
+      "mts": "MTS",
+      "beta": "베타"
+    },
+    "apps": {
+      "title": "앱들",
+      "installed": "설치된 앱들",
+      "noAppsFound": "앱이 없넹?",
+      "searchApps": "앱 찾아볼까~?",
+      "allVersions": "전체 버전",
+      "relatedApps": "같이 지워질 앱들이야:",
+      "openInExplorer": "폴더에서 보기",
+      "deleteApp": "앱 삭제하기"
+    },
+    "widgets": {
+      "title": "위젯들",
+      "noWidgetsFound": "엥? 위젯이 없어!",
+      "noWidgetsRegistered": "등록된 위젯이 없어!",
+      "noWidgetsMatching": "\"{term}\" 찾는 위젯이 없넹?",
+      "addWidget": "위젯 추가!",
+      "addNewWidget": "새 위젯 추가하기",
+      "clickToAdd": "클릭해서 위젯 추가해줘~",
+      "createWidget": "위젯 만들기",
+      "addExistingWidget": "기존 위젯 추가",
+      "removeWidget": "위젯 빼기",
+      "selectWidget": "위젯 골라봐~!",
+      "searchWidgets": "위젯 찾기~",
+      "caption": "위젯 이름",
+      "enterCaption": "위젯 이름 입력해줘~",
+      "absolutePath": "경로",
+      "pathPlaceholder": "C:\\위젯\\폴더\\경로",
+      "selectFolder": "위젯 폴더 선택",
+      "packageManager": "패키지 매니저:",
+      "install": "설치 ({count}개 위젯)",
+      "installing": "설치하는 중이야~ 슝슝!",
+      "buildDeploy": "빌드 + 배포 ({widgetCount}개 위젯 → {appCount}개 앱)",
+      "deployOnly": "배포만 ({widgetCount}개 위젯 → {appCount}개 앱)",
+      "building": "빌드하는 중~",
+      "deploying": "배포하는 중이야~",
+      "buildingAndDeploying": "빌드하고 배포 중! 얍얍!"
+    },
+    "preview": {
+      "title": "위젯 미리보기",
+      "selectWidget": "미리볼 위젯 골라봐~!",
+      "selectToViewProperties": "위젯 선택하면 프로퍼티 보여줄게!",
+      "properties": "프로퍼티",
+      "noProperties": "설정할 프로퍼티가 없어!",
+      "loadingProperties": "프로퍼티 불러오는 중이야~",
+      "general": "기본",
+      "buildingWidget": "위젯 빌드하는 중~",
+      "emptyState": "위젯 고르고, 🔨▶️ 누르면~\n마법이 일어날 거야! 헤헤",
+      "buildPreview": "미리보기 빌드",
+      "runPreview": "미리보기 실행!"
+    },
+    "modals": {
+      "download": {
+        "title": "설치 확인",
+        "installTitle": "Mendix Studio Pro {version} 설치할까?",
+        "description": "Mendix Studio Pro {version} 다운받고 설치할 거야!",
+        "extractBuildNumber": "Mendix에서 빌드 번호 가져오기",
+        "downloadInstaller": "설치 파일 다운로드 (~600MB)",
+        "launchWizard": "설치 마법사 실행하기",
+        "wizardGuide": "설치 마법사가 나머지 단계를 도와줄 거야!",
+        "extracting": "빌드 번호 찾는 중~",
+        "settingUp": "다운로드 준비 중~",
+        "downloading": "다운로드 중이야~",
+        "launchingInstaller": "설치 프로그램 실행 중!",
+        "launchSuccess": "설치 파일 실행 성공!",
+        "setupSuccess": "설치 파일 실행됐어! 짜잔~",
+        "followWizard": "설치 마법사 따라가면 끝이야!",
+        "installFailed": "으앙... 설치 실패했어ㅠㅠ",
+        "invalidVersion": "버전 정보가 이상해!",
+        "startInstallation": "설치 시작!",
+        "pleaseWait": "기다려줘~ 시간이 좀 걸릴 수 있어!"
+      },
+      "widget": {
+        "title": "위젯 추가!",
+        "actionTitle": "위젯 메뉴",
+        "chooseAction": "뭘 할지 골라줘~!",
+        "invalidWidget": "유효하지 않은 Mendix 위젯이야!\n\n올바른 Mendix 위젯은 'src/package.xml' 파일이 있고 'mendix' 네임스페이스가 있어야 해!",
+        "validationError": "검증 오류: {error}\n\n'src/package.xml' 파일이 있는 올바른 Mendix 위젯인지 확인해줘!"
+      },
+      "confirm": {
+        "title": "확인",
+        "processing": "처리 중이야~"
+      },
+      "buildResult": {
+        "title": "빌드 & 배포 오류",
+        "failedCount": "실패 ({count}개)",
+        "deployResults": "배포 결과",
+        "buildDeployResults": "빌드 & 배포 결과"
+      },
+      "studioPro": {
+        "uninstallTitle": "🍓 Studio Pro 삭제할 거야?",
+        "uninstallMessage": "진짜진짜 Studio Pro {version} 삭제할 거야? ✨\n\n한번 없어지면 다시 못 돌아와! 잘 생각해봐, 알겠지? 💝",
+        "uninstallOnly": "삭제만 할래",
+        "uninstallAndDeleteApps": "삭제 + 앱도 지우기"
+      },
+      "widgetRemove": {
+        "title": "🍓 위젯 목록에서 뺄까?",
+        "message": "\"{caption}\"을(를) 위젯 목록에서 뺄까? 🎀\n\n걱정 마! 파일은 그대로 있어~ 목록에서만 빠지는 거야! 🌟"
+      },
+      "appDelete": {
+        "title": "🍓 이 앱 삭제할 거야?",
+        "message": "{name} 정말 삭제할 거야? 🥺\n\n한번 지우면 되돌릴 수 없어! 진짜 괜찮아? 💕",
+        "deleteFailed": "앱 삭제 실패했어ㅠㅠ: {error}"
+      }
+    },
+    "errors": {
+      "generic": "어? 뭔가 잘못됐어!",
+      "network": "네트워크 오류야!",
+      "notFound": "찾을 수가 없어!",
+      "launchFailed": "실행 실패했어ㅠㅠ",
+      "uninstallFailed": "삭제 실패했어ㅠㅠ",
+      "downloadFailed": "다운로드 실패했어ㅠㅠ",
+      "deleteFailed": "삭제 실패했어ㅠㅠ"
+    }
+  }
+}

@@ -31,6 +31,7 @@ pub enum StorageKey {
     SelectedWidgets,
     WidgetOrder,
     DownloadableVersionsCache,
+    Locale,
 }
 
 impl StorageKey {
@@ -49,9 +50,9 @@ impl StorageKey {
             StorageKey::SelectedWidgets => "selectedWidgets",
             StorageKey::WidgetOrder => "widgetOrder",
             StorageKey::DownloadableVersionsCache => "downloadableVersionsCache",
+            StorageKey::Locale => "locale",
         }
     }
-
 }
 
 impl TryFrom<&str> for StorageKey {
@@ -69,6 +70,7 @@ impl TryFrom<&str> for StorageKey {
             "selectedWidgets" => Ok(StorageKey::SelectedWidgets),
             "widgetOrder" => Ok(StorageKey::WidgetOrder),
             "downloadableVersionsCache" => Ok(StorageKey::DownloadableVersionsCache),
+            "locale" => Ok(StorageKey::Locale),
             _ => Err(format!("Unknown storage key: {}", value)),
         }
     }
@@ -96,6 +98,7 @@ pub struct AppState {
     pub selected_widgets: Option<Value>,
     pub widget_order: Option<Value>,
     pub downloadable_versions_cache: Option<Value>,
+    pub locale: Option<String>,
 }
 
 impl Default for AppState {
@@ -111,6 +114,7 @@ impl Default for AppState {
             selected_widgets: None,
             widget_order: None,
             downloadable_versions_cache: None,
+            locale: None,
         }
     }
 }
@@ -129,6 +133,7 @@ impl AppState {
             StorageKey::SelectedWidgets => self.selected_widgets.clone(),
             StorageKey::WidgetOrder => self.widget_order.clone(),
             StorageKey::DownloadableVersionsCache => self.downloadable_versions_cache.clone(),
+            StorageKey::Locale => self.locale.clone().map(Value::String),
         }
     }
 
@@ -154,6 +159,11 @@ impl AppState {
             StorageKey::WidgetOrder => self.widget_order = Some(value),
             StorageKey::DownloadableVersionsCache => {
                 self.downloadable_versions_cache = Some(value)
+            }
+            StorageKey::Locale => {
+                if let Some(s) = value.as_str() {
+                    self.locale = Some(s.to_string());
+                }
             }
         }
     }

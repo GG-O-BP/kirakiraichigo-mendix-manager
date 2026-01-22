@@ -3,29 +3,30 @@ import { memo } from "react";
 import PropertyGroupAccordion from "./PropertyGroupAccordion";
 import PreviewBuildControls from "./PreviewBuildControls";
 import { renderPropertyInputField } from "./propertyUtils";
+import { useI18n } from "../../../i18n/useI18n";
 
-const renderNoConfigurableProperties = () => (
+const renderNoConfigurableProperties = (t) => (
   <div className="no-properties">
     <span className="info-icon">ℹ️</span>
-    <p>No configurable properties found</p>
+    <p>{R.pathOr("No properties to set!", ["preview", "noProperties"], t)}</p>
   </div>
 );
 
-const renderPropertiesLoadingState = () => (
+const renderPropertiesLoadingState = (t) => (
   <div className="property-loading">
     <span className="loading-icon">⏳</span>
-    <p>Loading widget properties...</p>
+    <p>{R.pathOr("Loading properties~", ["preview", "loadingProperties"], t)}</p>
   </div>
 );
 
-const renderNoWidgetSelectedState = () => (
+const renderNoWidgetSelectedState = (t) => (
   <div className="empty-state">
     <span className="empty-state-icon">🍓</span>
-    <p className="empty-state-message">Select a widget to view its properties</p>
+    <p className="empty-state-message">{R.pathOr("Pick a widget to see its properties!", ["preview", "selectToViewProperties"], t)}</p>
   </div>
 );
 
-const RootPropertyGroup = memo(({ properties, updateProperty, arrayHandlers, visibleKeys, rootProps }) => {
+const RootPropertyGroup = memo(({ properties, updateProperty, arrayHandlers, visibleKeys, rootProps, t }) => {
   if (R.isEmpty(rootProps)) return null;
 
   const filteredProps = visibleKeys
@@ -37,7 +38,7 @@ const RootPropertyGroup = memo(({ properties, updateProperty, arrayHandlers, vis
   return (
     <div className="property-group depth-0 expanded root-properties">
       <div className="property-group-header-static">
-        <span className="property-group-title">General</span>
+        <span className="property-group-title">{R.pathOr("General", ["preview", "general"], t)}</span>
         <span className="property-group-count">{R.length(filteredProps)}</span>
       </div>
       <div className="property-group-content">
@@ -61,6 +62,7 @@ const WidgetPropertyGroups = memo(({
   visibleKeys,
   groupCounts,
   definition,
+  t,
 }) => {
   const rootProperties = R.propOr([], "properties", definition);
   const propertyGroups = R.propOr([], "propertyGroups", definition);
@@ -73,7 +75,7 @@ const WidgetPropertyGroups = memo(({
   const totalVisibleCount = R.length(visibleRootProps) + visibleGroupsCount;
 
   if (totalVisibleCount === 0) {
-    return renderNoConfigurableProperties();
+    return renderNoConfigurableProperties(t);
   }
 
   const visibleGroups = R.filter((group) => {
@@ -89,6 +91,7 @@ const WidgetPropertyGroups = memo(({
         arrayHandlers={arrayHandlers}
         visibleKeys={visibleKeys}
         rootProps={rootProperties}
+        t={t}
       />
       {R.map(
         (group) => (
@@ -131,43 +134,48 @@ const PropertiesPanel = memo(({
   handleBuildAndRun,
   handleRunOnly,
   distExists,
-}) => (
-  <div className="preview-middle">
-    <div className="properties-header">
-      <h3>Properties</h3>
-      <PreviewBuildControls
-        selectedWidget={selectedWidget}
-        packageManager={packageManager}
-        setPackageManager={setPackageManager}
-        isBuilding={isBuilding}
-        buildError={buildError}
-        handleBuildAndRun={handleBuildAndRun}
-        handleRunOnly={handleRunOnly}
-        distExists={distExists}
-      />
-    </div>
-    <div className="property-section">
-      {selectedWidget ? (
-        widgetDefinition ? (
-          <WidgetPropertyGroups
-            properties={properties}
-            updateProperty={updateProperty}
-            arrayHandlers={arrayHandlers}
-            expandedGroups={expandedGroups}
-            toggleGroup={toggleGroup}
-            visibleKeys={visibleKeys}
-            groupCounts={groupCounts}
-            definition={widgetDefinition}
-          />
+}) => {
+  const { t } = useI18n();
+
+  return (
+    <div className="preview-middle">
+      <div className="properties-header">
+        <h3>{R.pathOr("Properties", ["preview", "properties"], t)}</h3>
+        <PreviewBuildControls
+          selectedWidget={selectedWidget}
+          packageManager={packageManager}
+          setPackageManager={setPackageManager}
+          isBuilding={isBuilding}
+          buildError={buildError}
+          handleBuildAndRun={handleBuildAndRun}
+          handleRunOnly={handleRunOnly}
+          distExists={distExists}
+        />
+      </div>
+      <div className="property-section">
+        {selectedWidget ? (
+          widgetDefinition ? (
+            <WidgetPropertyGroups
+              properties={properties}
+              updateProperty={updateProperty}
+              arrayHandlers={arrayHandlers}
+              expandedGroups={expandedGroups}
+              toggleGroup={toggleGroup}
+              visibleKeys={visibleKeys}
+              groupCounts={groupCounts}
+              definition={widgetDefinition}
+              t={t}
+            />
+          ) : (
+            renderPropertiesLoadingState(t)
+          )
         ) : (
-          renderPropertiesLoadingState()
-        )
-      ) : (
-        renderNoWidgetSelectedState()
-      )}
+          renderNoWidgetSelectedState(t)
+        )}
+      </div>
     </div>
-  </div>
-));
+  );
+});
 
 PropertiesPanel.displayName = "PropertiesPanel";
 

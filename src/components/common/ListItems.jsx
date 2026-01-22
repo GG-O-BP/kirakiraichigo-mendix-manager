@@ -1,6 +1,7 @@
 import * as R from "ramda";
 import { memo, useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useI18n } from "../../i18n/useI18n";
 
 const UNINSTALL_BUTTON_GRADIENT = {
   background: "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",
@@ -29,14 +30,16 @@ const executeWithStoppedPropagation = R.curry((onClick, e) =>
 );
 
 const renderLaunchButton = R.curry(
-  (onLaunch, version, isLaunching, isUninstalling) => (
+  (onLaunch, version, isLaunching, isUninstalling, t) => (
     <button
       className="install-button"
       onClick={executeWithStoppedPropagation(() => onLaunch(version))}
       disabled={isLaunching || !version.is_valid || isUninstalling}
     >
       <span className="button-icon">▶️</span>
-      {isLaunching ? "Launching..." : "Launch"}
+      {isLaunching
+        ? R.pathOr("Launching...", ["common", "launching"], t)
+        : R.pathOr("Launch", ["common", "launch"], t)}
     </button>
   ),
 );
@@ -65,13 +68,14 @@ export const MendixVersionListItem = memo(
     isSelected,
     onClick,
   }) => {
-    const [statusText, setStatusText] = useState("Loading...");
+    const { t } = useI18n();
+    const [statusText, setStatusText] = useState(R.pathOr("Loading...", ["common", "loading"], t));
 
     useEffect(() => {
       invokeGetVersionStatusText(isLaunching, isUninstalling, version.install_date)
         .then(setStatusText)
-        .catch(() => setStatusText("Date unknown"));
-    }, [isLaunching, isUninstalling, version.install_date]);
+        .catch(() => setStatusText(R.pathOr("Date unknown", ["common", "dateUnknown"], t)));
+    }, [isLaunching, isUninstalling, version.install_date, t]);
 
     const className = joinTruthyClassNames([
       "version-list-item",
@@ -95,7 +99,7 @@ export const MendixVersionListItem = memo(
           </div>
         </div>
         <div style={INLINE_FLEX_GAP}>
-          {renderLaunchButton(onLaunch, version, isLaunching, isUninstalling)}
+          {renderLaunchButton(onLaunch, version, isLaunching, isUninstalling, t)}
           {renderUninstallButton(
             onUninstall,
             version,
@@ -117,13 +121,14 @@ const renderAppVersionBadge = R.curry((version) =>
 );
 
 export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
-  const [formattedDate, setFormattedDate] = useState("Loading...");
+  const { t } = useI18n();
+  const [formattedDate, setFormattedDate] = useState(R.pathOr("Loading...", ["common", "loading"], t));
 
   useEffect(() => {
-    invokeFormatDateWithFallback(app.last_modified, "Date unknown")
+    invokeFormatDateWithFallback(app.last_modified, R.pathOr("Date unknown", ["common", "dateUnknown"], t))
       .then(setFormattedDate)
-      .catch(() => setFormattedDate("Date unknown"));
-  }, [app.last_modified]);
+      .catch(() => setFormattedDate(R.pathOr("Date unknown", ["common", "dateUnknown"], t)));
+  }, [app.last_modified, t]);
 
   const className = joinTruthyClassNames([
     "version-list-item",

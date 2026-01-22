@@ -15,7 +15,9 @@
       "Bash(git fetch:*)",
       "Bash(git cat-file:*)",
       "Bash(git show:*)",
-      "Bash(cargo test:*)"
+      "Bash(cargo test:*)",
+      "Bash(xargs -I {} bash -c \"grep -l ''\"\".*\"\"'' ''{}''\")",
+      "Bash(bun add:*)"
     ]
   }
 }

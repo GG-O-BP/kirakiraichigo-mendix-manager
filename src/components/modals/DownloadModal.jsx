@@ -1,5 +1,6 @@
 import * as R from "ramda";
 import { memo, useState, useEffect, useRef, useCallback } from "react";
+import { useI18n } from "../../i18n/useI18n";
 import "../../styles/components/download-modal.css";
 
 const DOWNLOAD_STEPS = {
@@ -12,60 +13,38 @@ const DOWNLOAD_STEPS = {
   ERROR: "error",
 };
 
-const STEP_CONFIG = {
-  [DOWNLOAD_STEPS.CONFIRM]: {
-    title: "Confirm Installation",
-    icon: "🤔",
-    startProgress: 0,
-    endProgress: 0,
-    estimatedDuration: 0,
-  },
-  [DOWNLOAD_STEPS.EXTRACTING_BUILD]: {
-    title: "Extracting Build Number",
-    icon: "🔍",
-    startProgress: 0,
-    endProgress: 2,
-    estimatedDuration: 1200,
-  },
-  [DOWNLOAD_STEPS.SETTING_PATH]: {
-    title: "Setting Up Download",
-    icon: "📁",
-    startProgress: 2,
-    endProgress: 5,
-    estimatedDuration: 800,
-  },
-  [DOWNLOAD_STEPS.DOWNLOADING]: {
-    title: "Downloading Installer",
-    icon: "⬇️",
-    startProgress: 5,
-    endProgress: 95,
-    estimatedDuration: 250000,
-  },
-  [DOWNLOAD_STEPS.LAUNCHING]: {
-    title: "Launching Installer",
-    icon: "🚀",
-    startProgress: 95,
-    endProgress: 99,
-    estimatedDuration: 1500,
-  },
-  [DOWNLOAD_STEPS.COMPLETED]: {
-    title: "Setup File Launched Successfully",
-    icon: "🎯",
-    startProgress: 100,
-    endProgress: 100,
-    estimatedDuration: 0,
-  },
-  [DOWNLOAD_STEPS.ERROR]: {
-    title: "Installation Failed",
-    icon: "❌",
-    startProgress: 0,
-    endProgress: 0,
-    estimatedDuration: 0,
-  },
+const STEP_TITLE_KEYS = {
+  [DOWNLOAD_STEPS.CONFIRM]: "title",
+  [DOWNLOAD_STEPS.EXTRACTING_BUILD]: "extracting",
+  [DOWNLOAD_STEPS.SETTING_PATH]: "settingUp",
+  [DOWNLOAD_STEPS.DOWNLOADING]: "downloading",
+  [DOWNLOAD_STEPS.LAUNCHING]: "launchingInstaller",
+  [DOWNLOAD_STEPS.COMPLETED]: "launchSuccess",
+  [DOWNLOAD_STEPS.ERROR]: "installFailed",
 };
 
-const getStepConfig = (step) =>
-  STEP_CONFIG[step] || STEP_CONFIG[DOWNLOAD_STEPS.CONFIRM];
+const STEP_ICONS = {
+  [DOWNLOAD_STEPS.CONFIRM]: "🤔",
+  [DOWNLOAD_STEPS.EXTRACTING_BUILD]: "🔍",
+  [DOWNLOAD_STEPS.SETTING_PATH]: "📁",
+  [DOWNLOAD_STEPS.DOWNLOADING]: "⬇️",
+  [DOWNLOAD_STEPS.LAUNCHING]: "🚀",
+  [DOWNLOAD_STEPS.COMPLETED]: "🎯",
+  [DOWNLOAD_STEPS.ERROR]: "❌",
+};
+
+const STEP_PROGRESS = {
+  [DOWNLOAD_STEPS.CONFIRM]: { start: 0, end: 0, duration: 0 },
+  [DOWNLOAD_STEPS.EXTRACTING_BUILD]: { start: 0, end: 2, duration: 1200 },
+  [DOWNLOAD_STEPS.SETTING_PATH]: { start: 2, end: 5, duration: 800 },
+  [DOWNLOAD_STEPS.DOWNLOADING]: { start: 5, end: 95, duration: 250000 },
+  [DOWNLOAD_STEPS.LAUNCHING]: { start: 95, end: 99, duration: 1500 },
+  [DOWNLOAD_STEPS.COMPLETED]: { start: 100, end: 100, duration: 0 },
+  [DOWNLOAD_STEPS.ERROR]: { start: 0, end: 0, duration: 0 },
+};
+
+const getStepProgress = (step) =>
+  STEP_PROGRESS[step] || STEP_PROGRESS[DOWNLOAD_STEPS.CONFIRM];
 
 const isCancellableStep = (step) =>
   R.includes(step, [DOWNLOAD_STEPS.CONFIRM, DOWNLOAD_STEPS.ERROR]);
@@ -73,22 +52,20 @@ const isCancellableStep = (step) =>
 const isProgressVisibleStep = (step) =>
   !R.includes(step, [DOWNLOAD_STEPS.CONFIRM, DOWNLOAD_STEPS.ERROR]);
 
-const getAnimationTargetProgress = (config) => config.endProgress;
-
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
-const ErrorMessage = (error) => (
+const ErrorMessage = (error, t) => (
   <div className="error-container">
     <div className="error-icon">⚠️</div>
     <div className="error-content">
-      <div className="error-title">Installation Failed</div>
+      <div className="error-title">{R.pathOr("Installation Failed", ["modals", "download", "installFailed"], t)}</div>
       <div className="error-message">{error}</div>
     </div>
   </div>
 );
 
 const ActionButtons = R.curry(
-  (currentStep, onConfirm, onCancel, onClose) => {
+  (currentStep, onConfirm, onCancel, onClose, t) => {
     const showCancel = isCancellableStep(currentStep);
     const showConfirm = currentStep === DOWNLOAD_STEPS.CONFIRM;
     const showClose = R.includes(currentStep, [
@@ -100,18 +77,18 @@ const ActionButtons = R.curry(
       <div className="modal-actions">
         {showCancel && (
           <button className="btn btn-secondary" onClick={onCancel}>
-            Cancel
+            {R.pathOr("Cancel", ["common", "cancel"], t)}
           </button>
         )}
         {showConfirm && (
           <button className="btn btn-primary" onClick={onConfirm}>
             <span className="btn-icon">🍓</span>
-            Start Installation
+            {R.pathOr("Start Installation", ["modals", "download", "startInstallation"], t)}
           </button>
         )}
         {showClose && (
           <button className="btn btn-primary" onClick={onClose}>
-            Close
+            {R.pathOr("Close", ["common", "close"], t)}
           </button>
         )}
       </div>
@@ -130,7 +107,7 @@ const useAnimatedProgress = (currentStep, isProcessing) => {
       animationRef.current = null;
     }
 
-    const config = getStepConfig(currentStep);
+    const config = getStepProgress(currentStep);
 
     if (currentStep === DOWNLOAD_STEPS.COMPLETED) {
       setProgress(100);
@@ -141,19 +118,19 @@ const useAnimatedProgress = (currentStep, isProcessing) => {
       currentStep === DOWNLOAD_STEPS.ERROR ||
       currentStep === DOWNLOAD_STEPS.CONFIRM
     ) {
-      setProgress(config.startProgress);
+      setProgress(config.start);
       return;
     }
 
     if (!isProcessing) {
-      setProgress(config.startProgress);
+      setProgress(config.start);
       return;
     }
 
     stepStartTimeRef.current = performance.now();
-    const startProgress = config.startProgress;
-    const targetProgress = getAnimationTargetProgress(config);
-    const duration = config.estimatedDuration;
+    const startProgress = config.start;
+    const targetProgress = config.end;
+    const duration = config.duration;
 
     const animate = (currentTime) => {
       const elapsed = currentTime - stepStartTimeRef.current;
@@ -183,11 +160,19 @@ const useAnimatedProgress = (currentStep, isProcessing) => {
 
 const DownloadModal = memo(
   ({ isOpen, version, onDownload, onClose, onCancel }) => {
+    const { t } = useI18n();
     const [currentStep, setCurrentStep] = useState(DOWNLOAD_STEPS.CONFIRM);
     const [error, setError] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
     const animatedProgress = useAnimatedProgress(currentStep, isProcessing);
+
+    const getStepTitle = (step) =>
+      R.pathOr(
+        STEP_TITLE_KEYS[step],
+        ["modals", "download", STEP_TITLE_KEYS[step]],
+        t,
+      );
 
     useEffect(() => {
       if (isOpen) {
@@ -199,7 +184,7 @@ const DownloadModal = memo(
 
     const handleDownload = useCallback(() => {
       if (!version?.version) {
-        setError("Invalid version data");
+        setError(R.pathOr("Invalid version data", ["modals", "download", "invalidVersion"], t));
         setCurrentStep(DOWNLOAD_STEPS.ERROR);
         return;
       }
@@ -230,7 +215,7 @@ const DownloadModal = memo(
       };
 
       executeDownload();
-    }, [version, onDownload]);
+    }, [version, onDownload, t]);
 
     const handleClose = useCallback(() => {
       if (!isProcessing) {
@@ -263,15 +248,20 @@ const DownloadModal = memo(
       return null;
     }
 
-    const stepConfig = getStepConfig(currentStep);
     const showProgressBar = isProgressVisibleStep(currentStep);
+    const stepTitle = getStepTitle(currentStep);
+    const stepIcon = STEP_ICONS[currentStep];
 
     return (
       <div className="modal-overlay">
         <div className="download-modal">
           <div className="modal-header">
             <h2 className="modal-title">
-              Install Mendix Studio Pro {version?.version}
+              {R.pathOr(
+                `Install Mendix Studio Pro ${version?.version}`,
+                ["modals", "download", "installTitle"],
+                t,
+              ).replace("{version}", version?.version || "")}
             </h2>
             {!isProcessing && (
               <button
@@ -290,17 +280,23 @@ const DownloadModal = memo(
                 <div className="confirm-icon">🍓</div>
                 <div className="confirm-message">
                   <p>
-                    This will download and install{" "}
-                    <strong>Mendix Studio Pro {version?.version}</strong>
+                    {R.pathOr(
+                      `This will download and install Mendix Studio Pro ${version?.version}`,
+                      ["modals", "download", "description"],
+                      t,
+                    ).replace("{version}", version?.version || "")}
                   </p>
                   <ul className="install-steps">
-                    <li>Extract build number from Mendix marketplace</li>
-                    <li>Download the installer file (~600MB)</li>
-                    <li>Launch the installation wizard</li>
+                    <li>{R.pathOr("Extract build number from Mendix marketplace", ["modals", "download", "extractBuildNumber"], t)}</li>
+                    <li>{R.pathOr("Download the installer file (~600MB)", ["modals", "download", "downloadInstaller"], t)}</li>
+                    <li>{R.pathOr("Launch the installation wizard", ["modals", "download", "launchWizard"], t)}</li>
                   </ul>
                   <p className="confirm-note">
-                    The installation wizard will guide you through the final
-                    setup steps.
+                    {R.pathOr(
+                      "The installation wizard will guide you through the final setup steps.",
+                      ["modals", "download", "wizardGuide"],
+                      t,
+                    )}
                   </p>
                 </div>
               </div>
@@ -308,14 +304,14 @@ const DownloadModal = memo(
 
             {currentStep === DOWNLOAD_STEPS.ERROR &&
               error &&
-              ErrorMessage(error)}
+              ErrorMessage(error, t)}
 
             {showProgressBar && (
               <>
                 <span style={{ fontSize: "1.2rem", marginRight: "8px" }}>
                   {isProcessing && currentStep !== DOWNLOAD_STEPS.COMPLETED
                     ? "🍓"
-                    : stepConfig.icon}
+                    : stepIcon}
                 </span>
                 <span
                   style={{
@@ -324,7 +320,7 @@ const DownloadModal = memo(
                     color: "var(--theme-primary)",
                   }}
                 >
-                  {stepConfig.title}
+                  {stepTitle}
                 </span>
                 <br />
                 <div
@@ -386,7 +382,7 @@ const DownloadModal = memo(
                 <strong
                   style={{ color: "var(--theme-primary)", fontSize: "1rem" }}
                 >
-                  Setup file launched successfully!
+                  {R.pathOr("Setup file launched successfully!", ["modals", "download", "setupSuccess"], t)}
                 </strong>
                 <br />
                 <span
@@ -395,8 +391,11 @@ const DownloadModal = memo(
                     fontSize: "0.9rem",
                   }}
                 >
-                  Please follow the installation wizard to complete the setup
-                  process.
+                  {R.pathOr(
+                    "Please follow the installation wizard to complete the setup process.",
+                    ["modals", "download", "followWizard"],
+                    t,
+                  )}
                 </span>
               </>
             )}
@@ -408,6 +407,7 @@ const DownloadModal = memo(
               handleDownload,
               handleCancel,
               handleClose,
+              t,
             )}
 
             {isProcessing && (
@@ -419,7 +419,7 @@ const DownloadModal = memo(
                   marginTop: "8px",
                 }}
               >
-                Please wait, this process may take a few minutes...
+                {R.pathOr("Please wait, this process may take a few minutes...", ["modals", "download", "pleaseWait"], t)}
               </div>
             )}
           </div>
