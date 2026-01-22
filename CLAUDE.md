@@ -174,5 +174,5 @@ R.propOr([], "items", data)
 - **Async invoke**: Always `await` Tauri invoke calls; use `wrapAsync` helper for error handling.
 - **LightningCSS**: Don't use PostCSS plugins - Vite config uses lightningcss as CSS transformer.
 - **React 19**: Frontend uses React 19.x with concurrent features.
-- **Tauri plugins**: Import from `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@tauri-apps/plugin-shell`. Storage operations use `tauri-plugin-fs`.
+- **Tauri plugins**: Import from `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@tauri-apps/plugin-shell`. Backend storage uses native Rust filesystem operations to `%APPDATA%/kirakiraichigo-mendix-manager/app_state.json`.
 - **Package Manager**: Development uses Bun; widget builds support npm, pnpm, yarn, bun (user-selectable).

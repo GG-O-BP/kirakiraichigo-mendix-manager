@@ -128,7 +128,9 @@ const PropertiesPanel = memo(({
   setPackageManager,
   isBuilding,
   buildError,
-  handleRunPreview,
+  handleBuildAndRun,
+  handleRunOnly,
+  distExists,
 }) => (
   <div className="preview-middle">
     <div className="properties-header">
@@ -139,7 +141,9 @@ const PropertiesPanel = memo(({
         setPackageManager={setPackageManager}
         isBuilding={isBuilding}
         buildError={buildError}
-        handleRunPreview={handleRunPreview}
+        handleBuildAndRun={handleBuildAndRun}
+        handleRunOnly={handleRunOnly}
+        distExists={distExists}
       />
     </div>
     <div className="property-section">

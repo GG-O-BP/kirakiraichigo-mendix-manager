@@ -20,13 +20,12 @@ pub struct BuildWidgetResponse {
 }
 
 #[tauri::command]
-pub async fn build_widget_for_preview(
+pub async fn build_and_run_preview(
     widget_path: String,
     package_manager: String,
 ) -> Result<BuildWidgetResponse, String> {
     let path = Path::new(&widget_path);
 
-    // Use the common install_and_build_widget function
     if let Err(e) = install_and_build_widget(&widget_path, &package_manager) {
         return Ok(BuildWidgetResponse {
             success: false,
@@ -38,6 +37,22 @@ pub async fn build_widget_for_preview(
         });
     }
 
+    read_bundle_and_metadata(path).await
+}
+
+#[tauri::command]
+pub async fn run_widget_preview_only(widget_path: String) -> Result<BuildWidgetResponse, String> {
+    let path = Path::new(&widget_path);
+    read_bundle_and_metadata(path).await
+}
+
+#[tauri::command]
+pub fn check_dist_exists(widget_path: String) -> bool {
+    let path = Path::new(&widget_path);
+    path.join("dist").exists()
+}
+
+async fn read_bundle_and_metadata(path: &Path) -> Result<BuildWidgetResponse, String> {
     match read_widget_bundle(path).await {
         Ok((bundle, css)) => match parse_widget_metadata(path) {
             Ok(metadata) => Ok(BuildWidgetResponse {
@@ -63,7 +78,7 @@ pub async fn build_widget_for_preview(
             css_content: None,
             widget_name: None,
             widget_id: None,
-            error: Some(format!("Build succeeded but failed to read bundle: {}", e)),
+            error: Some(e),
         }),
     }
 }

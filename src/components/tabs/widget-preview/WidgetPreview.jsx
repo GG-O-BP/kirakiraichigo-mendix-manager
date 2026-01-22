@@ -1,5 +1,5 @@
 import * as R from "ramda";
-import { memo } from "react";
+import { memo, useEffect } from "react";
 import {
   useWidgetCollectionContext,
   useWidgetPreviewContext,
@@ -61,8 +61,15 @@ const WidgetPreview = memo(() => {
     buildError,
     packageManager,
     setPackageManager,
-    handleRunPreview,
+    handleBuildAndRun,
+    handleRunOnly,
+    distExists,
+    checkDistExists,
   } = usePreviewBuild();
+
+  useEffect(() => {
+    checkDistExists(R.prop("path", selectedWidget));
+  }, [selectedWidget, checkDistExists]);
 
   const modalHandlers = {
     setShowWidgetModal,
@@ -98,7 +105,9 @@ const WidgetPreview = memo(() => {
         setPackageManager={setPackageManager}
         isBuilding={isBuilding}
         buildError={buildError}
-        handleRunPreview={handleRunPreview}
+        handleBuildAndRun={handleBuildAndRun}
+        handleRunOnly={handleRunOnly}
+        distExists={distExists}
       />
       <PreviewPanel
         previewData={previewData}

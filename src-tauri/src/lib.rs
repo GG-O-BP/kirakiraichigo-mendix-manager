@@ -34,7 +34,7 @@ pub use widget_parser::{
     load_widget_complete_data, parse_widget_properties_as_spec, read_editor_config,
     transform_properties_to_spec, validate_mendix_widget,
 };
-pub use widget_preview::build_widget_for_preview;
+pub use widget_preview::{build_and_run_preview, check_dist_exists, run_widget_preview_only};
 
 pub use data_processing::version_utils::{
     calculate_next_page_number, compare_versions, create_version_options, exclude_installed_versions,
@@ -89,7 +89,9 @@ pub fn run() {
             // ================================================================
             // Widget preview & build
             // ================================================================
-            build_widget_for_preview,
+            build_and_run_preview,
+            run_widget_preview_only,
+            check_dist_exists,
             build_and_deploy_from_selections,
             // ================================================================
             // Storage

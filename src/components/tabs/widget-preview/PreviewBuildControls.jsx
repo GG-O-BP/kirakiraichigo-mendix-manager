@@ -10,7 +10,9 @@ const PreviewBuildControls = memo(({
   setPackageManager,
   isBuilding,
   buildError,
-  handleRunPreview,
+  handleBuildAndRun,
+  handleRunOnly,
+  distExists,
 }) => (
   <>
     <div className="preview-controls">
@@ -22,11 +24,17 @@ const PreviewBuildControls = memo(({
       />
       <button
         className="run-preview-button"
-        onClick={() => handleRunPreview(selectedWidget)}
+        onClick={() => handleBuildAndRun(selectedWidget)}
         disabled={R.or(R.isNil(selectedWidget), isBuilding)}
       >
+        <span className="button-icon">{isBuilding ? "⏳" : "🔨▶️"}</span>
+      </button>
+      <button
+        className="run-only-button"
+        onClick={() => handleRunOnly(selectedWidget)}
+        disabled={R.or(R.or(R.isNil(selectedWidget), isBuilding), R.not(distExists))}
+      >
         <span className="button-icon">{isBuilding ? "⏳" : "▶️"}</span>
-        {isBuilding ? "Building..." : "Run Preview"}
       </button>
     </div>
     {R.ifElse(

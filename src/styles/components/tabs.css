@@ -498,13 +498,14 @@
     border-radius: var(--border-radius-sm);
 }
 
-/* ============= Run Preview Button ============= */
-.run-preview-button {
+/* ============= Run Preview Buttons ============= */
+.run-preview-button,
+.run-only-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-xs);
-    padding: var(--space-sm) var(--space-md);
+    padding: var(--space-sm);
     border: 1.5px solid var(--theme-border);
     border-radius: var(--border-radius-md);
     background: var(--theme-surface);
@@ -519,12 +520,14 @@
     box-shadow: 0 1px 3px var(--theme-shadow-color);
 }
 
-.run-preview-button .button-icon {
+.run-preview-button .button-icon,
+.run-only-button .button-icon {
     font-size: var(--font-size-base);
     transition: transform var(--transition-normal);
 }
 
-.run-preview-button:hover:not(:disabled) {
+.run-preview-button:hover:not(:disabled),
+.run-only-button:hover:not(:disabled) {
     background: var(--theme-hover-bg);
     border-color: var(--theme-primary-light);
     color: var(--theme-text);
@@ -532,22 +535,26 @@
     box-shadow: 0 4px 6px var(--theme-shadow-color);
 }
 
-.run-preview-button:hover:not(:disabled) .button-icon {
+.run-preview-button:hover:not(:disabled) .button-icon,
+.run-only-button:hover:not(:disabled) .button-icon {
     transform: scale(1.1);
 }
 
-.run-preview-button:active:not(:disabled) {
+.run-preview-button:active:not(:disabled),
+.run-only-button:active:not(:disabled) {
     transform: translateY(0);
     box-shadow: 0 1px 3px var(--theme-shadow-color);
 }
 
-.run-preview-button:disabled {
+.run-preview-button:disabled,
+.run-only-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     transform: none;
 }
 
-.run-preview-button:focus-visible {
+.run-preview-button:focus-visible,
+.run-only-button:focus-visible {
     outline: 2px solid var(--theme-primary);
     outline-offset: 2px;
 }
@@ -558,7 +565,8 @@
         align-items: flex-start;
     }
 
-    .run-preview-button {
+    .run-preview-button,
+    .run-only-button {
         width: 100%;
     }
 }
