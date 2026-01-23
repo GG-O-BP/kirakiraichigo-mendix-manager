@@ -162,6 +162,13 @@ fn extract_enumeration_value(
     extract_string_attribute(&attrs, b"key")
 }
 
+fn extract_selection_type_value(
+    attributes: Vec<quick_xml::events::attributes::Attribute>,
+) -> Option<String> {
+    let attrs: Vec<_> = attributes.into_iter().collect();
+    extract_string_attribute(&attrs, b"name")
+}
+
 fn increment_depth(state: ParseState) -> ParseState {
     ParseState {
         context: ParseContext {
@@ -529,6 +536,10 @@ fn process_start_event(
             .map_or(incremented_state.clone(), |value| {
                 add_option_to_current_property(incremented_state, value)
             }),
+        b"selectionType" => extract_selection_type_value(attributes)
+            .map_or(incremented_state.clone(), |value| {
+                add_option_to_current_property(incremented_state, value)
+            }),
         _ => {
             let element_name = String::from_utf8_lossy(name).to_string();
             set_current_element(incremented_state, element_name)
@@ -645,12 +656,33 @@ where
     Ok(state)
 }
 
+fn process_empty_event(
+    state: ParseState,
+    name: &[u8],
+    attributes: Vec<quick_xml::events::attributes::Attribute>,
+) -> ParseState {
+    match name {
+        b"selectionType" => extract_selection_type_value(attributes)
+            .map_or(state.clone(), |value| {
+                add_option_to_current_property(state, value)
+            }),
+        _ => state,
+    }
+}
+
 fn process_xml_event(state: ParseState, event: Event) -> ParseState {
     match event {
         Event::Start(e) => {
             let attributes: Result<Vec<_>, _> = e.attributes().collect();
             match attributes {
                 Ok(attrs) => process_start_event(state, e.name().as_ref(), attrs),
+                Err(_) => state,
+            }
+        }
+        Event::Empty(e) => {
+            let attributes: Result<Vec<_>, _> = e.attributes().collect();
+            match attributes {
+                Ok(attrs) => process_empty_event(state, e.name().as_ref(), attrs),
                 Err(_) => state,
             }
         }
@@ -824,6 +856,10 @@ fn read_editor_config_internal(widget_path: &str) -> Result<EditorConfigResult, 
     }
 }
 
+fn get_first_option_or_empty(options: &[String]) -> String {
+    options.first().cloned().unwrap_or_default()
+}
+
 fn initialize_property_values_internal(widget_path: &str) -> Result<HashMap<String, PropertyValue>, String> {
     let definition = parse_widget_xml(widget_path).map_err(|e| e.to_string())?;
     let properties = parse_widget_properties_enhanced(&definition);
@@ -841,7 +877,12 @@ fn initialize_property_values_internal(widget_path: &str) -> Result<HashMap<Stri
                 _ => PropertyValue::String(default),
             }
         } else {
-            get_default_value_for_type_internal(&prop.property_type, prop.is_list)
+            match prop.property_type.as_str() {
+                "enumeration" | "selection" => {
+                    PropertyValue::String(get_first_option_or_empty(&prop.options))
+                }
+                _ => get_default_value_for_type_internal(&prop.property_type, prop.is_list),
+            }
         };
 
         values.insert(prop.key, value);
@@ -1401,5 +1442,42 @@ mod tests {
         let regular_prop = &result.properties[2];
         assert_eq!(regular_prop.key, "regular");
         assert!(!regular_prop.is_list);
+    }
+
+    #[test]
+    fn test_parse_selection_type() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<widget id="com.example.MyWidget" needsEntityContext="true" xmlns="http://www.mendix.com/widget/1.0/">
+    <name>My Widget</name>
+    <description>Test widget with selection</description>
+    <properties>
+        <propertyGroup caption="Data">
+            <property key="datasource" type="datasource" isList="true" required="false">
+                <caption>Data source</caption>
+                <description>Data source for the grid</description>
+            </property>
+            <property key="selection" type="selection" dataSource="datasource" required="true">
+                <caption>Selection</caption>
+                <description>Selection for tracking</description>
+                <selectionTypes>
+                    <selectionType name="Multi"/>
+                </selectionTypes>
+            </property>
+        </propertyGroup>
+    </properties>
+</widget>"#;
+
+        let result = parse_xml_content(xml).unwrap();
+
+        assert_eq!(result.property_groups.len(), 1);
+        let data_group = &result.property_groups[0];
+        assert_eq!(data_group.caption, "Data");
+        assert_eq!(data_group.properties.len(), 2);
+
+        let selection_prop = &data_group.properties[1];
+        assert_eq!(selection_prop.key, "selection");
+        assert_eq!(selection_prop.property_type, "selection");
+        assert_eq!(selection_prop.options.len(), 1);
+        assert!(selection_prop.options.contains(&"Multi".to_string()));
     }
 }

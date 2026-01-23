@@ -144,15 +144,13 @@ const renderCheckbox = R.curry((property, value, onChange, disabled) => (
 
 const renderSelect = R.curry((property, value, onChange, disabled) => {
   const options = R.prop("options", property);
-  const needsPlaceholder = !R.includes("", options);
 
   return (
     <Dropdown
-      value={value || ""}
+      value={value || R.propOr("", 0, options)}
       onChange={onChange}
       options={options}
       disabled={disabled}
-      placeholder={needsPlaceholder ? "Select..." : null}
     />
   );
 });
@@ -327,6 +325,7 @@ const inputRenderers = {
   integer: renderNumberInput,
   decimal: renderNumberInput,
   enumeration: renderSelect,
+  selection: renderSelect,
   expression: renderTextarea,
   textTemplate: renderTextarea,
   file: renderFileInput,
