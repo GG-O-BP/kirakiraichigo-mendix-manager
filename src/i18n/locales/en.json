@@ -149,7 +149,8 @@
       },
       "confirm": {
         "title": "Confirm",
-        "processing": "Working on it~"
+        "processing": "Working on it~",
+        "confirm": "Delete it!"
       },
       "buildResult": {
         "title": "Build & Deploy Errors",

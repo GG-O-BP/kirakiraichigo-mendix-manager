@@ -36,14 +36,15 @@
 
     /* Font Families */
     --font-family-sans:
-        "Maple Mono", "TmoneyRoundWind", -apple-system, BlinkMacSystemFont,
-        "Segoe UI", "Roboto", "Hiragino Sans", "Noto Sans CJK JP", sans-serif;
+        "Maple Mono", "TmoneyRoundWind", "ZenMaruGothic", -apple-system,
+        BlinkMacSystemFont, "Segoe UI", "Roboto", "Hiragino Sans",
+        "Noto Sans CJK JP", sans-serif;
     --font-family-serif:
-        "Maple Mono", "TmoneyRoundWind", Georgia, Cambria, "Times New Roman",
-        Times, serif;
+        "Maple Mono", "TmoneyRoundWind", "ZenMaruGothic", Georgia, Cambria,
+        "Times New Roman", Times, serif;
     --font-family-mono:
-        "Maple Mono", "TmoneyRoundWind", "Courier New", "Monaco", "Consolas",
-        "Liberation Mono", monospace;
+        "Maple Mono", "TmoneyRoundWind", "ZenMaruGothic", "Courier New",
+        "Monaco", "Consolas", "Liberation Mono", monospace;
 }
 
 /* ============= Font Size Utilities ============= */

@@ -7,6 +7,13 @@ import { renderLoadingIndicator } from "../../common/LoadingIndicator";
 import { renderPanel } from "../../common/Panel";
 import { useI18n } from "../../../i18n/useI18n";
 
+const UNINSTALL_BUTTON_GRADIENT = {
+  background: "linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(220, 20, 60, 0.3) 100%)",
+  borderColor: "rgba(220, 20, 60, 0.4)",
+};
+
+const INLINE_FLEX_GAP = { display: "flex", gap: "8px" };
+
 const invokeCreateVersionOptions = async (versions) =>
   invoke("create_version_options", { versions });
 
@@ -34,6 +41,14 @@ const createAppClickHandler = R.curry((handleAppClick, app, e) =>
   )(),
 );
 
+const executeWithStoppedPropagation = R.curry((onClick, e) =>
+  R.pipe(
+    R.tap((e) => e.stopPropagation()),
+    R.tap(() => onClick()),
+    R.always(undefined),
+  )(e),
+);
+
 const renderAppIcon = R.curry((selectedApps, app) =>
   isAppSelected(selectedApps, app) ? "☑️" : "📁",
 );
@@ -46,7 +61,18 @@ const renderVersionBadge = R.ifElse(
   R.always(null),
 );
 
-const AppListItem = memo(({ app, selectedApps, handleAppClick, t }) => {
+const renderAppDeleteButton = R.curry((onDelete, app, t) => (
+  <button
+    className="install-button uninstall-button"
+    onClick={executeWithStoppedPropagation(() => onDelete(app))}
+    style={UNINSTALL_BUTTON_GRADIENT}
+    title={R.pathOr("Delete app", ["apps", "deleteApp"], t)}
+  >
+    <span className="button-icon">🗑️</span>
+  </button>
+));
+
+const AppListItem = memo(({ app, selectedApps, handleAppClick, onDelete, t }) => {
   const [formattedDate, setFormattedDate] = useState(R.pathOr("Loading...", ["common", "loading"], t));
 
   useEffect(() => {
@@ -70,13 +96,18 @@ const AppListItem = memo(({ app, selectedApps, handleAppClick, t }) => {
           </span>
         </div>
       </div>
+      {R.complement(R.isNil)(onDelete) && (
+        <div style={INLINE_FLEX_GAP}>
+          {renderAppDeleteButton(onDelete, app, t)}
+        </div>
+      )}
     </div>
   );
 });
 
 AppListItem.displayName = "AppListItem";
 
-const renderAppsList = R.curry((selectedApps, handleAppClick, apps, t) =>
+const renderAppsList = R.curry((selectedApps, handleAppClick, onDelete, apps, t) =>
   R.ifElse(
     R.isEmpty,
     () => renderLoadingIndicator("🍓", R.pathOr("No Mendix apps found", ["apps", "noAppsFound"], t)),
@@ -87,6 +118,7 @@ const renderAppsList = R.curry((selectedApps, handleAppClick, apps, t) =>
           app={app}
           selectedApps={selectedApps}
           handleAppClick={handleAppClick}
+          onDelete={onDelete}
           t={t}
         />
       ),
@@ -104,6 +136,7 @@ const AppsSelectionPanel = memo(({
   versionFilter,
   setVersionFilter,
   handleAppClick,
+  onDeleteApp,
 }) => {
   const { t } = useI18n();
   const defaultVersionFilter = {
@@ -141,7 +174,7 @@ const AppsSelectionPanel = memo(({
     key: "apps",
     className: "list-container",
     searchControls,
-    content: renderAppsList(selectedApps, handleAppClick, filteredApps, t),
+    content: renderAppsList(selectedApps, handleAppClick, onDeleteApp, filteredApps, t),
   });
 });
 

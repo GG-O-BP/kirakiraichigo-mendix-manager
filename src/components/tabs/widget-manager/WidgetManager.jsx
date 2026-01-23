@@ -62,6 +62,7 @@ const WidgetManager = memo(() => {
     setShowWidgetModal,
     setShowAddWidgetForm,
     handleWidgetDeleteClick,
+    openAppDeleteModal,
   } = modalContext;
 
   const modalHandlers = {
@@ -82,6 +83,7 @@ const WidgetManager = memo(() => {
         versionFilter={versionFilter}
         setVersionFilter={setVersionFilter}
         handleAppClick={handleAppClick}
+        onDeleteApp={openAppDeleteModal}
       />
       <WidgetsSelectionPanel
         widgets={widgets}

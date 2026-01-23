@@ -120,7 +120,19 @@ const renderAppVersionBadge = R.curry((version) =>
   ) : null,
 );
 
-export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
+const renderAppDeleteButton = R.curry((onDelete, app, isDisabled, t) => (
+  <button
+    className="install-button uninstall-button"
+    onClick={executeWithStoppedPropagation(() => onDelete(app))}
+    disabled={isDisabled}
+    style={UNINSTALL_BUTTON_GRADIENT}
+    title={R.pathOr("Delete app", ["apps", "deleteApp"], t)}
+  >
+    <span className="button-icon">🗑️</span>
+  </button>
+));
+
+export const MendixAppListItem = memo(({ app, isDisabled, onClick, onDelete }) => {
   const { t } = useI18n();
   const [formattedDate, setFormattedDate] = useState(R.pathOr("Loading...", ["common", "loading"], t));
 
@@ -156,6 +168,11 @@ export const MendixAppListItem = memo(({ app, isDisabled, onClick }) => {
           </span>
         </div>
       </div>
+      {R.complement(R.isNil)(onDelete) && (
+        <div style={INLINE_FLEX_GAP}>
+          {renderAppDeleteButton(onDelete, app, isDisabled, t)}
+        </div>
+      )}
     </div>
   );
 });

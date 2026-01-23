@@ -149,7 +149,8 @@
       },
       "confirm": {
         "title": "확인",
-        "processing": "처리 중이야~"
+        "processing": "처리 중이야~",
+        "confirm": "삭제할래"
       },
       "buildResult": {
         "title": "빌드 & 배포 오류",

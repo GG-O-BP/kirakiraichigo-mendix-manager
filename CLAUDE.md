@@ -39,6 +39,7 @@ KiraKira Ichigo ("KiraIchi") is a **Windows-only** Tauri-based desktop applicati
 **Import Conventions**:
 - Import utilities from `src/utils` (e.g., `import { STORAGE_KEYS, wrapAsync } from "../utils"`)
 - Import data processing from specific modules: `import { filterMendixApps } from "../utils/data-processing/appFiltering"`
+- Import Ramda as namespace: `import * as R from "ramda"`
 
 **Data Flow**:
 1. `App.jsx` initializes hooks via `useAppInitialization()` and `useContextValues()`
@@ -160,7 +161,9 @@ R.propOr([], "items", data)
 - Use `#[tauri::command]` and register in `lib.rs`
 - Use `rayon` for parallel operations
 - Use `quick_xml` for XML parsing (not string search)
+- Use `semver` crate for version comparisons
 - Prefer zip pattern over index-based iteration for safety
+- Tests are inline in modules using `#[cfg(test)]` (see `widget_parser/mod.rs`, `formatting/mod.rs`, etc.)
 
 ### CSS Architecture
 - Uses **LightningCSS** (not PostCSS)
@@ -176,3 +179,4 @@ R.propOr([], "items", data)
 - **React 19**: Frontend uses React 19.x with concurrent features.
 - **Tauri plugins**: Import from `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@tauri-apps/plugin-shell`. Backend storage uses native Rust filesystem operations to `%APPDATA%/kirakiraichigo-mendix-manager/app_state.json`.
 - **Package Manager**: Development uses Bun; widget builds support npm, pnpm, yarn, bun (user-selectable).
+- **State Management**: Uses nanostores for i18n (`@nanostores/i18n`, `@nanostores/react`).

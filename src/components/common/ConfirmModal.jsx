@@ -21,9 +21,11 @@ const RelatedAppItem = (app) => (
   </li>
 );
 
+const isNonEmptyArray = R.both(R.is(Array), R.complement(R.isEmpty));
+
 const RelatedAppsList = R.curry((t, relatedApps) =>
   R.ifElse(
-    R.identity,
+    isNonEmptyArray,
     R.pipe(R.map(RelatedAppItem), (items) => (
       <div className="related-apps-section">
         <h4>{R.pathOr("Related Apps that will be deleted:", ["apps", "relatedApps"], t)}</h4>
@@ -98,7 +100,11 @@ const ModalContentComponent = ({
         >
           {getLoadingOrDefaultText(
             R.pathOr("Processing...", ["modals", "confirm", "processing"], t),
-            R.pathOr("Uninstall Only", ["modals", "studioPro", "uninstallOnly"], t),
+            R.ifElse(
+              isNonEmptyArray,
+              R.always(R.pathOr("Uninstall Only", ["modals", "studioPro", "uninstallOnly"], t)),
+              R.always(R.pathOr("Confirm", ["modals", "confirm", "confirm"], t)),
+            )(relatedApps),
             isLoading,
           )}
         </button>

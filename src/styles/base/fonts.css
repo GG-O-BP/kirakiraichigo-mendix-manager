@@ -20,3 +20,59 @@
     unicode-range:
         U+AC00-D7AF, U+1100-11FF, U+3130-318F, U+A960-A97F, U+D7B0-D7FF;
 }
+
+/* ZenMaruGothic for Japanese text */
+@font-face {
+    font-family: "ZenMaruGothic";
+    src: url("/fonts/ZenMaruGothic-Light.ttf") format("truetype");
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+    unicode-range:
+        U+3000-303F, U+3040-309F, U+30A0-30FF, U+31F0-31FF, U+4E00-9FFF,
+        U+3400-4DBF, U+FF00-FFEF;
+}
+
+@font-face {
+    font-family: "ZenMaruGothic";
+    src: url("/fonts/ZenMaruGothic-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+    unicode-range:
+        U+3000-303F, U+3040-309F, U+30A0-30FF, U+31F0-31FF, U+4E00-9FFF,
+        U+3400-4DBF, U+FF00-FFEF;
+}
+
+@font-face {
+    font-family: "ZenMaruGothic";
+    src: url("/fonts/ZenMaruGothic-Medium.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+    unicode-range:
+        U+3000-303F, U+3040-309F, U+30A0-30FF, U+31F0-31FF, U+4E00-9FFF,
+        U+3400-4DBF, U+FF00-FFEF;
+}
+
+@font-face {
+    font-family: "ZenMaruGothic";
+    src: url("/fonts/ZenMaruGothic-Bold.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+    unicode-range:
+        U+3000-303F, U+3040-309F, U+30A0-30FF, U+31F0-31FF, U+4E00-9FFF,
+        U+3400-4DBF, U+FF00-FFEF;
+}
+
+@font-face {
+    font-family: "ZenMaruGothic";
+    src: url("/fonts/ZenMaruGothic-Black.ttf") format("truetype");
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+    unicode-range:
+        U+3000-303F, U+3040-309F, U+30A0-30FF, U+31F0-31FF, U+4E00-9FFF,
+        U+3400-4DBF, U+FF00-FFEF;
+}

@@ -149,8 +149,8 @@ const renderLabeledInputWithBrowseButton = R.curry(
 );
 
 const AddWidgetFormModal = (props) => {
-  const { t } = useI18n();
   const {
+    t,
     newWidgetCaption,
     setNewWidgetCaption,
     newWidgetPath,
@@ -208,8 +208,7 @@ const AddWidgetFormModal = (props) => {
 };
 
 const WidgetActionSelectionModal = (props) => {
-  const { t } = useI18n();
-  const { setShowWidgetModal, setShowAddWidgetForm } = props;
+  const { t, setShowWidgetModal, setShowAddWidgetForm } = props;
 
   return (
     <div className="modal-overlay">
@@ -255,7 +254,9 @@ const WidgetActionSelectionModal = (props) => {
 };
 
 const WidgetModal = memo((props) => {
+  const { t } = useI18n();
   const { showWidgetModal, showAddWidgetForm } = props;
+  const propsWithT = R.assoc("t", t, props);
   const isModalVisible = R.or(
     isAddWidgetFormVisible(props),
     isWidgetActionModalVisible(props),
@@ -276,7 +277,7 @@ const WidgetModal = memo((props) => {
     [isAddWidgetFormVisible, AddWidgetFormModal],
     [isWidgetActionModalVisible, WidgetActionSelectionModal],
     [R.T, R.always(null)],
-  ])(props);
+  ])(propsWithT);
 });
 
 WidgetModal.displayName = "WidgetModal";

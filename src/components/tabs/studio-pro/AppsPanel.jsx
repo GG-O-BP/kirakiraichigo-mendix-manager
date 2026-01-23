@@ -25,7 +25,7 @@ const renderEmptyListMessage = (message) => (
   </div>
 );
 
-const AppItem = memo(({ app, selectedVersion, handleClick }) => {
+const AppItem = memo(({ app, selectedVersion, handleClick, onDelete }) => {
   const [isDisabled, setIsDisabled] = useState(false);
 
   useEffect(() => {
@@ -43,6 +43,7 @@ const AppItem = memo(({ app, selectedVersion, handleClick }) => {
       app={app}
       isDisabled={isDisabled}
       onClick={createAppSelectionHandler(handleClick, app)}
+      onDelete={onDelete}
     />
   );
 });
@@ -55,6 +56,7 @@ const AppsPanel = memo(({
   displayedApps,
   selectedVersion,
   handleItemClick,
+  onDeleteApp,
 }) => {
   const { t } = useI18n();
 
@@ -71,6 +73,7 @@ const AppsPanel = memo(({
         app={app}
         selectedVersion={selectedVersion}
         handleClick={handleItemClick}
+        onDelete={onDeleteApp}
       />
     ));
   };

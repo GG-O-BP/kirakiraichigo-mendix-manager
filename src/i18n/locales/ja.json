@@ -1,0 +1,187 @@
+{
+  "app": {
+    "tabs": {
+      "studioProManager": "Studio Pro マネージャー",
+      "widgetManager": "ウィジェットマネージャー",
+      "widgetPreview": "ウィジェットプレビュー"
+    },
+    "common": {
+      "loading": "よみこみ中だよ～ まってまって！",
+      "search": "さがしちゃお～っ！",
+      "cancel": "やーめた！",
+      "confirm": "うんっ、けってい！",
+      "delete": "けしちゃう！",
+      "install": "いれるの！",
+      "uninstall": "アンインストール",
+      "launch": "きどう！",
+      "launching": "きどうちゅう～ びゅーん！",
+      "download": "ダウンロード！",
+      "save": "ほぞんっ！",
+      "close": "とじる",
+      "refresh": "こうしん！",
+      "select": "えらんでねっ！",
+      "selectAll": "ぜんぶえらぶ！",
+      "deselectAll": "ぜんぶはずす！",
+      "noResults": "あれれ？なにもないよぉ！",
+      "error": "わわわっ！なんかへんだよぉ！",
+      "success": "やったぁ～！せいこうっ！えへへっ",
+      "warning": "まってまって！きをつけてねっ",
+      "pleaseWait": "ちょっとだけまっててね～ もうすぐだよっ！",
+      "areYouSure": "ほんとにほんとにいいの？",
+      "yes": "うんっ！",
+      "no": "ううんっ！",
+      "add": "ついかっ！",
+      "remove": "さくじょ",
+      "browse": "さんしょう",
+      "clear": "クリア",
+      "results": "けっか",
+      "dateUnknown": "ひづけふめい",
+      "installed": "いれたっ！",
+      "comingSoon": "(もうすぐできるよ～っ！)"
+    },
+    "header": {
+      "title": "きらきらいちごマネージャー",
+      "language": "げんご",
+      "themeAttribution": "Latte、Frappe、Macchiato、Mocha テーマをつくったひと："
+    },
+    "themes": {
+      "kiraIchiDark": "きらいちダーク",
+      "kiraIchiLight": "きらいちライト",
+      "latte": "ラテ",
+      "frappe": "フラッペ",
+      "macchiato": "マキアート",
+      "mocha": "モカ"
+    },
+    "versions": {
+      "installed": "インストールずみバージョン",
+      "downloadable": "ダウンロードできるバージョン",
+      "noVersionsFound": "バージョンないよぉ？",
+      "noInstalledVersions": "まだなにもインストールしてないの！",
+      "noDownloadableVersions": "ダウンロードできるのないよぉ！",
+      "searchInstalled": "インストールずみをけんさく～",
+      "searchDownloadable": "ダウンロードできるのをけんさく～",
+      "onlyShowDownloadable": "ダウンロードできるのだけ",
+      "clearCacheRefresh": "キャッシュけしてこうしん！",
+      "loadingMore": "もっとよみこみちゅう～！",
+      "allLoaded": "ぜんぶよみこんだよっ！",
+      "clickToLoadMore": "クリックでもっとよみこむよ～！",
+      "lts": "LTS",
+      "mts": "MTS",
+      "beta": "ベータ"
+    },
+    "apps": {
+      "title": "アプリ",
+      "installed": "インストールずみアプリ",
+      "noAppsFound": "アプリないよぉ？",
+      "searchApps": "アプリさがそっ！",
+      "allVersions": "ぜんバージョン",
+      "relatedApps": "このアプリもいっしょにきえちゃうよ：",
+      "openInExplorer": "フォルダをひらく",
+      "deleteApp": "アプリをけす"
+    },
+    "widgets": {
+      "title": "ウィジェット",
+      "noWidgetsFound": "あれれ？ウィジェットないよぉ！",
+      "noWidgetsRegistered": "まだウィジェットとうろくしてないの！",
+      "noWidgetsMatching": "「{term}」みつからないよぉ～",
+      "addWidget": "ウィジェットついか！",
+      "addNewWidget": "あたらしいウィジェットをついか",
+      "clickToAdd": "クリックしてウィジェットついかしよっ！",
+      "createWidget": "ウィジェットつくる",
+      "addExistingWidget": "あるウィジェットをついか",
+      "removeWidget": "ウィジェットをはずす",
+      "selectWidget": "ウィジェットえらんでねっ！",
+      "searchWidgets": "ウィジェットけんさく～",
+      "caption": "ウィジェットのなまえ",
+      "enterCaption": "ウィジェットのなまえいれてねっ",
+      "absolutePath": "パス",
+      "pathPlaceholder": "C:\\widget\\folder\\path",
+      "selectFolder": "ウィジェットフォルダをえらぶ",
+      "packageManager": "パッケージマネージャー：",
+      "install": "インストール ({count}こ)",
+      "installing": "インストールちゅう～ しゅしゅしゅっ！",
+      "buildDeploy": "ビルド＋デプロイ ({widgetCount}こ → {appCount}こ)",
+      "deployOnly": "デプロイだけ ({widgetCount}こ → {appCount}こ)",
+      "building": "ビルドちゅう～",
+      "deploying": "デプロイちゅう～",
+      "buildingAndDeploying": "ビルドしてデプロイちゅう！わーいっ！"
+    },
+    "preview": {
+      "title": "ウィジェットプレビュー",
+      "selectWidget": "プレビューするのえらんでねっ！",
+      "selectToViewProperties": "ウィジェットえらんでプロパティみてねっ！",
+      "properties": "プロパティ",
+      "noProperties": "せっていするプロパティないよっ！",
+      "loadingProperties": "プロパティよみこみちゅう～",
+      "general": "いっぱん",
+      "buildingWidget": "ウィジェットビルドちゅう～",
+      "emptyState": "ウィジェットえらんで、🔨▶️おしてねっ\nまほうがおきるよっ！えへへっ",
+      "buildPreview": "プレビュービルド",
+      "runPreview": "プレビューじっこう！"
+    },
+    "modals": {
+      "download": {
+        "title": "インストールのかくにん",
+        "installTitle": "Mendix Studio Pro {version} インストールする？",
+        "description": "Mendix Studio Pro {version} ダウンロードしてインストールするねっ！",
+        "extractBuildNumber": "Mendixからビルドばんごうをとってくる",
+        "downloadInstaller": "インストーラーをダウンロード (~600MB)",
+        "launchWizard": "セットアップウィザードをきどう",
+        "wizardGuide": "ウィザードがのこりおしえてくれるよっ！",
+        "extracting": "ビルドばんごうさがしてるよ～",
+        "settingUp": "ダウンロードのじゅんびちゅう～",
+        "downloading": "ダウンロードちゅう～",
+        "launchingInstaller": "インストーラーきどうちゅう！",
+        "launchSuccess": "セットアップファイルきどうしたよっ！",
+        "setupSuccess": "セットアップファイルうごいてるよっ！やったぁ～",
+        "followWizard": "ウィザードにしたがえばかんりょうだよっ！",
+        "installFailed": "うぅ... インストールしっぱいしちゃった (´；ω；｀)",
+        "invalidVersion": "バージョンじょうほうがおかしいよぉ！",
+        "startInstallation": "インストールかいし！",
+        "pleaseWait": "ちょっとまっててねっ じかんかかるかも！"
+      },
+      "widget": {
+        "title": "ウィジェットついか！",
+        "actionTitle": "ウィジェットメニュー",
+        "chooseAction": "なにしよっか～？",
+        "invalidWidget": "ただしいMendixウィジェットじゃないよぉ！\n\nただしいMendixウィジェットには「mendix」なまえくうかんをもつ「src/package.xml」ファイルがひつようなの！",
+        "validationError": "けんしょうエラー：{error}\n\n「src/package.xml」をもつただしいMendixウィジェットかたしかめてねっ！"
+      },
+      "confirm": {
+        "title": "かくにん",
+        "processing": "しょりちゅう～",
+        "confirm": "けしちゃう！"
+      },
+      "buildResult": {
+        "title": "ビルド＆デプロイエラー",
+        "failedCount": "しっぱい ({count}こ)",
+        "deployResults": "デプロイけっか",
+        "buildDeployResults": "ビルド＆デプロイけっか"
+      },
+      "studioPro": {
+        "uninstallTitle": "Studio Pro にバイバイする？",
+        "uninstallMessage": "ほんとにほんとに Studio Pro {version} アンインストールしていいの？\n\nいちどけしたらもどせないよっ！よくかんがえてねっ、いい？",
+        "uninstallOnly": "アンインストールだけ",
+        "uninstallAndDeleteApps": "アンインストール＋アプリもけす"
+      },
+      "widgetRemove": {
+        "title": "リストからはずす？",
+        "message": "「{caption}」をウィジェットリストからはずす？\n\nしんぱいしないでっ！ファイルはのこるよ～ リストからけすだけっ！"
+      },
+      "appDelete": {
+        "title": "このアプリけしちゃう？",
+        "message": "ほんとに {name} けしちゃう？\n\nいちどけしたらもどせないよぉ！ほんとにいいの？",
+        "deleteFailed": "わわっ、アプリけせなかったよぉ (´・ω・｀) {error}"
+      }
+    },
+    "errors": {
+      "generic": "あわわっ！なんかうまくいかなかったよぉ！",
+      "network": "ネットワークエラーだよぉ！",
+      "notFound": "みつからないよぉ！",
+      "launchFailed": "きどうしっぱいしちゃった (´；ω；｀)",
+      "uninstallFailed": "アンインストールしっぱいしちゃった (´；ω；｀)",
+      "downloadFailed": "ダウンロードしっぱいしちゃった (´；ω；｀)",
+      "deleteFailed": "さくじょしっぱいしちゃった (´；ω；｀)"
+    }
+  }
+}

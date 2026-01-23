@@ -5,7 +5,7 @@ import { locale as getOsLocale } from "@tauri-apps/plugin-os";
 import { STORAGE_KEYS } from "../utils/constants";
 import { saveToStorage, loadFromStorage } from "../utils/storage";
 
-export const SUPPORTED_LOCALES = ["en", "ko"];
+export const SUPPORTED_LOCALES = ["en", "ko", "ja"];
 export const DEFAULT_LOCALE = "en";
 
 const storedLocale = atom(undefined);
@@ -179,6 +179,7 @@ export const messages = i18n("app", {
     confirm: {
       title: "Confirm",
       processing: "Working on it~",
+      confirm: "Delete it!",
     },
     studioPro: {
       uninstallTitle: "Say bye-bye to Studio Pro?",
