@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { saveToStorage, STORAGE_KEYS, invokeCreateWidget } from "../../utils";
 import { extractFolderNameFromPath } from "../../utils/data-processing/pathUtils";
+import { useI18n } from "../../i18n/useI18n";
 
 const DISABLED_BUTTON_STYLE = {
   opacity: 0.5,
@@ -41,7 +42,7 @@ const closeFormAndResetFields = R.curry((props) =>
 
 const handleCancelClick = R.curry((props) => closeFormAndResetFields(props));
 
-const handleAddWidgetSubmit = R.curry(async (props) => {
+const handleAddWidgetSubmit = R.curry(async (props, t) => {
   if (hasValidCaptionAndPath(props)) {
     const { newWidgetCaption, newWidgetPath, setWidgets } = props;
 
@@ -51,10 +52,11 @@ const handleAddWidgetSubmit = R.curry(async (props) => {
       });
 
       if (!isValid) {
-        alert(
-          "Invalid Mendix Widget: The selected path does not contain a valid Mendix widget.\n\n" +
-            "A valid Mendix widget must have a 'src/package.xml' file that contains 'mendix' namespace.",
-        );
+        alert(R.pathOr(
+          "Invalid Mendix Widget: The selected path does not contain a valid Mendix widget.\n\nA valid Mendix widget must have a 'src/package.xml' file that contains 'mendix' namespace.",
+          ["modals", "widget", "invalidWidget"],
+          t,
+        ));
         return;
       }
 
@@ -67,21 +69,24 @@ const handleAddWidgetSubmit = R.curry(async (props) => {
       closeFormAndResetFields(props);
     } catch (error) {
       alert(
-        `Validation Error: ${error}\n\n` +
-          "Please ensure the selected path contains a valid Mendix widget with 'src/package.xml' file.",
+        R.pathOr(
+          `Validation Error: ${error}\n\nPlease ensure the selected path contains a valid Mendix widget with 'src/package.xml' file.`,
+          ["modals", "widget", "validationError"],
+          t,
+        ).replace("{error}", error),
       );
     }
   }
 });
 
-const handleFolderBrowse = R.curry(async (props) => {
+const handleFolderBrowse = R.curry(async (props, t) => {
   const { newWidgetCaption, setNewWidgetPath, setNewWidgetCaption } = props;
 
   try {
     const selected = await open({
       directory: true,
       multiple: false,
-      title: "Select Widget Folder",
+      title: R.pathOr("Select Widget Folder", ["widgets", "selectFolder"], t),
     });
 
     if (selected) {
@@ -118,7 +123,7 @@ const renderLabeledInput = R.curry(
 );
 
 const renderLabeledInputWithBrowseButton = R.curry(
-  (label, type, value, onChange, placeholder, onBrowse) => (
+  (label, type, value, onChange, placeholder, onBrowse, browseText) => (
     <label className="property-label">
       <span className="label-text">{label}</span>
       <div style={BROWSE_INPUT_CONTAINER_STYLE}>
@@ -136,15 +141,16 @@ const renderLabeledInputWithBrowseButton = R.curry(
           onClick={onBrowse}
         >
           <span className="button-icon">📁</span>
-          Browse
+          {browseText}
         </button>
       </div>
     </label>
   ),
 );
 
-const renderAddWidgetFormModal = (props) => {
+const AddWidgetFormModal = (props) => {
   const {
+    t,
     newWidgetCaption,
     setNewWidgetCaption,
     newWidgetPath,
@@ -155,23 +161,24 @@ const renderAddWidgetFormModal = (props) => {
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
-          <h3>🍓 Add Widget</h3>
+          <h3>🍓 {R.pathOr("Add Widget", ["modals", "widget", "title"], t)}</h3>
         </div>
         <div className="modal-body">
           {renderLabeledInput(
-            "Widget Caption",
+            R.pathOr("Widget Caption", ["widgets", "caption"], t),
             "text",
             newWidgetCaption,
             setNewWidgetCaption,
-            "Enter widget caption",
+            R.pathOr("Enter widget caption", ["widgets", "enterCaption"], t),
           )}
           {renderLabeledInputWithBrowseButton(
-            "Absolute Path",
+            R.pathOr("Absolute Path", ["widgets", "absolutePath"], t),
             "text",
             newWidgetPath,
             setNewWidgetPath,
-            "C:\\path\\to\\widget\\folder",
-            () => handleFolderBrowse(props),
+            R.pathOr("C:\\path\\to\\widget\\folder", ["widgets", "pathPlaceholder"], t),
+            () => handleFolderBrowse(props, t),
+            R.pathOr("Browse", ["common", "browse"], t),
           )}
         </div>
         <div className="modal-footer">
@@ -182,17 +189,17 @@ const renderAddWidgetFormModal = (props) => {
               R.always(undefined),
             )}
           >
-            Cancel
+            {R.pathOr("Cancel", ["common", "cancel"], t)}
           </button>
           <button
             className="modal-button confirm-button"
             onClick={R.pipe(
-              R.tap(() => handleAddWidgetSubmit(props)),
+              R.tap(() => handleAddWidgetSubmit(props, t)),
               R.always(undefined),
             )}
             disabled={!hasValidCaptionAndPath(props)}
           >
-            Add Widget
+            {R.pathOr("Add Widget", ["widgets", "addWidget"], t)}
           </button>
         </div>
       </div>
@@ -200,17 +207,17 @@ const renderAddWidgetFormModal = (props) => {
   );
 };
 
-const renderWidgetActionSelectionModal = (props) => {
-  const { setShowWidgetModal, setShowAddWidgetForm } = props;
+const WidgetActionSelectionModal = (props) => {
+  const { t, setShowWidgetModal, setShowAddWidgetForm } = props;
 
   return (
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
-          <h3>🍓 Widget Action</h3>
+          <h3>🍓 {R.pathOr("Widget Action", ["modals", "widget", "actionTitle"], t)}</h3>
         </div>
         <div className="modal-body">
-          <p>Choose an action for widget management:</p>
+          <p>{R.pathOr("Choose an action for widget management:", ["modals", "widget", "chooseAction"], t)}</p>
         </div>
         <div className="modal-footer">
           <button
@@ -220,16 +227,16 @@ const renderWidgetActionSelectionModal = (props) => {
               R.always(undefined),
             )}
           >
-            Cancel
+            {R.pathOr("Cancel", ["common", "cancel"], t)}
           </button>
           <button
             className="modal-button"
             disabled
             style={DISABLED_BUTTON_STYLE}
           >
-            Create Widget
+            {R.pathOr("Create Widget", ["widgets", "createWidget"], t)}
             <br />
-            (Coming Soon)
+            {R.pathOr("(Coming Soon)", ["common", "comingSoon"], t)}
           </button>
           <button
             className="modal-button confirm-button"
@@ -238,7 +245,7 @@ const renderWidgetActionSelectionModal = (props) => {
               R.always(undefined),
             )}
           >
-            Add Existing Widget
+            {R.pathOr("Add Existing Widget", ["widgets", "addExistingWidget"], t)}
           </button>
         </div>
       </div>
@@ -247,7 +254,9 @@ const renderWidgetActionSelectionModal = (props) => {
 };
 
 const WidgetModal = memo((props) => {
+  const { t } = useI18n();
   const { showWidgetModal, showAddWidgetForm } = props;
+  const propsWithT = R.assoc("t", t, props);
   const isModalVisible = R.or(
     isAddWidgetFormVisible(props),
     isWidgetActionModalVisible(props),
@@ -265,10 +274,10 @@ const WidgetModal = memo((props) => {
   }, [showWidgetModal, showAddWidgetForm, isModalVisible]);
 
   return R.cond([
-    [isAddWidgetFormVisible, renderAddWidgetFormModal],
-    [isWidgetActionModalVisible, renderWidgetActionSelectionModal],
+    [isAddWidgetFormVisible, AddWidgetFormModal],
+    [isWidgetActionModalVisible, WidgetActionSelectionModal],
     [R.T, R.always(null)],
-  ])(props);
+  ])(propsWithT);
 });
 
 WidgetModal.displayName = "WidgetModal";

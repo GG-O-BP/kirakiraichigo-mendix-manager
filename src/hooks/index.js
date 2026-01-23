@@ -18,4 +18,3 @@ export { useContextValues } from "./useContextValues";
 
 export { useVersionFiltering } from "./useVersionFiltering";
 export { useWidgetProperties } from "./useWidgetProperties";
-export { usePreviewBuild } from "./usePreviewBuild";

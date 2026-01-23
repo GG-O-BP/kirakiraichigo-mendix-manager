@@ -31,8 +31,26 @@ export function useWrappedBuildDeployHandlers({
     ],
   );
 
+  const wrappedHandleDeployOnly = useCallback(
+    () =>
+      buildDeploy.handleDeployOnly({
+        selectedWidgets: widgetsHook.selectedWidgets,
+        selectedApps: appsHook.selectedApps,
+        widgets: widgetsHook.widgets,
+        apps: appsHook.apps,
+      }),
+    [
+      buildDeploy.handleDeployOnly,
+      widgetsHook.selectedWidgets,
+      appsHook.selectedApps,
+      widgetsHook.widgets,
+      appsHook.apps,
+    ],
+  );
+
   return {
     handleInstall: wrappedHandleInstall,
     handleBuildDeploy: wrappedHandleBuildDeploy,
+    handleDeployOnly: wrappedHandleDeployOnly,
   };
 }

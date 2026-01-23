@@ -1,5 +1,5 @@
 import * as R from "ramda";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import "./styles/index.css";
 
 import { TabButton, AppHeader } from "./components/common";
@@ -7,6 +7,8 @@ import { StudioProManager, WidgetManager, WidgetPreview } from "./components/tab
 import { AppModals } from "./components/modals";
 
 import { useAppInitialization, useContextValues } from "./hooks";
+import { useI18n } from "./i18n/useI18n";
+import { initializeLocale } from "./i18n";
 import {
   AppProvider,
   WidgetCollectionProvider,
@@ -21,15 +23,18 @@ import {
   BuildModalProvider,
 } from "./contexts";
 
-const TAB_CONFIGURATIONS = [
-  ["studio-pro", "Studio Pro Manager", StudioProManager],
-  ["widget-manager", "Widget Manager", WidgetManager],
-  ["widget-preview", "Widget Preview", WidgetPreview],
-];
+const TAB_KEYS = ["studio-pro", "widget-manager", "widget-preview"];
+const TAB_COMPONENTS = [StudioProManager, WidgetManager, WidgetPreview];
+const TAB_LABEL_KEYS = ["studioProManager", "widgetManager", "widgetPreview"];
 
 function App() {
   const { theme, versions, appsHook, widgetsHook, widgetPreviewHook, buildDeploy, modals } =
     useAppInitialization();
+  const { t, locale, setLocale, supportedLocales } = useI18n();
+
+  useEffect(() => {
+    initializeLocale();
+  }, []);
 
   const {
     appContextValue,
@@ -47,13 +52,14 @@ function App() {
 
   const [activeTab, setActiveTab] = useState("studio-pro");
 
-  const createTabFromConfig = R.curry((config) => {
-    const [id, label, Component] = config;
-    return { id, label, component: React.createElement(Component) };
-  });
+  const createTabFromIndex = R.curry((index) => ({
+    id: R.nth(index, TAB_KEYS),
+    labelKey: R.nth(index, TAB_LABEL_KEYS),
+    component: React.createElement(R.nth(index, TAB_COMPONENTS)),
+  }));
 
   const tabs = useMemo(
-    () => R.map(createTabFromConfig, TAB_CONFIGURATIONS),
+    () => R.map(createTabFromIndex, R.range(0, R.length(TAB_KEYS))),
     [],
   );
 
@@ -66,10 +72,14 @@ function App() {
     [tabs, activeTab],
   );
 
-  const renderTabButton = R.curry((activeTab, setActiveTab, tab) => (
+  const getTabLabel = R.curry((t, labelKey) =>
+    R.pathOr(labelKey, ["tabs", labelKey], t),
+  );
+
+  const renderTabButton = R.curry((activeTab, setActiveTab, t, tab) => (
     <TabButton
       key={R.prop("id", tab)}
-      label={R.prop("label", tab)}
+      label={getTabLabel(t, R.prop("labelKey", tab))}
       isActive={R.equals(activeTab, R.prop("id", tab))}
       onClick={() => setActiveTab(R.prop("id", tab))}
     />
@@ -92,10 +102,13 @@ function App() {
                               currentTheme={theme.currentTheme}
                               currentLogo={theme.currentLogo}
                               handleThemeChange={theme.handleThemeChange}
+                              locale={locale}
+                              setLocale={setLocale}
+                              supportedLocales={supportedLocales}
                             />
 
                             <div className="tabs">
-                              {R.map(renderTabButton(activeTab, setActiveTab), tabs)}
+                              {R.map(renderTabButton(activeTab, setActiveTab, t), tabs)}
                             </div>
 
                             <div className="tab-content">{activeTabContent}</div>

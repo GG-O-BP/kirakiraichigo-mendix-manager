@@ -1,5 +1,5 @@
 import * as R from "ramda";
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo } from "react";
 import { createTypedChangeHandler } from "../../utils";
 import Dropdown from "./Dropdown";
 import ObjectListPropertyInput from "./ObjectListPropertyInput";
@@ -144,15 +144,13 @@ const renderCheckbox = R.curry((property, value, onChange, disabled) => (
 
 const renderSelect = R.curry((property, value, onChange, disabled) => {
   const options = R.prop("options", property);
-  const needsPlaceholder = !R.includes("", options);
 
   return (
     <Dropdown
-      value={value || ""}
+      value={value || R.propOr("", 0, options)}
       onChange={onChange}
       options={options}
       disabled={disabled}
-      placeholder={needsPlaceholder ? "Select..." : null}
     />
   );
 });
@@ -175,7 +173,29 @@ const renderPlaceholder = R.curry((property, value, onChange, disabled) => (
   </div>
 ));
 
-const renderDatasourceTextarea = R.curry((property, value, onChange, disabled) => {
+const DATASOURCE_DEFAULT_VALUE = `[
+  {
+    "id": 1,
+    "name": "Item 1",
+    "value": 100,
+    "active": true
+  },
+  {
+    "id": 2,
+    "name": "Item 2",
+    "value": 200,
+    "active": false
+  }
+]`;
+
+const DatasourceTextarea = ({ value, onChange, disabled }) => {
+  useEffect(() => {
+    R.when(
+      R.either(R.isNil, R.isEmpty),
+      () => onChange(DATASOURCE_DEFAULT_VALUE),
+    )(value);
+  }, []);
+
   const handleChange = (e) => {
     const newValue = R.path(["target", "value"], e);
     onChange(newValue);
@@ -200,14 +220,18 @@ const renderDatasourceTextarea = R.curry((property, value, onChange, disabled) =
         value={value || ""}
         onChange={handleChange}
         disabled={disabled}
-        placeholder='{"key1": "value1", "key2": "value2"}'
+        placeholder={DATASOURCE_DEFAULT_VALUE}
       />
       {R.not(jsonValid) && (
         <div className="json-error-hint">Invalid JSON format</div>
       )}
     </div>
   );
-});
+};
+
+const renderDatasourceTextarea = R.curry((property, value, onChange, disabled) => (
+  <DatasourceTextarea value={value} onChange={onChange} disabled={disabled} />
+));
 
 const extractKeysFromParsedJson = R.cond([
   [R.isNil, R.always([])],
@@ -301,6 +325,7 @@ const inputRenderers = {
   integer: renderNumberInput,
   decimal: renderNumberInput,
   enumeration: renderSelect,
+  selection: renderSelect,
   expression: renderTextarea,
   textTemplate: renderTextarea,
   file: renderFileInput,

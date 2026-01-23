@@ -1,12 +1,12 @@
 import * as R from "ramda";
-import { memo } from "react";
+import { memo, useEffect } from "react";
 import {
   useWidgetCollectionContext,
   useWidgetPreviewContext,
   useWidgetFormContext,
   useModalContext,
 } from "../../../contexts";
-import { useWidgetProperties, usePreviewBuild } from "../../../hooks";
+import { useWidgetProperties } from "../../../hooks";
 import WidgetSelectionPanel from "./WidgetSelectionPanel";
 import PropertiesPanel from "./PropertiesPanel";
 import PreviewPanel from "./PreviewPanel";
@@ -29,6 +29,23 @@ const WidgetPreview = memo(() => {
     selectedWidgetForPreview,
     setSelectedWidgetForPreview,
     properties,
+    dynamicProperties,
+    setDynamicProperties,
+    lastLoadedWidgetId,
+    setLastLoadedWidgetId,
+    widgetDefinition: contextWidgetDefinition,
+    setWidgetDefinition,
+    editorConfigHandler: contextEditorConfigHandler,
+    setEditorConfigHandler,
+    previewData,
+    isBuilding,
+    buildError,
+    packageManager,
+    setPackageManager,
+    distExists,
+    checkDistExists,
+    handleBuildAndRun,
+    handleRunOnly,
   } = widgetPreviewContext;
 
   const { setNewWidgetCaption, setNewWidgetPath } = widgetFormContext;
@@ -53,16 +70,20 @@ const WidgetPreview = memo(() => {
     expandedGroups,
     toggleGroup,
     combinedProperties,
-  } = useWidgetProperties(selectedWidget, properties);
+  } = useWidgetProperties(selectedWidget, properties, {
+    dynamicProperties,
+    setDynamicProperties,
+    lastLoadedWidgetId,
+    setLastLoadedWidgetId,
+    widgetDefinition: contextWidgetDefinition,
+    setWidgetDefinition,
+    editorConfigHandler: contextEditorConfigHandler,
+    setEditorConfigHandler,
+  });
 
-  const {
-    previewData,
-    isBuilding,
-    buildError,
-    packageManager,
-    setPackageManager,
-    handleRunPreview,
-  } = usePreviewBuild();
+  useEffect(() => {
+    checkDistExists(R.prop("path", selectedWidget));
+  }, [selectedWidget, checkDistExists]);
 
   const modalHandlers = {
     setShowWidgetModal,
@@ -98,13 +119,16 @@ const WidgetPreview = memo(() => {
         setPackageManager={setPackageManager}
         isBuilding={isBuilding}
         buildError={buildError}
-        handleRunPreview={handleRunPreview}
+        handleBuildAndRun={handleBuildAndRun}
+        handleRunOnly={handleRunOnly}
+        distExists={distExists}
       />
       <PreviewPanel
         previewData={previewData}
         properties={combinedProperties}
         widgetDefinition={widgetDefinition}
         isBuilding={isBuilding}
+        onDatasourceCommit={updateProperty}
       />
     </div>
   );

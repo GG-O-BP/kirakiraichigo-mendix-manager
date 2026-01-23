@@ -1,6 +1,6 @@
 [package]
 name = "KiraIchi"
-version = "0.4.2"
+version = "0.4.3"
 description = "Magical Mendix management tool for Studio Pro version control, widget development, and deployment. Sparkle your way through Mendix development!"
 authors = ["GG-O-BP"]
 edition = "2021"
@@ -36,3 +36,4 @@ reqwest = { version = "0.11", features = ["stream"] }
 rayon = "1.10"
 once_cell = "1.21.3"
 semver = "1"
+tauri-plugin-os = "2"

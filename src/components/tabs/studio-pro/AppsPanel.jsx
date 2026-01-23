@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import SearchBox from "../../common/SearchBox";
 import { renderPanel } from "../../common/Panel";
 import { MendixAppListItem } from "../../common/ListItems";
+import { useI18n } from "../../../i18n/useI18n";
 
 export const invokeCheckAppVersionMismatch = async (selectedVersion, appVersion) =>
   invoke("compare_versions", {
@@ -24,7 +25,7 @@ const renderEmptyListMessage = (message) => (
   </div>
 );
 
-const AppItem = memo(({ app, selectedVersion, handleClick }) => {
+const AppItem = memo(({ app, selectedVersion, handleClick, onDelete }) => {
   const [isDisabled, setIsDisabled] = useState(false);
 
   useEffect(() => {
@@ -42,6 +43,7 @@ const AppItem = memo(({ app, selectedVersion, handleClick }) => {
       app={app}
       isDisabled={isDisabled}
       onClick={createAppSelectionHandler(handleClick, app)}
+      onDelete={onDelete}
     />
   );
 });
@@ -54,10 +56,15 @@ const AppsPanel = memo(({
   displayedApps,
   selectedVersion,
   handleItemClick,
+  onDeleteApp,
 }) => {
+  const { t } = useI18n();
+
   const renderAppsList = () => {
     if (displayedApps.length === 0) {
-      return renderEmptyListMessage("No apps found");
+      return renderEmptyListMessage(
+        R.pathOr("No apps found", ["apps", "noAppsFound"], t),
+      );
     }
 
     return displayedApps.map((app) => (
@@ -66,6 +73,7 @@ const AppsPanel = memo(({
         app={app}
         selectedVersion={selectedVersion}
         handleClick={handleItemClick}
+        onDelete={onDeleteApp}
       />
     ));
   };
@@ -73,7 +81,7 @@ const AppsPanel = memo(({
   const searchControls = (
     <div className="search-controls">
       <SearchBox
-        placeholder="Search apps..."
+        placeholder={R.pathOr("Search apps...", ["apps", "searchApps"], t)}
         value={searchTerm}
         onChange={setSearchTerm}
       />

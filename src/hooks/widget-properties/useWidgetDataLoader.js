@@ -1,36 +1,57 @@
 import * as R from "ramda";
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { createEditorConfigHandler } from "../../utils/editorConfigParser";
 import { useArrayPropertyOperations } from "./useArrayPropertyOperations";
 
-export function useWidgetDataLoader(selectedWidget) {
-  const [widgetDefinition, setWidgetDefinition] = useState(null);
-  const [dynamicProperties, setDynamicProperties] = useState({});
-  const [editorConfigHandler, setEditorConfigHandler] = useState(null);
+export function useWidgetDataLoader(selectedWidget, externalState = {}) {
+  const {
+    dynamicProperties,
+    setDynamicProperties,
+    lastLoadedWidgetId,
+    setLastLoadedWidgetId,
+    widgetDefinition,
+    setWidgetDefinition,
+    editorConfigHandler,
+    setEditorConfigHandler,
+  } = externalState;
 
   const resetWidgetState = useCallback(() => {
     setWidgetDefinition(null);
-    setDynamicProperties({});
     setEditorConfigHandler(null);
-  }, []);
+  }, [setWidgetDefinition, setEditorConfigHandler]);
 
   const updateProperty = useCallback(
     R.curry((propertyKey, value) =>
       setDynamicProperties(R.assoc(propertyKey, value))
     ),
-    []
+    [setDynamicProperties]
   );
 
   const arrayOperations = useArrayPropertyOperations(setDynamicProperties);
 
   useEffect(() => {
-    if (!selectedWidget) {
+    if (R.isNil(selectedWidget)) {
       resetWidgetState();
+      setLastLoadedWidgetId(null);
       return;
     }
 
+    const widgetId = R.prop("id", selectedWidget);
     const widgetPath = R.prop("path", selectedWidget);
+
+    if (R.equals(widgetId, lastLoadedWidgetId)) {
+      return;
+    }
+
+    const hasCachedData = R.both(
+      R.complement(R.isEmpty),
+      R.always(R.complement(R.isNil)(widgetDefinition)),
+    )(dynamicProperties);
+    if (hasCachedData) {
+      setLastLoadedWidgetId(widgetId);
+      return;
+    }
 
     const loadWidgetData = async () => {
       try {
@@ -40,7 +61,8 @@ export function useWidgetDataLoader(selectedWidget) {
         );
 
         setWidgetDefinition(definition);
-        setDynamicProperties(initial_values);
+        setDynamicProperties(R.always(initial_values));
+        setLastLoadedWidgetId(widgetId);
 
         R.ifElse(
           R.both(R.prop("found"), R.prop("content")),
@@ -58,7 +80,7 @@ export function useWidgetDataLoader(selectedWidget) {
     };
 
     loadWidgetData();
-  }, [selectedWidget, resetWidgetState]);
+  }, [selectedWidget, resetWidgetState, setDynamicProperties, lastLoadedWidgetId, setLastLoadedWidgetId, setWidgetDefinition, setEditorConfigHandler, dynamicProperties, widgetDefinition]);
 
   return {
     widgetDefinition,

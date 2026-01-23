@@ -175,6 +175,11 @@
     border: 1px solid var(--theme-border);
     border-radius: 12px;
     backdrop-filter: blur(5px);
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .inline-results-header {
@@ -190,6 +195,10 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 /* ============= Build Progress ============= */
@@ -302,6 +311,9 @@
     border-top: 1px solid var(--theme-border-light);
     border-bottom: 1px solid var(--theme-border-light);
     background: var(--theme-surface-secondary);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .widget-manager .package-manager-label {

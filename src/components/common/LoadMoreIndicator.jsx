@@ -1,38 +1,38 @@
 import * as R from "ramda";
 import { memo } from "react";
 
-const LoadingState = memo(() => (
+const LoadingState = memo(({ t }) => (
   <div key="loading-more" className="loading-indicator">
     <span className="loading-icon">🍓</span>
-    <p>Loading more versions...</p>
+    <p>{R.pathOr("Loading more versions...", ["versions", "loadingMore"], t)}</p>
   </div>
 ));
 
 LoadingState.displayName = "LoadingState";
 
-const EndOfListState = memo(() => (
+const EndOfListState = memo(({ t }) => (
   <div
     key="end-of-list"
     className="end-indicator"
     style={{ cursor: "default" }}
   >
-    <p>All versions loaded</p>
+    <p>{R.pathOr("All versions loaded", ["versions", "allLoaded"], t)}</p>
   </div>
 ));
 
 EndOfListState.displayName = "EndOfListState";
 
-const LoadMoreButton = memo(({ onClick }) => (
+const LoadMoreButton = memo(({ onClick, t }) => (
   <div key="load-more" className="end-indicator" onClick={onClick}>
-    <p>Click to load more versions</p>
+    <p>{R.pathOr("Click to load more versions", ["versions", "clickToLoadMore"], t)}</p>
   </div>
 ));
 
 LoadMoreButton.displayName = "LoadMoreButton";
 
-const LoadMoreIndicator = memo(({ fetchFunction, isLoading, totalCount }) => {
+const LoadMoreIndicator = memo(({ fetchFunction, isLoading, totalCount, t }) => {
   if (isLoading) {
-    return <LoadingState />;
+    return <LoadingState t={t} />;
   }
 
   const isInitialLoadOrEmpty = !fetchFunction && totalCount === 0;
@@ -41,20 +41,21 @@ const LoadMoreIndicator = memo(({ fetchFunction, isLoading, totalCount }) => {
   }
 
   if (!fetchFunction) {
-    return <EndOfListState />;
+    return <EndOfListState t={t} />;
   }
 
-  return <LoadMoreButton onClick={fetchFunction} />;
+  return <LoadMoreButton onClick={fetchFunction} t={t} />;
 });
 
 LoadMoreIndicator.displayName = "LoadMoreIndicator";
 
-export const renderLoadMoreIndicator = R.curry((fetchFunction, isLoading, totalCount) => (
+export const renderLoadMoreIndicator = R.curry((fetchFunction, isLoading, totalCount, t) => (
   <LoadMoreIndicator
     key="load-more-indicator"
     fetchFunction={fetchFunction}
     isLoading={isLoading}
     totalCount={totalCount}
+    t={t}
   />
 ));
 

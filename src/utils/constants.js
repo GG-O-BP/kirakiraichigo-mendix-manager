@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   THEME: "theme",
   LAST_TAB: "lastTab",
   SELECTED_VERSION: "selectedVersion",
+  LOCALE: "locale",
 };
 
 export const PACKAGE_MANAGERS = ["npm", "yarn", "pnpm", "bun"];

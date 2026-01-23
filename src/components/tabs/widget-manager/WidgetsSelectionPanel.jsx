@@ -6,6 +6,7 @@ import { renderLoadingIndicator } from "../../common/LoadingIndicator";
 import { renderPanel } from "../../common/Panel";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 import { STORAGE_KEYS, saveToStorage } from "../../../utils";
+import { useI18n } from "../../../i18n/useI18n";
 
 const persistWidgetSelection = (widgetSet) =>
   saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS, Array.from(widgetSet)).catch(
@@ -39,7 +40,7 @@ const createAddWidgetClickHandler = (modalHandlers) => () => {
   modalHandlers.setNewWidgetPath("");
 };
 
-const renderAddWidgetItem = (modalHandlers) => (
+const renderAddWidgetItem = (modalHandlers, t) => (
   <div
     className="version-list-item add-widget-item"
     onClick={createAddWidgetClickHandler(modalHandlers)}
@@ -47,8 +48,8 @@ const renderAddWidgetItem = (modalHandlers) => (
     <div className="version-info">
       <span className="version-icon">➕</span>
       <div className="version-details">
-        <span className="version-number">Add New Widget</span>
-        <span className="version-date">Click to add a widget</span>
+        <span className="version-number">{R.pathOr("Add New Widget", ["widgets", "addNewWidget"], t)}</span>
+        <span className="version-date">{R.pathOr("Click to add a widget", ["widgets", "clickToAdd"], t)}</span>
       </div>
     </div>
   </div>
@@ -65,6 +66,7 @@ const WidgetsSelectionPanel = memo(({
   handleWidgetDeleteClick,
   modalHandlers,
 }) => {
+  const { t } = useI18n();
   const [widgetListRef, reorderedWidgets, setReorderedWidgets] =
     useDragAndDrop(filteredWidgets, {
       disabled: !R.isEmpty(widgetSearchTerm),
@@ -87,9 +89,9 @@ const WidgetsSelectionPanel = memo(({
         () => R.isEmpty(widgetsToShow) && R.isEmpty(widgetSearchTerm),
         () => (
           <div>
-            {renderAddWidgetItem(modalHandlers)}
+            {renderAddWidgetItem(modalHandlers, t)}
             <div ref={widgetListRef} className="draggable-widget-list" />
-            {renderLoadingIndicator("🧩", "No widgets registered")}
+            {renderLoadingIndicator("🧩", R.pathOr("No widgets registered", ["widgets", "noWidgetsRegistered"], t))}
           </div>
         ),
       ],
@@ -97,11 +99,15 @@ const WidgetsSelectionPanel = memo(({
         () => R.isEmpty(widgetsToShow) && !R.isEmpty(widgetSearchTerm),
         () => (
           <div>
-            {renderAddWidgetItem(modalHandlers)}
+            {renderAddWidgetItem(modalHandlers, t)}
             <div ref={widgetListRef} className="draggable-widget-list" style={{ display: "none" }} />
             {renderLoadingIndicator(
               "🔍",
-              `No widgets found matching "${widgetSearchTerm}"`,
+              R.pathOr(
+                `No widgets found matching "${widgetSearchTerm}"`,
+                ["widgets", "noWidgetsMatching"],
+                t,
+              ).replace("{term}", widgetSearchTerm),
             )}
           </div>
         ),
@@ -110,7 +116,7 @@ const WidgetsSelectionPanel = memo(({
         R.T,
         () => (
           <div>
-            {renderAddWidgetItem(modalHandlers)}
+            {renderAddWidgetItem(modalHandlers, t)}
             <div ref={widgetListRef} className="draggable-widget-list">
               {R.map(
                 (widget) => (
@@ -136,7 +142,7 @@ const WidgetsSelectionPanel = memo(({
     <div className="search-controls">
       <div className="search-row">
         <SearchBox
-          placeholder="Search widgets by caption..."
+          placeholder={R.pathOr("Search widgets by caption...", ["widgets", "searchWidgets"], t)}
           value={widgetSearchTerm}
           onChange={setWidgetSearchTerm}
         />

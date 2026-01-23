@@ -14,7 +14,7 @@ use download::{download_file_to_path, execute_installer};
 use parsing::{extract_build_number_from_marketplace, extract_datagrid_content, parse_datagrid_html};
 
 // Re-export public types
-pub use config::{BuildInfo, DownloadProgress, DownloadableVersion};
+pub use config::{BuildInfo, DownloadProgress, DownloadableVersion, DownloadableVersionsCache};
 
 /// Create BuildInfo from build number and version
 fn create_build_info(build_number: String, version: &str) -> BuildInfo {

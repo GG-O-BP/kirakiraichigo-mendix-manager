@@ -17,6 +17,7 @@ const StudioProManager = memo(() => {
     versionLoadingStates,
     handleLaunchStudioPro,
     fetchVersionsFromDatagrid,
+    refreshDownloadableVersions,
     showOnlyDownloadableVersions,
     setShowOnlyDownloadableVersions,
     showLTSOnly,
@@ -27,7 +28,7 @@ const StudioProManager = memo(() => {
     setShowBetaOnly,
   } = useVersionsContext();
 
-  const { openUninstallModal, openDownloadModal } = useModalContext();
+  const { openUninstallModal, openDownloadModal, openAppDeleteModal } = useModalContext();
   const { apps } = useAppContext();
 
   const {
@@ -68,6 +69,7 @@ const StudioProManager = memo(() => {
         setShowMTSOnly={setShowMTSOnly}
         showBetaOnly={showBetaOnly}
         setShowBetaOnly={setShowBetaOnly}
+        onRefreshCache={refreshDownloadableVersions}
       />
       <InstalledVersionsPanel
         searchTerm={searchTerm}
@@ -84,6 +86,7 @@ const StudioProManager = memo(() => {
         setSearchTerm={setSearchTerm}
         displayedApps={displayedApps}
         selectedVersion={selectedVersion}
+        onDeleteApp={openAppDeleteModal}
       />
     </div>
   );

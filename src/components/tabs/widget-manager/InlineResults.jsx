@@ -19,23 +19,32 @@ const InlineResultItem = memo(({ type, widget, apps }) => (
 
 InlineResultItem.displayName = "InlineResultItem";
 
-const BuildingProgress = memo(() => (
+const ProgressIndicator = memo(({ isDeploying }) => (
   <div className="inline-results-container">
     <div className="inline-results-header">
-      <h4>Build & Deploy Results</h4>
+      <h4>{isDeploying ? "Deploy Results" : "Build & Deploy Results"}</h4>
     </div>
     <div className="inline-results-content">
       <div className="build-progress-container">
         <progress className="build-progress-bar" />
-        <span className="build-progress-text">Building & Deploying...</span>
+        <span className="build-progress-text">
+          {isDeploying ? "Deploying..." : "Building & Deploying..."}
+        </span>
       </div>
     </div>
   </div>
 ));
 
-BuildingProgress.displayName = "BuildingProgress";
+ProgressIndicator.displayName = "ProgressIndicator";
 
-const InlineResults = memo(({ inlineResults, setInlineResults, isBuilding }) => {
+const getResultsTitle = (lastOperationType) =>
+  R.cond([
+    [R.equals("deploy"), R.always("Deploy Results")],
+    [R.equals("build"), R.always("Build & Deploy Results")],
+    [R.T, R.always("Results")],
+  ])(lastOperationType);
+
+const InlineResults = memo(({ inlineResults, setInlineResults, isBuilding, isDeploying, lastOperationType }) => {
   const hasResults = R.pipe(
     R.juxt([
       R.pipe(R.propOr([], "successful"), R.complement(R.isEmpty)),
@@ -44,8 +53,8 @@ const InlineResults = memo(({ inlineResults, setInlineResults, isBuilding }) => 
     R.any(R.identity),
   )(inlineResults);
 
-  if (isBuilding) {
-    return <BuildingProgress />;
+  if (R.or(isBuilding, isDeploying)) {
+    return <ProgressIndicator isDeploying={isDeploying} />;
   }
 
   if (R.or(R.isNil(inlineResults), R.not(hasResults))) {
@@ -58,7 +67,7 @@ const InlineResults = memo(({ inlineResults, setInlineResults, isBuilding }) => 
   return (
     <div className="inline-results-container">
       <div className="inline-results-header">
-        <h4>Build & Deploy Results</h4>
+        <h4>{getResultsTitle(lastOperationType)}</h4>
         <button
           className="clear-results-button"
           onClick={() => setInlineResults(null)}

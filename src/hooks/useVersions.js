@@ -21,6 +21,7 @@ export function useVersions() {
     downloadableVersions: downloadable.downloadableVersions,
     isLoadingDownloadableVersions: downloadable.isLoadingDownloadableVersions,
     fetchVersionsFromDatagrid: downloadable.fetchVersionsFromDatagrid,
+    refreshDownloadableVersions: downloadable.refreshVersions,
     searchTerm: filters.searchTerm,
     setSearchTerm: filters.setSearchTerm,
     showOnlyDownloadableVersions: filters.showOnlyDownloadableVersions,

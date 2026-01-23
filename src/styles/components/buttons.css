@@ -73,8 +73,17 @@
 /* ============= Build & Deploy Button ============= */
 .build-deploy-button {
     width: 100%;
+    margin-bottom: var(--space-sm);
     background: var(--theme-gradient-success);
     border-color: var(--theme-success);
+}
+
+/* ============= Deploy Only Button ============= */
+.deploy-only-button {
+    width: 100%;
+    margin-bottom: var(--space-sm);
+    background: var(--theme-info-bg);
+    border-color: var(--theme-info);
 }
 
 /* ============= Error State Buttons ============= */

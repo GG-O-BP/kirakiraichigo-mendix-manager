@@ -4,18 +4,27 @@ import { invoke } from "@tauri-apps/api/core";
 
 export function useDownloadableVersions() {
   const [downloadableVersions, setDownloadableVersions] = useState([]);
-  const [isLoadingDownloadableVersions, setIsLoadingDownloadableVersions] = useState(false);
+  const [isLoadingDownloadableVersions, setIsLoadingDownloadableVersions] =
+    useState(false);
+  const [isCacheLoaded, setIsCacheLoaded] = useState(false);
 
   const hasLoadedInitialVersions = useRef(false);
 
+  const loadCachedVersions = useCallback(async () => {
+    try {
+      const cached = await invoke("load_downloadable_versions_cache");
+      R.when(
+        R.complement(R.isEmpty),
+        R.tap(setDownloadableVersions),
+      )(cached);
+      return cached;
+    } catch (error) {
+      console.error("Failed to load cached versions:", error);
+      return [];
+    }
+  }, []);
+
   const fetchVersionsFromDatagrid = useCallback(async (page = 1) => {
-    const isFirstPage = page === 1;
-
-    const updateVersions = (newVersions, prevVersions) =>
-      isFirstPage
-        ? newVersions
-        : R.concat(R.defaultTo([], prevVersions), newVersions);
-
     try {
       const processedPage = R.pipe(R.defaultTo(1), R.max(1))(page);
 
@@ -25,10 +34,11 @@ export function useDownloadableVersions() {
         page: processedPage,
       });
 
-      setDownloadableVersions((prevVersions) =>
-        updateVersions(versions, prevVersions),
-      );
+      const merged = await invoke("merge_and_save_downloadable_versions", {
+        fresh: versions,
+      });
 
+      setDownloadableVersions(merged);
       setIsLoadingDownloadableVersions(false);
       return versions;
     } catch (error) {
@@ -38,6 +48,23 @@ export function useDownloadableVersions() {
     }
   }, []);
 
+  const clearCache = useCallback(async () => {
+    try {
+      await invoke("clear_downloadable_versions_cache");
+      setDownloadableVersions([]);
+      hasLoadedInitialVersions.current = false;
+      return true;
+    } catch (error) {
+      console.error("Failed to clear cache:", error);
+      return false;
+    }
+  }, []);
+
+  const refreshVersions = useCallback(async () => {
+    await clearCache();
+    return fetchVersionsFromDatagrid(1);
+  }, [clearCache, fetchVersionsFromDatagrid]);
+
   useEffect(() => {
     if (hasLoadedInitialVersions.current) {
       return;
@@ -46,6 +73,10 @@ export function useDownloadableVersions() {
     const loadInitialDownloadableVersions = async () => {
       try {
         hasLoadedInitialVersions.current = true;
+
+        const cached = await loadCachedVersions();
+        setIsCacheLoaded(true);
+
         await fetchVersionsFromDatagrid(1);
       } catch (error) {
         console.error("Failed to load initial downloadable versions:", error);
@@ -54,11 +85,14 @@ export function useDownloadableVersions() {
     };
 
     loadInitialDownloadableVersions();
-  }, [fetchVersionsFromDatagrid]);
+  }, [fetchVersionsFromDatagrid, loadCachedVersions]);
 
   return {
     downloadableVersions,
     isLoadingDownloadableVersions,
+    isCacheLoaded,
     fetchVersionsFromDatagrid,
+    clearCache,
+    refreshVersions,
   };
 }

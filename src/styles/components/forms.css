@@ -51,6 +51,50 @@
     color: var(--theme-primary);
 }
 
+/* ============= Search Row with Action ============= */
+
+.search-row-with-action {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.search-row-with-action .search-container {
+    flex: 1;
+    min-width: 0;
+}
+
+.refresh-cache-button {
+    padding: 10px 16px;
+    border: 1px solid var(--theme-border);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--theme-surface-secondary);
+    color: var(--theme-text);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.refresh-cache-button:hover:not(:disabled) {
+    background: var(--theme-primary);
+    color: var(--theme-surface);
+    border-color: var(--theme-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--theme-primary-shadow);
+}
+
+.refresh-cache-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.refresh-cache-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 /* ============= Dropdown Components ============= */
 
 .dropdown-container {

@@ -24,17 +24,18 @@ pub use web_scraper::{
     DownloadProgress, DownloadableVersion,
 };
 
-pub use build_deploy::{build_and_deploy_from_selections, create_catastrophic_error_result, validate_and_build_deploy};
+pub use build_deploy::{build_and_deploy_from_selections, check_multiple_dist_exists, create_catastrophic_error_result, validate_and_build_deploy, validate_and_deploy_only};
 pub use storage::{
-    add_widget_and_save, delete_widget_and_save, load_from_storage, load_widgets_ordered,
-    save_to_storage,
+    add_widget_and_save, clear_downloadable_versions_cache, delete_widget_and_save,
+    load_downloadable_versions_cache, load_from_storage, load_widgets_ordered,
+    merge_and_save_downloadable_versions, save_downloadable_versions_cache, save_to_storage,
 };
 pub use widget_parser::{
     count_all_spec_groups_visible_properties, initialize_property_values,
     load_widget_complete_data, parse_widget_properties_as_spec, read_editor_config,
     transform_properties_to_spec, validate_mendix_widget,
 };
-pub use widget_preview::build_widget_for_preview;
+pub use widget_preview::{build_and_run_preview, check_dist_exists, run_widget_preview_only};
 
 pub use data_processing::version_utils::{
     calculate_next_page_number, compare_versions, create_version_options, exclude_installed_versions,
@@ -62,6 +63,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_os::init())
         .invoke_handler(tauri::generate_handler![
             // ================================================================
             // Mendix version management
@@ -89,7 +91,9 @@ pub fn run() {
             // ================================================================
             // Widget preview & build
             // ================================================================
-            build_widget_for_preview,
+            build_and_run_preview,
+            run_widget_preview_only,
+            check_dist_exists,
             build_and_deploy_from_selections,
             // ================================================================
             // Storage
@@ -99,6 +103,10 @@ pub fn run() {
             load_widgets_ordered,
             delete_widget_and_save,
             add_widget_and_save,
+            load_downloadable_versions_cache,
+            save_downloadable_versions_cache,
+            merge_and_save_downloadable_versions,
+            clear_downloadable_versions_cache,
             // ================================================================
             // Version utilities
             // ================================================================
@@ -140,6 +148,8 @@ pub fn run() {
             // ================================================================
             load_widget_complete_data,
             validate_and_build_deploy,
+            validate_and_deploy_only,
+            check_multiple_dist_exists,
             compare_versions,
             process_widgets_pipeline,
             process_apps_pipeline,

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 
-const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, widgetDefinition }) => {
+const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, widgetDefinition, onDatasourceCommit }) => {
   const iframeRef = useRef(null);
   const iframeReadyRef = useRef(false);
   const bundleRef = useRef(null);
@@ -198,18 +198,348 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                   status: 'available'
                 });
 
-                const createMockDatasource = (jsonString) => {
+                const mxObjectSymbol = Symbol('mxObject');
+                const mxObjectStore = new Map();
+                const datasourceRegistry = new Map();
+
+                // Store live datasource instances for state persistence
+                const liveDatasources = new Map();
+
+                const createMockDatasource = (jsonString, datasourceKey) => {
                   let items = [];
+                  let attributeSchema = {};
+                  // Use datasourceKey as mock entity name
+                  const mockEntityName = 'Preview.' + datasourceKey;
+
+                  // Get existing registry info if available
+                  const existingRegistry = datasourceRegistry.get(datasourceKey);
+                  if (existingRegistry && existingRegistry.attributeSchema) {
+                    attributeSchema = existingRegistry.attributeSchema;
+                  }
+
+                  // Helper to create an item with mxObject symbol
+                  const createItemWithMxObject = (item, guid) => {
+                    // Check if mxObject already exists in store (reuse for state persistence)
+                    const existingStored = mxObjectStore.get(guid);
+                    let mxObject;
+
+                    if (existingStored && existingStored.datasourceKey === datasourceKey) {
+                      // Reuse existing mxObject and update its data
+                      mxObject = existingStored.mxObject;
+                      mxObject._data = { ...item };
+                    } else {
+                      // Create new mxObject
+                      mxObject = {
+                        _guid: guid,
+                        _data: { ...item },
+                        _entityName: mockEntityName,
+                        get: function(attr) { return this._data[attr]; },
+                        set: function(attr, value) { this._data[attr] = value; },
+                        getEntity: function() { return this._entityName; }
+                      };
+                      mxObjectStore.set(guid, { mxObject, datasourceKey });
+                    }
+
+                    const itemWithSymbol = { ...item };
+                    // Store guid as 'id' for internal tracking (used by widget to identify items)
+                    itemWithSymbol.id = guid;
+                    itemWithSymbol[mxObjectSymbol] = {
+                      _mxObject: mxObject,
+                      metaData: { attributes: attributeSchema }
+                    };
+                    return itemWithSymbol;
+                  };
+
                   try {
                     const parsed = JSON.parse(jsonString);
-                    items = Array.isArray(parsed) ? parsed : [parsed];
+                    let rawItems = Array.isArray(parsed) ? parsed : [parsed];
+
+                    // Build attribute schema from the first item (merge with existing)
+                    if (rawItems.length > 0) {
+                      const newSchema = Object.keys(rawItems[0]).reduce((acc, k) => ({ ...acc, [k]: { type: 'String' } }), {});
+                      attributeSchema = { ...attributeSchema, ...newSchema };
+                    }
+
+                    // Collect existing guids from mxObjectStore for this datasource (in order)
+                    const existingGuids = [];
+                    mxObjectStore.forEach((value, guid) => {
+                      if (value.datasourceKey === datasourceKey) {
+                        existingGuids.push(guid);
+                      }
+                    });
+
+                    // If datasource is empty, check if we have items in mxObjectStore
+                    // This preserves items created via mx.data.create
+                    if (rawItems.length === 0 && existingGuids.length > 0) {
+                      existingGuids.forEach(guid => {
+                        const stored = mxObjectStore.get(guid);
+                        if (stored) {
+                          rawItems.push({ ...stored.mxObject._data });
+                        }
+                      });
+                    }
+
+                    // Track which guids are in the new data
+                    const newGuids = new Set();
+
+                    items = rawItems.map((item, index) => {
+                      // Reuse existing guid if available (by index), otherwise generate new one
+                      const guid = existingGuids[index] || ('item_' + Date.now() + '_' + index);
+                      newGuids.add(guid);
+                      return createItemWithMxObject(item, guid);
+                    });
+
+                    // Clean up mxObjectStore: remove objects that are no longer in datasource
+                    // But preserve items that were dynamically created (new_ prefix)
+                    const toRemove = [];
+                    mxObjectStore.forEach((value, guid) => {
+                      if (value.datasourceKey === datasourceKey && !newGuids.has(guid)) {
+                        // Don't remove dynamically created items
+                        if (!guid.startsWith('new_')) {
+                          toRemove.push(guid);
+                        }
+                      }
+                    });
+                    toRemove.forEach(guid => mxObjectStore.delete(guid));
+
+                    // Add any dynamically created items that weren't in rawItems
+                    mxObjectStore.forEach((value, guid) => {
+                      if (value.datasourceKey === datasourceKey && !newGuids.has(guid) && guid.startsWith('new_')) {
+                        items.push(createItemWithMxObject(value.mxObject._data, guid));
+                      }
+                    });
+
                   } catch (e) {
-                    items = [];
+                    // If parsing fails, check if we have existing items in mxObjectStore
+                    const existingItems = [];
+                    mxObjectStore.forEach((value, guid) => {
+                      if (value.datasourceKey === datasourceKey) {
+                        const item = { ...value.mxObject._data, id: guid };
+                        item[mxObjectSymbol] = {
+                          _mxObject: value.mxObject,
+                          metaData: { attributes: attributeSchema }
+                        };
+                        existingItems.push(item);
+                      }
+                    });
+                    items = existingItems;
                   }
-                  return {
-                    items: items,
-                    status: 'available'
-                  };
+
+                  // Register datasource for create operations
+                  datasourceRegistry.set(datasourceKey, { attributeSchema, mockEntityName });
+
+                  // Create or update the live datasource instance
+                  let datasource = liveDatasources.get(datasourceKey);
+                  if (!datasource) {
+                    datasource = {
+                      items: items,
+                      status: 'available',
+                      _attributeSchema: attributeSchema,
+                      _mockEntityName: mockEntityName,
+                      _datasourceKey: datasourceKey,
+                      // Method to create a new item and add it to the datasource
+                      create: function(callback) {
+                        const guid = 'new_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                        const newData = { id: guid };
+
+                        // Initialize with empty values based on schema
+                        Object.keys(this._attributeSchema).forEach(key => {
+                          if (key !== 'id') newData[key] = '';
+                        });
+
+                        const mxObject = {
+                          _guid: guid,
+                          _data: newData,
+                          _isNew: true,
+                          _entityName: this._mockEntityName,
+                          get: function(attr) { return this._data[attr]; },
+                          set: function(attr, value) { this._data[attr] = value; },
+                          getEntity: function() { return this._entityName; }
+                        };
+
+                        mxObjectStore.set(guid, { mxObject, datasourceKey: this._datasourceKey });
+
+                        const itemWithSymbol = { ...newData };
+                        itemWithSymbol[mxObjectSymbol] = {
+                          _mxObject: mxObject,
+                          metaData: { attributes: this._attributeSchema }
+                        };
+
+                        this.items.push(itemWithSymbol);
+
+                        if (callback) callback(mxObject);
+                        return mxObject;
+                      }
+                    };
+                    liveDatasources.set(datasourceKey, datasource);
+                  } else {
+                    // Update existing datasource items
+                    datasource.items = items;
+                    datasource._attributeSchema = attributeSchema;
+                  }
+
+                  return datasource;
+                };
+
+                window.mx = {
+                  data: {
+                    get: function(options) {
+                      const { guid, callback, error } = options;
+                      const stored = mxObjectStore.get(guid);
+                      if (stored) {
+                        callback(stored.mxObject);
+                      } else if (error) {
+                        error(new Error('Object not found'));
+                      }
+                    },
+                    create: function(options) {
+                      const { entity, callback, error } = options;
+                      try {
+                        // Generate a unique guid for the new object
+                        const guid = 'new_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+                        // Find the datasource key from entity name
+                        let datasourceKey = null;
+                        let attributeSchema = {};
+
+                        datasourceRegistry.forEach((value, key) => {
+                          if (value.mockEntityName === entity) {
+                            datasourceKey = key;
+                            attributeSchema = value.attributeSchema || {};
+                          }
+                        });
+
+                        // Fallback: use the first registered datasource if entity not found
+                        if (!datasourceKey && datasourceRegistry.size > 0) {
+                          const firstEntry = datasourceRegistry.entries().next().value;
+                          datasourceKey = firstEntry[0];
+                          attributeSchema = firstEntry[1].attributeSchema || {};
+                        }
+
+                        // Create new data with empty values based on schema
+                        const newData = {};
+                        Object.keys(attributeSchema).forEach(key => {
+                          newData[key] = '';
+                        });
+
+                        // Create a new mxObject
+                        const mxObject = {
+                          _guid: guid,
+                          _data: newData,
+                          _isNew: true,
+                          _entityName: entity,
+                          get: function(attr) { return this._data[attr]; },
+                          set: function(attr, value) { this._data[attr] = value; },
+                          getEntity: function() { return this._entityName; }
+                        };
+
+                        // Store the new object in mxObjectStore
+                        if (datasourceKey) {
+                          mxObjectStore.set(guid, { mxObject, datasourceKey });
+
+                          // Also add to liveDatasources items for immediate UI update
+                          const datasource = liveDatasources.get(datasourceKey);
+                          if (datasource) {
+                            const itemWithSymbol = { ...newData };
+                            itemWithSymbol[mxObjectSymbol] = {
+                              _mxObject: mxObject,
+                              metaData: { attributes: attributeSchema }
+                            };
+                            datasource.items.push(itemWithSymbol);
+                          }
+
+                          // Notify parent about the new item for re-render
+                          const allItems = [];
+                          mxObjectStore.forEach((value) => {
+                            if (value.datasourceKey === datasourceKey) {
+                              allItems.push({ ...value.mxObject._data });
+                            }
+                          });
+                          window.parent.postMessage({
+                            type: 'DATASOURCE_COMMIT',
+                            datasourceKey: datasourceKey,
+                            items: allItems
+                          }, '*');
+                        }
+
+                        if (callback) callback(mxObject);
+                      } catch (e) {
+                        if (error) error(e);
+                      }
+                    },
+                    commit: function(options) {
+                      const { mxobj, callback, error } = options;
+                      try {
+                        const guid = mxobj._guid;
+                        const stored = mxObjectStore.get(guid);
+                        if (stored) {
+                          const { datasourceKey } = stored;
+
+                          // Sync mxObject data to liveDatasources items
+                          const datasource = liveDatasources.get(datasourceKey);
+                          if (datasource) {
+                            const item = datasource.items.find(i => i.id === guid);
+                            if (item) {
+                              // Update item properties from mxObject._data
+                              Object.keys(mxobj._data).forEach(key => {
+                                item[key] = mxobj._data[key];
+                              });
+                            }
+                          }
+
+                          const allItems = [];
+                          mxObjectStore.forEach((value) => {
+                            if (value.datasourceKey === datasourceKey) {
+                              allItems.push({ ...value.mxObject._data });
+                            }
+                          });
+                          window.parent.postMessage({
+                            type: 'DATASOURCE_COMMIT',
+                            datasourceKey: datasourceKey,
+                            items: allItems
+                          }, '*');
+                        }
+                        if (callback) callback();
+                      } catch (e) {
+                        if (error) error(e);
+                      }
+                    },
+                    remove: function(options) {
+                      const { guid, callback, error } = options;
+                      try {
+                        const stored = mxObjectStore.get(guid);
+                        if (stored) {
+                          const { datasourceKey } = stored;
+                          mxObjectStore.delete(guid);
+
+                          // Also remove from liveDatasources items for immediate UI update
+                          const datasource = liveDatasources.get(datasourceKey);
+                          if (datasource) {
+                            const index = datasource.items.findIndex(item => item.id === guid);
+                            if (index !== -1) {
+                              datasource.items.splice(index, 1);
+                            }
+                          }
+
+                          // Notify parent about the removal
+                          const allItems = [];
+                          mxObjectStore.forEach((value) => {
+                            if (value.datasourceKey === datasourceKey) {
+                              allItems.push({ ...value.mxObject._data });
+                            }
+                          });
+                          window.parent.postMessage({
+                            type: 'DATASOURCE_COMMIT',
+                            datasourceKey: datasourceKey,
+                            items: allItems
+                          }, '*');
+                        }
+                        if (callback) callback();
+                      } catch (e) {
+                        if (error) error(e);
+                      }
+                    }
+                  }
                 };
 
                 const createMockAttribute = (selectedKey) => {
@@ -309,7 +639,7 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                     const propType = propertyDef ? propertyDef.type : null;
 
                     if (propType === 'datasource') {
-                      widgetProps[key] = createMockDatasource(value);
+                      widgetProps[key] = createMockDatasource(value, key);
                     } else if (propType === 'attribute') {
                       if (value) {
                         widgetProps[key] = createMockAttribute(value);
@@ -435,16 +765,20 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
   }, [bundle, css, widgetName, widgetId]);
 
   useEffect(() => {
-    const handleIframeReady = (event) => {
+    const handleIframeMessage = (event) => {
       if (event.data && event.data.type === "IFRAME_READY") {
         iframeReadyRef.current = true;
         sendPropertiesToIframe(properties, widgetDefinition);
       }
+      if (event.data && event.data.type === "DATASOURCE_COMMIT" && onDatasourceCommit) {
+        const { datasourceKey, items } = event.data;
+        onDatasourceCommit(datasourceKey, JSON.stringify(items, null, 2));
+      }
     };
 
-    window.addEventListener("message", handleIframeReady);
-    return () => window.removeEventListener("message", handleIframeReady);
-  }, [properties, widgetDefinition, sendPropertiesToIframe]);
+    window.addEventListener("message", handleIframeMessage);
+    return () => window.removeEventListener("message", handleIframeMessage);
+  }, [properties, widgetDefinition, sendPropertiesToIframe, onDatasourceCommit]);
 
   useEffect(() => {
     if (iframeReadyRef.current && properties) {
