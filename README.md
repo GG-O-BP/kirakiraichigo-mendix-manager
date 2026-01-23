@@ -13,7 +13,7 @@
 - [x] Show Local Mendix App List by Version
 - [x] Track which apps are developed with each Studio Pro version
 - [x] Filter and view apps by specific Studio Pro version
-- [ ] Delete Local Mendix App
+- [x] Delete Local Mendix App
 - **Generate & Build & Deploy Widgets** - Create widget and Transform your widget code into deployable packages with one click
 - [ ] Generate Mendix Widget
 - [x] Build Mendix Widget
