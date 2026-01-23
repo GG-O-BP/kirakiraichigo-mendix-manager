@@ -200,34 +200,85 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
 
                 const mxObjectSymbol = Symbol('mxObject');
                 const mxObjectStore = new Map();
+                const datasourceRegistry = new Map();
 
                 const createMockDatasource = (jsonString, datasourceKey) => {
                   let items = [];
+                  let attributeSchema = {};
+                  // Use datasourceKey as mock entity name
+                  const mockEntityName = 'Preview.' + datasourceKey;
+
                   try {
                     const parsed = JSON.parse(jsonString);
                     const rawItems = Array.isArray(parsed) ? parsed : [parsed];
+
+                    // Build attribute schema from the first item
+                    if (rawItems.length > 0) {
+                      attributeSchema = Object.keys(rawItems[0]).reduce((acc, k) => ({ ...acc, [k]: { type: 'String' } }), {});
+                    }
+
                     items = rawItems.map((item, index) => {
                       const guid = item.id !== undefined ? String(item.id) : String(index);
                       const mxObject = {
                         _guid: guid,
                         _data: { ...item },
+                        _entityName: mockEntityName,
                         get: function(attr) { return this._data[attr]; },
-                        set: function(attr, value) { this._data[attr] = value; }
+                        set: function(attr, value) { this._data[attr] = value; },
+                        getEntity: function() { return this._entityName; }
                       };
                       mxObjectStore.set(guid, { mxObject, datasourceKey });
                       const itemWithSymbol = { ...item, id: guid };
                       itemWithSymbol[mxObjectSymbol] = {
                         _mxObject: mxObject,
-                        metaData: { attributes: Object.keys(item).reduce((acc, k) => ({ ...acc, [k]: { type: 'String' } }), {}) }
+                        metaData: { attributes: attributeSchema }
                       };
                       return itemWithSymbol;
                     });
                   } catch (e) {
                     items = [];
                   }
+
+                  // Register datasource for create operations
+                  datasourceRegistry.set(datasourceKey, { attributeSchema, mockEntityName });
+
+                  // Return datasource with helper methods for row operations
                   return {
                     items: items,
-                    status: 'available'
+                    status: 'available',
+                    // Method to create a new item and add it to the datasource
+                    create: function(callback) {
+                      const guid = 'new_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                      const newData = { id: guid };
+
+                      // Initialize with empty values based on schema
+                      Object.keys(attributeSchema).forEach(key => {
+                        if (key !== 'id') newData[key] = '';
+                      });
+
+                      const mxObject = {
+                        _guid: guid,
+                        _data: newData,
+                        _isNew: true,
+                        _entityName: mockEntityName,
+                        get: function(attr) { return this._data[attr]; },
+                        set: function(attr, value) { this._data[attr] = value; },
+                        getEntity: function() { return this._entityName; }
+                      };
+
+                      mxObjectStore.set(guid, { mxObject, datasourceKey });
+
+                      const itemWithSymbol = { ...newData };
+                      itemWithSymbol[mxObjectSymbol] = {
+                        _mxObject: mxObject,
+                        metaData: { attributes: attributeSchema }
+                      };
+
+                      this.items.push(itemWithSymbol);
+
+                      if (callback) callback(mxObject);
+                      return mxObject;
+                    }
                   };
                 };
 
@@ -242,6 +293,57 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                         error(new Error('Object not found'));
                       }
                     },
+                    create: function(options) {
+                      const { entity, callback, error } = options;
+                      try {
+                        // Generate a unique guid for the new object
+                        const guid = 'new_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+                        // Find the datasource key from entity name
+                        let datasourceKey = null;
+                        let attributeSchema = {};
+
+                        datasourceRegistry.forEach((value, key) => {
+                          if (value.mockEntityName === entity) {
+                            datasourceKey = key;
+                            attributeSchema = value.attributeSchema || {};
+                          }
+                        });
+
+                        // Fallback: use the first registered datasource if entity not found
+                        if (!datasourceKey && datasourceRegistry.size > 0) {
+                          const firstEntry = datasourceRegistry.entries().next().value;
+                          datasourceKey = firstEntry[0];
+                          attributeSchema = firstEntry[1].attributeSchema || {};
+                        }
+
+                        // Create new data with empty values based on schema
+                        const newData = { id: guid };
+                        Object.keys(attributeSchema).forEach(key => {
+                          if (key !== 'id') newData[key] = '';
+                        });
+
+                        // Create a new mxObject
+                        const mxObject = {
+                          _guid: guid,
+                          _data: newData,
+                          _isNew: true,
+                          _entityName: entity,
+                          get: function(attr) { return this._data[attr]; },
+                          set: function(attr, value) { this._data[attr] = value; },
+                          getEntity: function() { return this._entityName; }
+                        };
+
+                        // Store the new object in mxObjectStore
+                        if (datasourceKey) {
+                          mxObjectStore.set(guid, { mxObject, datasourceKey });
+                        }
+
+                        if (callback) callback(mxObject);
+                      } catch (e) {
+                        if (error) error(e);
+                      }
+                    },
                     commit: function(options) {
                       const { mxobj, callback, error } = options;
                       try {
@@ -249,6 +351,32 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                         const stored = mxObjectStore.get(guid);
                         if (stored) {
                           const { datasourceKey } = stored;
+                          const allItems = [];
+                          mxObjectStore.forEach((value) => {
+                            if (value.datasourceKey === datasourceKey) {
+                              allItems.push({ ...value.mxObject._data });
+                            }
+                          });
+                          window.parent.postMessage({
+                            type: 'DATASOURCE_COMMIT',
+                            datasourceKey: datasourceKey,
+                            items: allItems
+                          }, '*');
+                        }
+                        if (callback) callback();
+                      } catch (e) {
+                        if (error) error(e);
+                      }
+                    },
+                    remove: function(options) {
+                      const { guid, callback, error } = options;
+                      try {
+                        const stored = mxObjectStore.get(guid);
+                        if (stored) {
+                          const { datasourceKey } = stored;
+                          mxObjectStore.delete(guid);
+
+                          // Notify parent about the removal
                           const allItems = [];
                           mxObjectStore.forEach((value) => {
                             if (value.datasourceKey === datasourceKey) {
