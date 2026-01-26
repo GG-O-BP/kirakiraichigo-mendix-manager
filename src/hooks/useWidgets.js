@@ -1,9 +1,10 @@
 import * as R from "ramda";
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { STORAGE_KEYS, saveToStorage } from "../utils";
 import { processWidgetsPipeline } from "../utils/data-processing/widgetFiltering";
 import { useCollection } from "./useCollection";
+import { useWidgetForm } from "./useWidgetForm";
 
 export function useWidgets() {
   const collection = useCollection({
@@ -11,8 +12,7 @@ export function useWidgets() {
     getItemId: R.prop("id"),
   });
 
-  const [newWidgetCaption, setNewWidgetCaption] = useState("");
-  const [newWidgetPath, setNewWidgetPath] = useState("");
+  const form = useWidgetForm();
 
   const loadWidgets = useCallback(async () => {
     try {
@@ -26,24 +26,23 @@ export function useWidgets() {
 
   const handleAddWidget = useCallback(
     async (onSuccess) => {
-      const isValid = R.all(R.complement(R.isEmpty), [newWidgetCaption, newWidgetPath]);
+      const isValid = R.all(R.complement(R.isEmpty), [form.newWidgetCaption, form.newWidgetPath]);
       if (!isValid) return;
 
       try {
         const newWidget = await invoke("add_widget_and_save", {
-          caption: newWidgetCaption,
-          path: newWidgetPath,
+          caption: form.newWidgetCaption,
+          path: form.newWidgetPath,
         });
         const updatedWidgets = R.append(newWidget, collection.items);
         collection.setItems(updatedWidgets);
-        setNewWidgetCaption("");
-        setNewWidgetPath("");
+        form.resetForm();
         R.when(R.complement(R.isNil), R.call)(onSuccess);
       } catch (error) {
         console.error("Failed to add widget:", error);
       }
     },
-    [newWidgetCaption, newWidgetPath, collection.items, collection.setItems],
+    [form.newWidgetCaption, form.newWidgetPath, form.resetForm, collection.items, collection.setItems],
   );
 
   const handleWidgetDelete = useCallback(
@@ -111,10 +110,10 @@ export function useWidgets() {
     setWidgetSearchTerm: collection.setSearchTerm,
     selectedWidgets: collection.selectedItems,
     setSelectedWidgets: collection.setSelectedItems,
-    newWidgetCaption,
-    setNewWidgetCaption,
-    newWidgetPath,
-    setNewWidgetPath,
+    newWidgetCaption: form.newWidgetCaption,
+    setNewWidgetCaption: form.setNewWidgetCaption,
+    newWidgetPath: form.newWidgetPath,
+    setNewWidgetPath: form.setNewWidgetPath,
     handleAddWidget,
     handleWidgetDelete,
   };

@@ -5,6 +5,7 @@ export { useWidgets } from "./useWidgets";
 export { useWidgetPreview } from "./useWidgetPreview";
 export { useBuildDeploy } from "./useBuildDeploy";
 export { useCollection } from "./useCollection";
+export { useWidgetForm } from "./useWidgetForm";
 
 export { useUninstallModal } from "./useUninstallModal";
 export { useAppDeleteModal } from "./useAppDeleteModal";
