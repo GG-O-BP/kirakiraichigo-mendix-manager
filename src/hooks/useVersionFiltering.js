@@ -6,12 +6,6 @@ import { processAppsPipeline } from "../utils/data-processing/appFiltering";
 
 const DOWNLOADABLE_VERSIONS_PAGE_SIZE = 10;
 
-export const invokeExcludeInstalledVersions = async (versions, installedVersions, showOnlyDownloadable) =>
-  invoke("exclude_installed_versions", { versions, installedVersions, showOnlyDownloadable });
-
-export const invokeFilterByVersionSupportType = async (versions, showLtsOnly, showMtsOnly, showBetaOnly) =>
-  invoke("filter_by_version_support_type", { versions, showLtsOnly, showMtsOnly, showBetaOnly });
-
 export const invokeFilterDownloadableVersions = async (
   versions,
   installedVersions,

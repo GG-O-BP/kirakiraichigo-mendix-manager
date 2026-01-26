@@ -5,7 +5,6 @@ export { default as ConfirmModal } from './ConfirmModal';
 export { default as WidgetListItem } from './WidgetListItem';
 export { default as AppHeader } from './AppHeader';
 export {
-  invokeGetVersionValidityBadge,
   invokeFormatDateWithFallback,
   invokeGetVersionStatusText,
   MendixVersionListItem,

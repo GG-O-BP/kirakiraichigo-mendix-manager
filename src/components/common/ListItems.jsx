@@ -12,9 +12,6 @@ const INLINE_FLEX_GAP = { display: "flex", gap: "8px" };
 
 const joinTruthyClassNames = R.pipe(R.filter(R.identity), R.join(" "));
 
-export const invokeGetVersionValidityBadge = async (isValid, isLts, isMts) =>
-  invoke("get_version_validity_badge", { isValid, isLts, isMts });
-
 export const invokeFormatDateWithFallback = async (dateStr, fallback) =>
   invoke("format_date_with_fallback", { dateStr, fallback });
 
