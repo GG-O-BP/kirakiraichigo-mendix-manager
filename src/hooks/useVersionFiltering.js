@@ -33,6 +33,7 @@ export const useVersionFiltering = ({
   installedVersions,
   apps,
   searchTerm,
+  appSearchTerm,
   showLTSOnly,
   showMTSOnly,
   showBetaOnly,
@@ -61,7 +62,7 @@ export const useVersionFiltering = ({
   useEffect(() => {
     if (apps && apps.length > 0) {
       processAppsPipeline(apps, {
-        searchTerm,
+        searchTerm: appSearchTerm,
         priorityVersion: selectedVersion?.version,
         onlyValid: true,
       })
@@ -73,7 +74,7 @@ export const useVersionFiltering = ({
     } else {
       setDisplayedApps([]);
     }
-  }, [apps, searchTerm, selectedVersion]);
+  }, [apps, appSearchTerm, selectedVersion]);
 
   useEffect(() => {
     const filterDownloadable = async () => {

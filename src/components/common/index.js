@@ -11,6 +11,6 @@ export {
   MendixAppListItem,
 } from './ListItems';
 
-export { default as FilterCheckbox, renderFilterCheckbox } from './FilterCheckbox';
-export { default as LoadMoreIndicator, renderLoadMoreIndicator } from './LoadMoreIndicator';
+export { default as FilterCheckbox } from './FilterCheckbox';
+export { default as LoadMoreIndicator } from './LoadMoreIndicator';
 export { default as PackageManagerSelector } from './PackageManagerSelector';

@@ -146,25 +146,6 @@ fn build_version_options(versions: &[MendixVersion]) -> Vec<VersionOption> {
 }
 
 #[tauri::command]
-pub fn exclude_installed_versions(
-    versions: Vec<DownloadableVersion>,
-    installed_versions: Vec<MendixVersion>,
-    show_only_downloadable: bool,
-) -> Result<Vec<DownloadableVersion>, String> {
-    Ok(exclude_already_installed(versions, &installed_versions, show_only_downloadable))
-}
-
-#[tauri::command]
-pub fn filter_by_version_support_type(
-    versions: Vec<DownloadableVersion>,
-    show_lts_only: bool,
-    show_mts_only: bool,
-    show_beta_only: bool,
-) -> Result<Vec<DownloadableVersion>, String> {
-    Ok(filter_by_support_type(versions, show_lts_only, show_mts_only, show_beta_only))
-}
-
-#[tauri::command]
 pub fn filter_downloadable_versions(
     versions: Vec<DownloadableVersion>,
     installed_versions: Vec<MendixVersion>,
@@ -183,30 +164,6 @@ pub fn filter_downloadable_versions(
         show_beta_only,
         search_term.as_deref(),
     ))
-}
-
-#[tauri::command]
-pub fn is_version_in_installed_list(
-    version: String,
-    installed_versions: Vec<MendixVersion>,
-) -> Result<bool, String> {
-    Ok(check_version_installed(&version, &installed_versions))
-}
-
-#[tauri::command]
-pub fn is_app_version_mismatch(
-    selected_version: Option<String>,
-    app_version: Option<String>,
-) -> Result<bool, String> {
-    Ok(check_version_mismatch(selected_version.as_deref(), app_version.as_deref()))
-}
-
-#[tauri::command]
-pub fn is_version_currently_selected(
-    selected_version: Option<String>,
-    version: String,
-) -> Result<bool, String> {
-    Ok(check_version_selected(selected_version.as_deref(), &version))
 }
 
 #[tauri::command]

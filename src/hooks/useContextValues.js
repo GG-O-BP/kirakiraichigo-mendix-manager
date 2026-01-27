@@ -168,6 +168,8 @@ export function useContextValues({
     () => ({
       searchTerm: versions.searchTerm,
       setSearchTerm: versions.setSearchTerm,
+      appSearchTerm: versions.appSearchTerm,
+      setAppSearchTerm: versions.setAppSearchTerm,
       versions: versions.versions,
       filteredVersions: versions.filteredVersions,
       selectedVersion: versions.selectedVersion,

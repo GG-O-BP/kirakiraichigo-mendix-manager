@@ -9,6 +9,8 @@ const StudioProManager = memo(() => {
   const {
     searchTerm,
     setSearchTerm,
+    appSearchTerm,
+    setAppSearchTerm,
     versions,
     selectedVersion,
     handleVersionClick,
@@ -41,6 +43,7 @@ const StudioProManager = memo(() => {
     installedVersions: versions,
     apps,
     searchTerm,
+    appSearchTerm,
     showLTSOnly,
     showMTSOnly,
     showBetaOnly,
@@ -82,8 +85,8 @@ const StudioProManager = memo(() => {
         selectedVersion={selectedVersion}
       />
       <AppsPanel
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
+        searchTerm={appSearchTerm}
+        setSearchTerm={setAppSearchTerm}
         displayedApps={displayedApps}
         selectedVersion={selectedVersion}
         onDeleteApp={openAppDeleteModal}

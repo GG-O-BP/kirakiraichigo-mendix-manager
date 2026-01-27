@@ -21,20 +21,22 @@ pub struct ValidateAndBuildDeployResponse {
 
 pub use transform::{app_path_extractor, transform_widgets_to_build_requests, widget_id_extractor};
 
-async fn build_and_deploy_widgets(
+async fn process_widgets(
     widgets: Vec<WidgetBuildRequest>,
     apps: Vec<AppInput>,
-    package_manager: String,
+    package_manager: Option<String>,
+    log_prefix: &str,
 ) -> Result<BuildDeployResult, String> {
     println!(
-        "[Build & Deploy] Starting build and deploy for {} widgets to {} apps",
+        "[{}] Starting for {} widgets to {} apps",
+        log_prefix,
         widgets.len(),
         apps.len()
     );
 
     let results: Vec<Result<SuccessfulDeployment, FailedDeployment>> = widgets
         .into_iter()
-        .map(|widget| build_and_deploy_single_widget(widget, &apps, &package_manager))
+        .map(|widget| process_single_widget(widget, &apps, package_manager.as_deref(), log_prefix))
         .collect();
 
     let (successful, failed): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
@@ -42,7 +44,8 @@ async fn build_and_deploy_widgets(
     let failed: Vec<_> = failed.into_iter().filter_map(Result::err).collect();
 
     println!(
-        "[Build & Deploy] Completed: {} successful, {} failed",
+        "[{}] Completed: {} successful, {} failed",
+        log_prefix,
         successful.len(),
         failed.len()
     );
@@ -50,25 +53,29 @@ async fn build_and_deploy_widgets(
     Ok(BuildDeployResult { successful, failed })
 }
 
-fn build_and_deploy_single_widget(
+fn process_single_widget(
     widget: WidgetBuildRequest,
     apps: &[AppInput],
-    package_manager: &str,
+    package_manager: Option<&str>,
+    log_prefix: &str,
 ) -> Result<SuccessfulDeployment, FailedDeployment> {
     let widget_caption = widget.caption.clone();
     let widget_path = widget.widget_path.clone();
 
-    println!("[Build & Deploy] Processing widget: {}", widget_caption);
+    println!("[{}] Processing widget: {}", log_prefix, widget_caption);
 
-    if let Err(e) = install_and_build_widget(&widget_path, package_manager) {
-        return Err(FailedDeployment {
-            widget: widget_caption,
-            error: e,
-        });
+    if let Some(pm) = package_manager {
+        if let Err(e) = install_and_build_widget(&widget_path, pm) {
+            return Err(FailedDeployment {
+                widget: widget_caption,
+                error: e,
+            });
+        }
     }
 
     println!(
-        "[Build & Deploy] Deploying {} to {} apps in parallel",
+        "[{}] Deploying {} to {} apps in parallel",
+        log_prefix,
         widget_caption,
         apps.len()
     );
@@ -76,18 +83,18 @@ fn build_and_deploy_single_widget(
     let deploy_results: Vec<AppDeployResult> = apps
         .par_iter()
         .map(|app| {
-            println!("[Build & Deploy] Deploying {} to {}", widget_caption, app.path);
+            println!("[{}] Deploying {} to {}", log_prefix, widget_caption, app.path);
 
             let result = copy_widget_to_apps_util(widget_path.clone(), vec![app.path.clone()]);
 
             match &result {
                 Ok(_) => println!(
-                    "[Build & Deploy] Successfully deployed {} to {}",
-                    widget_caption, app.path
+                    "[{}] Successfully deployed {} to {}",
+                    log_prefix, widget_caption, app.path
                 ),
                 Err(e) => println!(
-                    "[Build & Deploy] Failed to deploy {} to {}: {}",
-                    widget_caption, app.path, e
+                    "[{}] Failed to deploy {} to {}: {}",
+                    log_prefix, widget_caption, app.path, e
                 ),
             }
 
@@ -128,14 +135,12 @@ fn build_and_deploy_single_widget(
     })
 }
 
-#[tauri::command]
-pub async fn build_and_deploy_from_selections(
+fn filter_selections(
     widgets: Vec<WidgetInput>,
     apps: Vec<AppInput>,
-    package_manager: String,
     selected_widget_ids: Option<Vec<String>>,
     selected_app_paths: Option<Vec<String>>,
-) -> Result<BuildDeployResult, String> {
+) -> (Vec<WidgetBuildRequest>, Vec<AppInput>) {
     let filtered_widgets = match selected_widget_ids {
         Some(ids) if !ids.is_empty() => filter_by_key_set(&widgets, &ids, widget_id_extractor),
         _ => widgets,
@@ -146,8 +151,7 @@ pub async fn build_and_deploy_from_selections(
         _ => apps,
     };
 
-    let widget_requests = transform_widgets_to_build_requests(&filtered_widgets);
-    build_and_deploy_widgets(widget_requests, filtered_apps, package_manager).await
+    (transform_widgets_to_build_requests(&filtered_widgets), filtered_apps)
 }
 
 #[tauri::command]
@@ -200,12 +204,18 @@ pub async fn validate_and_build_deploy(
         });
     }
 
-    let results = build_and_deploy_from_selections(
+    let (widget_requests, filtered_apps) = filter_selections(
         widgets,
         apps,
-        package_manager,
         selected_widget_ids,
         selected_app_paths,
+    );
+
+    let results = process_widgets(
+        widget_requests,
+        filtered_apps,
+        Some(package_manager),
+        "Build & Deploy",
     )
     .await?;
 
@@ -216,98 +226,6 @@ pub async fn validate_and_build_deploy(
         results: Some(results),
         has_failures,
     })
-}
-
-fn deploy_only_single_widget(
-    widget: WidgetBuildRequest,
-    apps: &[AppInput],
-) -> Result<SuccessfulDeployment, FailedDeployment> {
-    let widget_caption = widget.caption.clone();
-    let widget_path = widget.widget_path.clone();
-
-    println!("[Deploy Only] Deploying widget: {}", widget_caption);
-
-    let deploy_results: Vec<AppDeployResult> = apps
-        .par_iter()
-        .map(|app| {
-            println!("[Deploy Only] Deploying {} to {}", widget_caption, app.path);
-
-            let result = copy_widget_to_apps_util(widget_path.clone(), vec![app.path.clone()]);
-
-            match &result {
-                Ok(_) => println!(
-                    "[Deploy Only] Successfully deployed {} to {}",
-                    widget_caption, app.path
-                ),
-                Err(e) => println!(
-                    "[Deploy Only] Failed to deploy {} to {}: {}",
-                    widget_caption, app.path, e
-                ),
-            }
-
-            AppDeployResult {
-                app_name: app.name.clone(),
-                result,
-            }
-        })
-        .collect();
-
-    let failed_apps: Vec<String> = deploy_results
-        .iter()
-        .filter_map(|deploy| {
-            deploy
-                .result
-                .as_ref()
-                .err()
-                .map(|e| format!("{}: {}", deploy.app_name, e))
-        })
-        .collect();
-
-    if !failed_apps.is_empty() {
-        return Err(FailedDeployment {
-            widget: widget_caption,
-            error: format!("Failed to deploy to some apps: {}", failed_apps.join(", ")),
-        });
-    }
-
-    let successful_app_names: Vec<String> = deploy_results
-        .into_iter()
-        .filter(|r| r.result.is_ok())
-        .map(|r| r.app_name)
-        .collect();
-
-    Ok(SuccessfulDeployment {
-        widget: widget_caption,
-        apps: successful_app_names,
-    })
-}
-
-async fn deploy_only_widgets(
-    widgets: Vec<WidgetBuildRequest>,
-    apps: Vec<AppInput>,
-) -> Result<BuildDeployResult, String> {
-    println!(
-        "[Deploy Only] Starting deploy for {} widgets to {} apps",
-        widgets.len(),
-        apps.len()
-    );
-
-    let results: Vec<Result<SuccessfulDeployment, FailedDeployment>> = widgets
-        .into_iter()
-        .map(|widget| deploy_only_single_widget(widget, &apps))
-        .collect();
-
-    let (successful, failed): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
-    let successful: Vec<_> = successful.into_iter().filter_map(Result::ok).collect();
-    let failed: Vec<_> = failed.into_iter().filter_map(Result::err).collect();
-
-    println!(
-        "[Deploy Only] Completed: {} successful, {} failed",
-        successful.len(),
-        failed.len()
-    );
-
-    Ok(BuildDeployResult { successful, failed })
 }
 
 #[tauri::command]
@@ -334,18 +252,20 @@ pub async fn validate_and_deploy_only(
         });
     }
 
-    let filtered_widgets = match selected_widget_ids {
-        Some(ids) if !ids.is_empty() => filter_by_key_set(&widgets, &ids, widget_id_extractor),
-        _ => widgets,
-    };
+    let (widget_requests, filtered_apps) = filter_selections(
+        widgets,
+        apps,
+        selected_widget_ids,
+        selected_app_paths,
+    );
 
-    let filtered_apps = match selected_app_paths {
-        Some(paths) if !paths.is_empty() => filter_by_key_set(&apps, &paths, app_path_extractor),
-        _ => apps,
-    };
-
-    let widget_requests = transform_widgets_to_build_requests(&filtered_widgets);
-    let results = deploy_only_widgets(widget_requests, filtered_apps).await?;
+    let results = process_widgets(
+        widget_requests,
+        filtered_apps,
+        None,
+        "Deploy Only",
+    )
+    .await?;
 
     let has_failures = has_any_failures(&results);
 

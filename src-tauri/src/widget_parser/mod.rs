@@ -831,11 +831,6 @@ fn find_editor_config_file(widget_path: &str) -> Option<String> {
         .map(|path| path.to_string_lossy().to_string())
 }
 
-#[tauri::command]
-pub fn read_editor_config(widget_path: String) -> Result<EditorConfigResult, String> {
-    read_editor_config_internal(&widget_path)
-}
-
 fn read_editor_config_internal(widget_path: &str) -> Result<EditorConfigResult, String> {
     match find_editor_config_file(widget_path) {
         Some(config_path) => {
@@ -1009,11 +1004,6 @@ fn parse_widget_properties_enhanced(definition: &WidgetDefinition) -> Vec<Parsed
     result
 }
 
-#[tauri::command]
-pub fn initialize_property_values(widget_path: String) -> Result<HashMap<String, PropertyValue>, String> {
-    initialize_property_values_internal(&widget_path)
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroupCountResult {
     pub group_path: String,
@@ -1059,16 +1049,6 @@ fn transform_widget_property_to_spec(prop: &WidgetProperty) -> PropertySpec {
             groups.iter().map(transform_property_group_to_spec).collect()
         }),
     }
-}
-
-#[tauri::command]
-pub fn transform_properties_to_spec(
-    properties: Vec<WidgetProperty>,
-) -> Result<Vec<PropertySpec>, String> {
-    Ok(properties
-        .iter()
-        .map(transform_widget_property_to_spec)
-        .collect())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1119,11 +1099,6 @@ fn transform_widget_definition_to_spec(definition: &WidgetDefinition) -> WidgetD
             .map(transform_property_group_to_spec)
             .collect(),
     }
-}
-
-#[tauri::command]
-pub fn parse_widget_properties_as_spec(widget_path: String) -> Result<WidgetDefinitionSpec, String> {
-    parse_widget_properties_as_spec_internal(&widget_path)
 }
 
 fn count_visible_properties_in_spec_group(

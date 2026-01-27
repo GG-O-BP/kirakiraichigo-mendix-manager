@@ -478,21 +478,6 @@ pub fn load_downloadable_versions_cache() -> Result<Vec<DownloadableVersion>, St
     }
 }
 
-#[tauri::command]
-pub fn save_downloadable_versions_cache(
-    versions: Vec<DownloadableVersion>,
-) -> Result<(), String> {
-    let _lock = STORAGE_MUTEX
-        .lock()
-        .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
-
-    let mut state = load_state_from_file().unwrap_or_default();
-    state.set(
-        StorageKey::DownloadableVersionsCache,
-        versions_to_cache_value(&versions)?,
-    );
-    save_state_to_file(&state)
-}
 
 #[tauri::command]
 pub fn merge_and_save_downloadable_versions(

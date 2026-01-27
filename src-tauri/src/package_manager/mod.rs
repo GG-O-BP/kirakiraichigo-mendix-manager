@@ -32,13 +32,7 @@ pub struct BatchInstallSummary {
     pub failure_count: usize,
 }
 
-/// Executes a package manager command with automatic fallback between strategies.
-///
-/// This is the main entry point for running package manager commands.
-/// It will try different execution strategies and save the successful one
-/// for future use.
-#[tauri::command]
-pub fn run_package_manager_command(
+fn run_package_manager_command(
     package_manager: String,
     command: String,
     working_directory: String,

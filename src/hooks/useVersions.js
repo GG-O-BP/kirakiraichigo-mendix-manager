@@ -24,6 +24,8 @@ export function useVersions() {
     refreshDownloadableVersions: downloadable.refreshVersions,
     searchTerm: filters.searchTerm,
     setSearchTerm: filters.setSearchTerm,
+    appSearchTerm: filters.appSearchTerm,
+    setAppSearchTerm: filters.setAppSearchTerm,
     showOnlyDownloadableVersions: filters.showOnlyDownloadableVersions,
     setShowOnlyDownloadableVersions: filters.setShowOnlyDownloadableVersions,
     showLTSOnly: filters.showLTSOnly,

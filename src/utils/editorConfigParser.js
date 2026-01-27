@@ -1,7 +1,12 @@
 import * as R from "ramda";
 
+const deepClonePropertyGroups = (propertyGroups) => {
+  return JSON.parse(JSON.stringify(propertyGroups));
+};
+
 const extractPropertyGroupsFromDefinition = R.curry((widgetDefinition) => {
-  return R.propOr([], "propertyGroups", widgetDefinition);
+  const propertyGroups = R.propOr([], "propertyGroups", widgetDefinition);
+  return deepClonePropertyGroups(propertyGroups);
 });
 
 const extractAllPropertyKeysFromGroupsInternal = R.curry((filteredGroups) => {
@@ -18,19 +23,64 @@ const extractAllPropertyKeysFromGroupsInternal = R.curry((filteredGroups) => {
   return R.uniq(R.chain(extractKeysFromGroup, filteredGroups));
 });
 
+const createMendixUtilsInjection = (configContent) => {
+  const hasHidePropertyIn = /\bhidePropertyIn\s*=/.test(configContent);
+  const hasHidePropertiesIn = /\bhidePropertiesIn\s*=/.test(configContent);
+
+  let injection = "";
+
+  if (!hasHidePropertyIn) {
+    injection += `
+      var hidePropertyIn = function(propertyGroups, propertyName) {
+        var hideInGroup = function(group) {
+          var properties = (group && group.properties) || [];
+          var filteredProperties = properties.filter(function(p) {
+            return p && p.key !== propertyName;
+          });
+          var nestedGroups = (group && group.propertyGroups) || [];
+          var filteredNestedGroups = nestedGroups.map(hideInGroup);
+          return Object.assign({}, group, {
+            properties: filteredProperties,
+            propertyGroups: filteredNestedGroups
+          });
+        };
+        return propertyGroups.map(hideInGroup);
+      };
+    `;
+  }
+
+  if (!hasHidePropertiesIn) {
+    injection += `
+      var hidePropertiesIn = function(propertyGroups, propertyNames) {
+        return propertyNames.reduce(function(groups, propName) {
+          return hidePropertyIn(groups, propName);
+        }, propertyGroups);
+      };
+    `;
+  }
+
+  return injection;
+};
+
 const parseEditorConfigToExecutableModule = (configContent) => {
   try {
     const exports = {};
     const module = { exports };
 
     let processedContent = configContent
+      .replace(/import\s+\{[^}]*\}\s+from\s+['"][^'"]*['"]\s*;?/g, "")
+      .replace(/import\s+\*\s+as\s+\w+\s+from\s+['"][^'"]*['"]\s*;?/g, "")
+      .replace(/import\s+\w+\s+from\s+['"][^'"]*['"]\s*;?/g, "")
       .replace(/export\s+const\s+/g, "const ")
       .replace(/export\s+function\s+/g, "function ")
       .replace(/export\s+default\s+/g, "module.exports.default = ")
       .replace(/export\s*\{[^}]*\}/g, "");
 
+    const utilsInjection = createMendixUtilsInjection(processedContent);
+
     const wrappedContent = `
       (function(exports, module) {
+        ${utilsInjection}
         ${processedContent}
 
         if (typeof getProperties === 'function') exports.getProperties = getProperties;
@@ -43,7 +93,8 @@ const parseEditorConfigToExecutableModule = (configContent) => {
     `;
 
     const executor = eval(wrappedContent);
-    return executor(exports, module);
+    const result = executor(exports, module);
+    return result;
   } catch (error) {
     console.error("[EditorConfig Parser] Failed to parse config:", error);
     return null;
@@ -56,7 +107,8 @@ const invokeGetPropertiesWithFallback = R.curry((editorConfig, values, defaultPr
   }
 
   try {
-    return editorConfig.getProperties(values, defaultProperties);
+    const result = editorConfig.getProperties(values, defaultProperties);
+    return result;
   } catch (error) {
     console.error("[EditorConfig Parser] Failed to execute getProperties:", error);
     return defaultProperties;

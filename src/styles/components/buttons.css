@@ -86,24 +86,19 @@
     border-color: var(--theme-info);
 }
 
-/* ============= Error State Buttons ============= */
-.retry-button,
-.clear-error-button {
+/* ============= Retry Button ============= */
+.retry-button {
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 8px 16px;
-    border: none;
+    border: 1px solid var(--theme-border);
     border-radius: 8px;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
-}
-
-.retry-button {
     background: var(--theme-primary-bg);
-    border: 1px solid var(--theme-border);
     color: var(--theme-text);
 }
 
@@ -113,20 +108,7 @@
     transform: translateY(-1px);
 }
 
-.clear-error-button {
-    background: var(--theme-surface-secondary);
-    border: 1px solid var(--theme-border);
-    color: var(--theme-text-muted);
-}
-
-.clear-error-button:hover {
-    background: var(--theme-surface-tertiary);
-    border-color: var(--theme-border);
-    transform: translateY(-1px);
-}
-
-.retry-button .button-icon,
-.clear-error-button .button-icon {
+.retry-button .button-icon {
     font-size: 12px;
 }
 
@@ -158,8 +140,7 @@
 @media (max-width: 768px) {
     .install-button,
     .uninstall-button,
-    .retry-button,
-    .clear-error-button {
+    .retry-button {
         min-height: 44px; /* iOS touch target */
         padding: 12px 16px;
     }
@@ -175,7 +156,6 @@
     .install-button,
     .uninstall-button,
     .retry-button,
-    .clear-error-button,
     .clear-results-button {
         border-width: 2px;
     }
@@ -186,7 +166,6 @@
     .install-button,
     .uninstall-button,
     .retry-button,
-    .clear-error-button,
     .clear-results-button {
         box-shadow: none !important;
         border: 1px solid var(--color-gray-400) !important;
