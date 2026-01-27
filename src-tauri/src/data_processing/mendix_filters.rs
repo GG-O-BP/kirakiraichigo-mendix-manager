@@ -1,5 +1,6 @@
 use super::*;
 use crate::mendix::{MendixApp, MendixVersion};
+use crate::storage::sort_widgets_by_order;
 use serde::Deserialize;
 use std::collections::HashSet;
 
@@ -73,19 +74,7 @@ pub fn process_widgets_pipeline(params: ProcessWidgetsParams) -> Result<Vec<Widg
 
     if let Some(order) = &params.order {
         if !order.is_empty() {
-            let order_map: std::collections::HashMap<&String, usize> = order
-                .iter()
-                .enumerate()
-                .map(|(i, id)| (id, i))
-                .collect();
-
-            let (mut ordered, unordered): (Vec<_>, Vec<_>) = result
-                .into_iter()
-                .partition(|w| order_map.contains_key(&w.id));
-
-            ordered.sort_by_key(|w| order_map.get(&w.id).copied().unwrap_or(usize::MAX));
-            ordered.extend(unordered);
-            result = ordered;
+            result = sort_widgets_by_order(result, order);
         }
     }
 

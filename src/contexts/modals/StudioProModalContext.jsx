@@ -18,5 +18,3 @@ export function useStudioProModalContext() {
   }
   return context;
 }
-
-export default StudioProModalContext;

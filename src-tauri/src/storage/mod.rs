@@ -8,17 +8,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-// Global mutex to prevent race conditions during file operations
 static STORAGE_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
-// ============================================================================
-// StorageKey Enum - Type-safe storage keys
-// ============================================================================
-
-/// Type-safe storage key enumeration.
-///
-/// This enum provides compile-time safety for storage operations,
-/// ensuring only valid keys are used throughout the application.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StorageKey {
     KirakiraWidgets,
@@ -35,9 +26,6 @@ pub enum StorageKey {
 }
 
 impl StorageKey {
-    /// Returns the string representation of the storage key.
-    ///
-    /// This matches the frontend STORAGE_KEYS constants.
     pub fn as_str(&self) -> &'static str {
         match self {
             StorageKey::KirakiraWidgets => "kirakiraWidgets",
@@ -82,10 +70,6 @@ impl std::fmt::Display for StorageKey {
     }
 }
 
-// ============================================================================
-// Pure Data Types
-// ============================================================================
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppState {
     pub widgets: Option<Value>,
@@ -120,7 +104,6 @@ impl Default for AppState {
 }
 
 impl AppState {
-    /// Gets a value by StorageKey.
     pub fn get(&self, key: StorageKey) -> Option<Value> {
         match key {
             StorageKey::KirakiraWidgets => self.widgets.clone(),
@@ -137,7 +120,6 @@ impl AppState {
         }
     }
 
-    /// Sets a value by StorageKey.
     pub fn set(&mut self, key: StorageKey, value: Value) {
         match key {
             StorageKey::KirakiraWidgets => self.widgets = Some(value),
@@ -169,62 +151,25 @@ impl AppState {
     }
 }
 
-// ============================================================================
-// Pure Functions - Path Construction
-// ============================================================================
-
-fn construct_storage_directory_path() -> Result<PathBuf, String> {
+fn construct_storage_file_path(filename: &str) -> Result<PathBuf, String> {
     dirs::config_dir()
         .ok_or_else(|| "Could not find config directory".to_string())
-        .map(|dir| dir.join("kirakiraichigo-mendix-manager"))
+        .map(|dir| dir.join("kirakiraichigo-mendix-manager").join(filename))
 }
-
-fn construct_storage_file_path(filename: &str) -> Result<PathBuf, String> {
-    construct_storage_directory_path().map(|dir| dir.join(filename))
-}
-
-// ============================================================================
-// Pure Functions - Serialization/Deserialization
-// ============================================================================
-
-fn serialize_to_json<T: Serialize>(data: &T) -> Result<String, String> {
-    serde_json::to_string_pretty(data).map_err(|e| format!("Failed to serialize data: {}", e))
-}
-
-fn deserialize_from_json<T: for<'de> Deserialize<'de>>(json: &str) -> Result<T, String> {
-    serde_json::from_str(json).map_err(|e| format!("Failed to deserialize data: {}", e))
-}
-
-// ============================================================================
-// IO Functions
-// ============================================================================
-
-fn ensure_storage_directory_exists() -> Result<(), String> {
-    let dir = construct_storage_directory_path()?;
-    if !dir.exists() {
-        fs::create_dir_all(&dir)
-            .map_err(|e| format!("Failed to create storage directory: {}", e))?;
-    }
-    Ok(())
-}
-
-fn write_to_file(path: &PathBuf, content: &str) -> Result<(), String> {
-    ensure_storage_directory_exists()?;
-    fs::write(path, content).map_err(|e| format!("Failed to write to file: {}", e))
-}
-
-fn read_from_file(path: &PathBuf) -> Result<String, String> {
-    fs::read_to_string(path).map_err(|e| format!("Failed to read from file: {}", e))
-}
-
-// ============================================================================
-// State Management Functions
-// ============================================================================
 
 fn save_state_to_file(state: &AppState) -> Result<(), String> {
     let path = construct_storage_file_path("app_state.json")?;
-    let json = serialize_to_json(state)?;
-    write_to_file(&path, &json)
+
+    if let Some(parent) = path.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create storage directory: {}", e))?;
+        }
+    }
+
+    let json = serde_json::to_string_pretty(state)
+        .map_err(|e| format!("Failed to serialize data: {}", e))?;
+    fs::write(&path, json).map_err(|e| format!("Failed to write to file: {}", e))
 }
 
 fn load_state_from_file() -> Result<AppState, String> {
@@ -234,11 +179,11 @@ fn load_state_from_file() -> Result<AppState, String> {
         return Ok(AppState::default());
     }
 
-    let json = read_from_file(&path)?;
-    deserialize_from_json(&json)
+    let json = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read from file: {}", e))?;
+    serde_json::from_str(&json).map_err(|e| format!("Failed to deserialize data: {}", e))
 }
 
-/// Saves a specific state value using type-safe StorageKey.
 fn save_specific_state_typed(key: StorageKey, value: Value) -> Result<(), String> {
     let _lock = STORAGE_MUTEX
         .lock()
@@ -249,34 +194,12 @@ fn save_specific_state_typed(key: StorageKey, value: Value) -> Result<(), String
     save_state_to_file(&state)
 }
 
-/// Loads a specific state value using type-safe StorageKey.
 fn load_specific_state_typed(key: StorageKey, default_value: Value) -> Result<Value, String> {
     let state = load_state_from_file().unwrap_or_default();
     Ok(state.get(key).unwrap_or(default_value))
 }
 
-// ============================================================================
-// Tauri Commands (maintain string-based API for frontend compatibility)
-// ============================================================================
-
-#[tauri::command]
-pub fn save_to_storage(key: String, data: Value) -> Result<Value, String> {
-    let storage_key = StorageKey::try_from(key.as_str())?;
-    save_specific_state_typed(storage_key, data.clone())?;
-    Ok(data)
-}
-
-#[tauri::command]
-pub fn load_from_storage(key: String, default_value: Value) -> Result<Value, String> {
-    let storage_key = StorageKey::try_from(key.as_str())?;
-    load_specific_state_typed(storage_key, default_value)
-}
-
-// ============================================================================
-// Widget Storage Management Functions
-// ============================================================================
-
-fn sort_widgets_by_order_internal(widgets: Vec<Widget>, order: &[String]) -> Vec<Widget> {
+pub fn sort_widgets_by_order(widgets: Vec<Widget>, order: &[String]) -> Vec<Widget> {
     if order.is_empty() {
         return widgets;
     }
@@ -297,37 +220,35 @@ fn sort_widgets_by_order_internal(widgets: Vec<Widget>, order: &[String]) -> Vec
     ordered
 }
 
-fn parse_widgets_from_value(value: &Value) -> Result<Vec<Widget>, String> {
-    serde_json::from_value(value.clone()).map_err(|e| format!("Failed to parse widgets: {}", e))
+#[tauri::command]
+pub fn save_to_storage(key: String, data: Value) -> Result<Value, String> {
+    let storage_key = StorageKey::try_from(key.as_str())?;
+    save_specific_state_typed(storage_key, data.clone())?;
+    Ok(data)
 }
 
-fn parse_order_from_value(value: &Value) -> Vec<String> {
-    serde_json::from_value(value.clone()).unwrap_or_default()
-}
-
-fn widgets_to_value(widgets: &[Widget]) -> Result<Value, String> {
-    serde_json::to_value(widgets).map_err(|e| format!("Failed to serialize widgets: {}", e))
-}
-
-fn order_to_value(order: &[String]) -> Result<Value, String> {
-    serde_json::to_value(order).map_err(|e| format!("Failed to serialize order: {}", e))
+#[tauri::command]
+pub fn load_from_storage(key: String, default_value: Value) -> Result<Value, String> {
+    let storage_key = StorageKey::try_from(key.as_str())?;
+    load_specific_state_typed(storage_key, default_value)
 }
 
 #[tauri::command]
 pub fn load_widgets_ordered() -> Result<Vec<Widget>, String> {
     let state = load_state_from_file().unwrap_or_default();
 
-    let widgets = match state.get(StorageKey::KirakiraWidgets) {
-        Some(value) => parse_widgets_from_value(&value)?,
+    let widgets: Vec<Widget> = match state.get(StorageKey::KirakiraWidgets) {
+        Some(value) => serde_json::from_value(value)
+            .map_err(|e| format!("Failed to parse widgets: {}", e))?,
         None => return Ok(Vec::new()),
     };
 
-    let order = match state.get(StorageKey::WidgetOrder) {
-        Some(value) => parse_order_from_value(&value),
-        None => Vec::new(),
-    };
+    let order: Vec<String> = state
+        .get(StorageKey::WidgetOrder)
+        .and_then(|v| serde_json::from_value(v).ok())
+        .unwrap_or_default();
 
-    Ok(sort_widgets_by_order_internal(widgets, &order))
+    Ok(sort_widgets_by_order(widgets, &order))
 }
 
 #[tauri::command]
@@ -338,32 +259,40 @@ pub fn delete_widget_and_save(widget_id: String) -> Result<Vec<Widget>, String> 
 
     let mut state = load_state_from_file().unwrap_or_default();
 
-    let widgets = match state.get(StorageKey::KirakiraWidgets) {
-        Some(value) => parse_widgets_from_value(&value)?,
+    let widgets: Vec<Widget> = match state.get(StorageKey::KirakiraWidgets) {
+        Some(value) => serde_json::from_value(value)
+            .map_err(|e| format!("Failed to parse widgets: {}", e))?,
         None => return Ok(Vec::new()),
     };
 
-    let order = match state.get(StorageKey::WidgetOrder) {
-        Some(value) => parse_order_from_value(&value),
-        None => Vec::new(),
-    };
+    let order: Vec<String> = state
+        .get(StorageKey::WidgetOrder)
+        .and_then(|v| serde_json::from_value(v).ok())
+        .unwrap_or_default();
 
-    // Remove the widget
     let updated_widgets: Vec<Widget> = widgets
         .into_iter()
         .filter(|w| w.id != widget_id)
         .collect();
 
-    // Update order to remove the deleted widget
-    let updated_order: Vec<String> = order.into_iter().filter(|id| id != &widget_id).collect();
+    let updated_order: Vec<String> = order
+        .into_iter()
+        .filter(|id| id != &widget_id)
+        .collect();
 
-    // Save updated state
-    state.set(StorageKey::KirakiraWidgets, widgets_to_value(&updated_widgets)?);
-    state.set(StorageKey::WidgetOrder, order_to_value(&updated_order)?);
+    state.set(
+        StorageKey::KirakiraWidgets,
+        serde_json::to_value(&updated_widgets)
+            .map_err(|e| format!("Failed to serialize widgets: {}", e))?,
+    );
+    state.set(
+        StorageKey::WidgetOrder,
+        serde_json::to_value(&updated_order)
+            .map_err(|e| format!("Failed to serialize order: {}", e))?,
+    );
     save_state_to_file(&state)?;
 
-    // Return sorted widgets
-    Ok(sort_widgets_by_order_internal(updated_widgets, &updated_order))
+    Ok(sort_widgets_by_order(updated_widgets, &updated_order))
 }
 
 #[tauri::command]
@@ -376,17 +305,16 @@ pub fn add_widget_and_save(caption: String, path: String) -> Result<Widget, Stri
 
     let mut state = load_state_from_file().unwrap_or_default();
 
-    let mut widgets = match state.get(StorageKey::KirakiraWidgets) {
-        Some(value) => parse_widgets_from_value(&value)?,
-        None => Vec::new(),
-    };
+    let mut widgets: Vec<Widget> = state
+        .get(StorageKey::KirakiraWidgets)
+        .and_then(|v| serde_json::from_value(v).ok())
+        .unwrap_or_default();
 
-    let mut order = match state.get(StorageKey::WidgetOrder) {
-        Some(value) => parse_order_from_value(&value),
-        None => Vec::new(),
-    };
+    let mut order: Vec<String> = state
+        .get(StorageKey::WidgetOrder)
+        .and_then(|v| serde_json::from_value(v).ok())
+        .unwrap_or_default();
 
-    // Create new widget
     let id = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis().to_string())
@@ -398,21 +326,23 @@ pub fn add_widget_and_save(caption: String, path: String) -> Result<Widget, Stri
         path,
     };
 
-    // Add to widgets and order
     widgets.push(new_widget.clone());
     order.push(id);
 
-    // Save updated state
-    state.set(StorageKey::KirakiraWidgets, widgets_to_value(&widgets)?);
-    state.set(StorageKey::WidgetOrder, order_to_value(&order)?);
+    state.set(
+        StorageKey::KirakiraWidgets,
+        serde_json::to_value(&widgets)
+            .map_err(|e| format!("Failed to serialize widgets: {}", e))?,
+    );
+    state.set(
+        StorageKey::WidgetOrder,
+        serde_json::to_value(&order)
+            .map_err(|e| format!("Failed to serialize order: {}", e))?,
+    );
     save_state_to_file(&state)?;
 
     Ok(new_widget)
 }
-
-// ============================================================================
-// Downloadable Versions Cache Management
-// ============================================================================
 
 fn merge_downloadable_versions(
     cached: Vec<DownloadableVersion>,
@@ -461,13 +391,6 @@ fn parse_cache_from_value(value: &Value) -> Result<Vec<DownloadableVersion>, Str
         })
 }
 
-fn versions_to_cache_value(versions: &[DownloadableVersion]) -> Result<Value, String> {
-    let cache = DownloadableVersionsCache {
-        versions: versions.to_vec(),
-    };
-    serde_json::to_value(cache).map_err(|e| format!("Failed to serialize cache: {}", e))
-}
-
 #[tauri::command]
 pub fn load_downloadable_versions_cache() -> Result<Vec<DownloadableVersion>, String> {
     let state = load_state_from_file().unwrap_or_default();
@@ -477,7 +400,6 @@ pub fn load_downloadable_versions_cache() -> Result<Vec<DownloadableVersion>, St
         None => Ok(Vec::new()),
     }
 }
-
 
 #[tauri::command]
 pub fn merge_and_save_downloadable_versions(
@@ -489,16 +411,19 @@ pub fn merge_and_save_downloadable_versions(
 
     let mut state = load_state_from_file().unwrap_or_default();
 
-    let cached = match state.get(StorageKey::DownloadableVersionsCache) {
-        Some(value) => parse_cache_from_value(&value).unwrap_or_default(),
-        None => Vec::new(),
-    };
+    let cached = state
+        .get(StorageKey::DownloadableVersionsCache)
+        .and_then(|v| parse_cache_from_value(&v).ok())
+        .unwrap_or_default();
 
     let merged = merge_downloadable_versions(cached, fresh);
 
+    let cache = DownloadableVersionsCache {
+        versions: merged.clone(),
+    };
     state.set(
         StorageKey::DownloadableVersionsCache,
-        versions_to_cache_value(&merged)?,
+        serde_json::to_value(cache).map_err(|e| format!("Failed to serialize cache: {}", e))?,
     );
     save_state_to_file(&state)?;
 
@@ -512,9 +437,10 @@ pub fn clear_downloadable_versions_cache() -> Result<(), String> {
         .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
 
     let mut state = load_state_from_file().unwrap_or_default();
+    let cache = DownloadableVersionsCache { versions: vec![] };
     state.set(
         StorageKey::DownloadableVersionsCache,
-        versions_to_cache_value(&[])?,
+        serde_json::to_value(cache).map_err(|e| format!("Failed to serialize cache: {}", e))?,
     );
     save_state_to_file(&state)
 }

@@ -7,7 +7,7 @@ pub mod widget_operations;
 use executor::execute_package_manager_command;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-
+use std::collections::HashSet;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WidgetInstallInput {
@@ -32,38 +32,13 @@ pub struct BatchInstallSummary {
     pub failure_count: usize,
 }
 
-fn run_package_manager_command(
-    package_manager: String,
-    command: String,
-    working_directory: String,
-) -> Result<String, String> {
-    execute_package_manager_command(&package_manager, &command, &working_directory)
-}
-
-fn filter_widgets_by_ids_internal(
-    widgets: &[WidgetInstallInput],
-    selected_ids: &[String],
-) -> Vec<WidgetInstallInput> {
-    use std::collections::HashSet;
-    let id_set: HashSet<&String> = selected_ids.iter().collect();
-    widgets
-        .iter()
-        .filter(|w| id_set.contains(&w.id))
-        .cloned()
-        .collect()
-}
-
 fn install_single_widget(widget: &WidgetInstallInput, package_manager: &str) -> InstallResult {
     println!(
         "[Batch Install] Installing dependencies for widget: {}",
         widget.caption
     );
 
-    match run_package_manager_command(
-        package_manager.to_string(),
-        "install".to_string(),
-        widget.path.clone(),
-    ) {
+    match execute_package_manager_command(package_manager, "install", &widget.path) {
         Ok(_) => {
             println!(
                 "[Batch Install] Successfully installed dependencies for: {}",
@@ -98,7 +73,13 @@ pub fn batch_install_widgets(
     selected_widget_ids: Option<Vec<String>>,
 ) -> Result<BatchInstallSummary, String> {
     let widgets_to_install = match selected_widget_ids {
-        Some(ids) if !ids.is_empty() => filter_widgets_by_ids_internal(&widgets, &ids),
+        Some(ids) if !ids.is_empty() => {
+            let id_set: HashSet<&String> = ids.iter().collect();
+            widgets
+                .into_iter()
+                .filter(|w| id_set.contains(&w.id))
+                .collect()
+        }
         _ => widgets,
     };
 

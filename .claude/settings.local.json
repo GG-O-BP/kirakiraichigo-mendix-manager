@@ -27,7 +27,8 @@
       "WebFetch(domain:dev.to)",
       "WebFetch(domain:gist.github.com)",
       "Bash(cargo add:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(xargs -I {} bash -c 'echo \"\"=== {} ===\"\" && grep \"\"^use\\\\|^pub use\"\" \"\"{}\"\" | sort | uniq -d')"
     ]
   }
 }

@@ -18,5 +18,3 @@ export function useBuildModalContext() {
   }
   return context;
 }
-
-export default BuildModalContext;

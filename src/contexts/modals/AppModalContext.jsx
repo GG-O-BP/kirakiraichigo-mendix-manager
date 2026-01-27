@@ -18,5 +18,3 @@ export function useAppModalContext() {
   }
   return context;
 }
-
-export default AppModalContext;

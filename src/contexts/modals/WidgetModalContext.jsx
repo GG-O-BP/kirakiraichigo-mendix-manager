@@ -18,5 +18,3 @@ export function useWidgetModalContext() {
   }
   return context;
 }
-
-export default WidgetModalContext;

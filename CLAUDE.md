@@ -86,9 +86,10 @@ export function useVersions() {
   - `transform.rs` - Widget/app transformation and extraction functions
   - `mod.rs` - Tauri commands and orchestration
 - `package_manager/` - npm/pnpm/yarn/bun command execution
-  - `strategies/` - Execution strategies (direct_node, fnm_simple, powershell_fnm, etc.)
+  - `strategies/` - Execution strategies (direct_node, direct_command, fnm_simple, powershell_fnm, powershell_simple)
   - `executor.rs` - Strategy execution
   - `widget_operations.rs` - Widget install/build operations
+  - `powershell.rs` - PowerShell command building utilities
 - `storage/` - Persistent state (Tauri fs plugin)
 - `data_processing/` - Filtering, pagination, sorting, generic utilities
   - `widget.rs` - Widget struct and creation
@@ -99,6 +100,7 @@ export function useVersions() {
   - `runtime.rs` - EditorConfigRuntime for executing JS getProperties/check functions
   - `transformer.rs` - Property group transformation
   - `types.rs` - PropertyGroup, ValidationError, WidgetDefinitionSpec structs
+  - `utils.rs` - JavaScript value conversion utilities
 - `state/` - Tauri managed state (thread-safe via Mutex)
   - `selection.rs` - Widget/app selection state management
   - `version_operations.rs` - Version loading states tracking
