@@ -1,7 +1,6 @@
 import * as R from "ramda";
 import { useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { createEditorConfigHandler } from "../../utils/editorConfigParser";
 import { useArrayPropertyOperations } from "./useArrayPropertyOperations";
 
 export function useWidgetDataLoader(selectedWidget, externalState = {}) {
@@ -12,14 +11,14 @@ export function useWidgetDataLoader(selectedWidget, externalState = {}) {
     setLastLoadedWidgetId,
     widgetDefinition,
     setWidgetDefinition,
-    editorConfigHandler,
-    setEditorConfigHandler,
+    editorConfigContent,
+    setEditorConfigContent,
   } = externalState;
 
   const resetWidgetState = useCallback(() => {
     setWidgetDefinition(null);
-    setEditorConfigHandler(null);
-  }, [setWidgetDefinition, setEditorConfigHandler]);
+    setEditorConfigContent(null);
+  }, [setWidgetDefinition, setEditorConfigContent]);
 
   const updateProperty = useCallback(
     R.curry((propertyKey, value) =>
@@ -66,12 +65,8 @@ export function useWidgetDataLoader(selectedWidget, externalState = {}) {
 
         R.ifElse(
           R.both(R.prop("found"), R.prop("content")),
-          R.pipe(
-            R.prop("content"),
-            createEditorConfigHandler,
-            setEditorConfigHandler
-          ),
-          R.always(setEditorConfigHandler(null))
+          R.pipe(R.prop("content"), setEditorConfigContent),
+          R.always(setEditorConfigContent(null))
         )(editor_config);
       } catch (error) {
         console.error("Failed to load widget data:", error);
@@ -80,12 +75,12 @@ export function useWidgetDataLoader(selectedWidget, externalState = {}) {
     };
 
     loadWidgetData();
-  }, [selectedWidget, resetWidgetState, setDynamicProperties, lastLoadedWidgetId, setLastLoadedWidgetId, setWidgetDefinition, setEditorConfigHandler, dynamicProperties, widgetDefinition]);
+  }, [selectedWidget, resetWidgetState, setDynamicProperties, lastLoadedWidgetId, setLastLoadedWidgetId, setWidgetDefinition, setEditorConfigContent, dynamicProperties, widgetDefinition]);
 
   return {
     widgetDefinition,
     dynamicProperties,
-    editorConfigHandler,
+    editorConfigContent,
     updateProperty,
     ...arrayOperations,
   };

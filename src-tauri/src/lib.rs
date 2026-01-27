@@ -1,6 +1,7 @@
 mod build_deploy;
 mod config;
 mod data_processing;
+mod editor_config_parser;
 mod formatting;
 mod mendix;
 mod package_manager;
@@ -48,6 +49,10 @@ pub use data_processing::{
         Widget,
     },
     FilterOptions, SearchFilter, VersionFilter,
+};
+
+pub use editor_config_parser::{
+    evaluate_editor_config, get_visible_property_keys, validate_editor_config_values,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -129,6 +134,12 @@ pub fn run() {
             // ================================================================
             process_widgets_pipeline,
             process_apps_pipeline,
+            // ================================================================
+            // Editor config parser
+            // ================================================================
+            evaluate_editor_config,
+            get_visible_property_keys,
+            validate_editor_config_values,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

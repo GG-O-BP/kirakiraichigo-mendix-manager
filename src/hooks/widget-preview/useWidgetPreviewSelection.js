@@ -8,28 +8,28 @@ export function useWidgetPreviewSelection() {
   const [dynamicProperties, setDynamicPropertiesInternal] = useState({});
   const [lastLoadedWidgetId, setLastLoadedWidgetId] = useState(null);
   const [widgetDefinition, setWidgetDefinitionInternal] = useState(null);
-  const [editorConfigHandler, setEditorConfigHandlerInternal] = useState(null);
+  const [editorConfigContent, setEditorConfigContentInternal] = useState(null);
 
   const [dynamicPropertiesCache, setDynamicPropertiesCache] = useState({});
   const [widgetDefinitionCache, setWidgetDefinitionCache] = useState({});
-  const [editorConfigHandlerCache, setEditorConfigHandlerCache] = useState({});
+  const [editorConfigContentCache, setEditorConfigContentCache] = useState({});
 
   const currentWidgetIdRef = useRef(null);
   const dynamicPropertiesRef = useRef(dynamicProperties);
   const widgetDefinitionRef = useRef(widgetDefinition);
-  const editorConfigHandlerRef = useRef(editorConfigHandler);
+  const editorConfigContentRef = useRef(editorConfigContent);
 
   dynamicPropertiesRef.current = dynamicProperties;
   widgetDefinitionRef.current = widgetDefinition;
-  editorConfigHandlerRef.current = editorConfigHandler;
+  editorConfigContentRef.current = editorConfigContent;
 
   const dynamicPropertiesCacheRef = useRef(dynamicPropertiesCache);
   const widgetDefinitionCacheRef = useRef(widgetDefinitionCache);
-  const editorConfigHandlerCacheRef = useRef(editorConfigHandlerCache);
+  const editorConfigContentCacheRef = useRef(editorConfigContentCache);
 
   dynamicPropertiesCacheRef.current = dynamicPropertiesCache;
   widgetDefinitionCacheRef.current = widgetDefinitionCache;
-  editorConfigHandlerCacheRef.current = editorConfigHandlerCache;
+  editorConfigContentCacheRef.current = editorConfigContentCache;
 
   const setSelectedWidgetForPreview = useCallback((newWidgetId) => {
     const prevWidgetId = currentWidgetIdRef.current;
@@ -44,8 +44,8 @@ export function useWidgetPreviewSelection() {
         setWidgetDefinitionCache((cache) =>
           R.assoc(prevIdStr, widgetDefinitionRef.current, cache),
         );
-        setEditorConfigHandlerCache((cache) =>
-          R.assoc(prevIdStr, editorConfigHandlerRef.current, cache),
+        setEditorConfigContentCache((cache) =>
+          R.assoc(prevIdStr, editorConfigContentRef.current, cache),
         );
       },
     )(prevWidgetId);
@@ -58,27 +58,27 @@ export function useWidgetPreviewSelection() {
       () => {
         setDynamicPropertiesInternal({});
         setWidgetDefinitionInternal(null);
-        setEditorConfigHandlerInternal(null);
+        setEditorConfigContentInternal(null);
         setLastLoadedWidgetId(null);
       },
       (widgetId) => {
         const widgetIdStr = String(widgetId);
         const cachedDynamicProps = R.prop(widgetIdStr, dynamicPropertiesCacheRef.current);
         const cachedWidgetDef = R.prop(widgetIdStr, widgetDefinitionCacheRef.current);
-        const cachedEditorConfig = R.prop(widgetIdStr, editorConfigHandlerCacheRef.current);
+        const cachedEditorConfigContent = R.prop(widgetIdStr, editorConfigContentCacheRef.current);
 
         R.ifElse(
           R.complement(R.isNil),
           () => {
             setDynamicPropertiesInternal(cachedDynamicProps);
             setWidgetDefinitionInternal(cachedWidgetDef);
-            setEditorConfigHandlerInternal(cachedEditorConfig);
+            setEditorConfigContentInternal(cachedEditorConfigContent);
             setLastLoadedWidgetId(widgetId);
           },
           () => {
             setDynamicPropertiesInternal({});
             setWidgetDefinitionInternal(null);
-            setEditorConfigHandlerInternal(null);
+            setEditorConfigContentInternal(null);
             setLastLoadedWidgetId(null);
           },
         )(cachedDynamicProps);
@@ -112,12 +112,12 @@ export function useWidgetPreviewSelection() {
     )(selectedWidgetForPreview);
   }, [selectedWidgetForPreview]);
 
-  const setEditorConfigHandler = useCallback((value) => {
-    setEditorConfigHandlerInternal(value);
+  const setEditorConfigContent = useCallback((value) => {
+    setEditorConfigContentInternal(value);
     R.when(
       R.complement(R.isNil),
       (widgetId) => {
-        setEditorConfigHandlerCache((cache) =>
+        setEditorConfigContentCache((cache) =>
           R.assoc(String(widgetId), value, cache),
         );
       },
@@ -140,7 +140,7 @@ export function useWidgetPreviewSelection() {
     setLastLoadedWidgetId,
     widgetDefinition,
     setWidgetDefinition,
-    editorConfigHandler,
-    setEditorConfigHandler,
+    editorConfigContent,
+    setEditorConfigContent,
   };
 }

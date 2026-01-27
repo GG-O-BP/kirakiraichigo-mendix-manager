@@ -21,7 +21,12 @@
       "WebFetch(domain:scripts.sil.org)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(git checkout:*)",
-      "Bash(bun run build)"
+      "Bash(bun run build)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:crates.io)",
+      "WebFetch(domain:dev.to)",
+      "WebFetch(domain:gist.github.com)",
+      "Bash(cargo add:*)"
     ]
   }
 }

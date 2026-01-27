@@ -13,8 +13,8 @@ export const useWidgetProperties = (selectedWidget, baseProperties = {}, externa
     setLastLoadedWidgetId,
     widgetDefinition,
     setWidgetDefinition,
-    editorConfigHandler,
-    setEditorConfigHandler,
+    editorConfigContent,
+    setEditorConfigContent,
   } = externalState;
   const loader = useWidgetDataLoader(selectedWidget, {
     dynamicProperties,
@@ -23,11 +23,11 @@ export const useWidgetProperties = (selectedWidget, baseProperties = {}, externa
     setLastLoadedWidgetId,
     widgetDefinition,
     setWidgetDefinition,
-    editorConfigHandler,
-    setEditorConfigHandler,
+    editorConfigContent,
+    setEditorConfigContent,
   });
   const visibility = usePropertyVisibility({
-    editorConfigHandler: loader.editorConfigHandler,
+    editorConfigContent: loader.editorConfigContent,
     widgetDefinition: loader.widgetDefinition,
     dynamicProperties: loader.dynamicProperties,
     baseProperties,

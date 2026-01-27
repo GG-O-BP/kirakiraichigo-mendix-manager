@@ -1,9 +1,10 @@
 import * as R from "ramda";
 import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { countAllSpecGroupsVisibleProperties } from "../../utils/data-processing/propertyCalculation";
 
 export function usePropertyVisibility({
-  editorConfigHandler,
+  editorConfigContent,
   widgetDefinition,
   dynamicProperties,
   baseProperties = {},
@@ -12,18 +13,28 @@ export function usePropertyVisibility({
   const [groupCounts, setGroupCounts] = useState({});
 
   useEffect(() => {
-    if (!editorConfigHandler || !editorConfigHandler.isAvailable || !widgetDefinition) {
+    if (R.or(R.isNil(editorConfigContent), R.isNil(widgetDefinition))) {
       setVisiblePropertyKeys(null);
       return;
     }
 
-    const combinedValues = R.mergeRight(baseProperties, dynamicProperties);
-    const visibleKeys = editorConfigHandler.getVisiblePropertyKeys(
-      combinedValues,
-      widgetDefinition,
-    );
-    setVisiblePropertyKeys(visibleKeys);
-  }, [editorConfigHandler, widgetDefinition, dynamicProperties, baseProperties]);
+    const computeVisibleKeys = async () => {
+      try {
+        const combinedValues = R.mergeRight(baseProperties, dynamicProperties);
+        const visibleKeys = await invoke("get_visible_property_keys", {
+          configContent: editorConfigContent,
+          values: combinedValues,
+          widgetDefinition,
+        });
+        setVisiblePropertyKeys(visibleKeys);
+      } catch (error) {
+        console.error("Failed to get visible property keys:", error);
+        setVisiblePropertyKeys(null);
+      }
+    };
+
+    computeVisibleKeys();
+  }, [editorConfigContent, widgetDefinition, dynamicProperties, baseProperties]);
 
   useEffect(() => {
     if (!widgetDefinition) {

@@ -35,8 +35,8 @@ const WidgetPreview = memo(() => {
     setLastLoadedWidgetId,
     widgetDefinition: contextWidgetDefinition,
     setWidgetDefinition,
-    editorConfigHandler: contextEditorConfigHandler,
-    setEditorConfigHandler,
+    editorConfigContent: contextEditorConfigContent,
+    setEditorConfigContent,
     previewData,
     isBuilding,
     buildError,
@@ -77,8 +77,8 @@ const WidgetPreview = memo(() => {
     setLastLoadedWidgetId,
     widgetDefinition: contextWidgetDefinition,
     setWidgetDefinition,
-    editorConfigHandler: contextEditorConfigHandler,
-    setEditorConfigHandler,
+    editorConfigContent: contextEditorConfigContent,
+    setEditorConfigContent,
   });
 
   useEffect(() => {
