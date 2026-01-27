@@ -5,7 +5,6 @@ export function useContextValues({
   widgetsHook,
   widgetPreviewHook,
   buildDeploy,
-  modals,
   versions,
 }) {
   const appContextValue = useMemo(
@@ -106,65 +105,6 @@ export function useContextValues({
     [buildDeploy],
   );
 
-  const studioProModalContextValue = useMemo(
-    () => ({
-      showUninstallModal: modals.uninstall.showModal,
-      versionToUninstall: modals.uninstall.versionToUninstall,
-      relatedApps: modals.uninstall.relatedApps,
-      setRelatedApps: modals.uninstall.setRelatedApps,
-      openUninstallModal: modals.uninstall.open,
-      closeUninstallModal: modals.uninstall.close,
-      showDownloadModal: modals.download.showModal,
-      versionToDownload: modals.download.versionToDownload,
-      openDownloadModal: modals.download.open,
-      closeDownloadModal: modals.download.close,
-    }),
-    [modals.uninstall, modals.download],
-  );
-
-  const appModalContextValue = useMemo(
-    () => ({
-      showAppDeleteModal: modals.appDelete.showModal,
-      appToDelete: modals.appDelete.appToDelete,
-      openAppDeleteModal: modals.appDelete.open,
-      closeAppDeleteModal: modals.appDelete.close,
-    }),
-    [modals.appDelete],
-  );
-
-  const widgetModalContextValue = useMemo(
-    () => ({
-      showWidgetModal: modals.widget.showModal,
-      showAddWidgetForm: modals.widget.showAddForm,
-      setShowWidgetModal: modals.widget.setShowModal,
-      setShowAddWidgetForm: modals.widget.setShowAddForm,
-      showWidgetDeleteModal: modals.widgetDelete.showModal,
-      widgetToDelete: modals.widgetDelete.widgetToDelete,
-      openWidgetDeleteModal: modals.widgetDelete.open,
-      closeWidgetDeleteModal: modals.widgetDelete.close,
-      handleWidgetDeleteClick: modals.widgetDelete.open,
-    }),
-    [modals.widget, modals.widgetDelete],
-  );
-
-  const buildModalContextValue = useMemo(
-    () => ({
-      showResultModal: modals.result.showModal,
-      setShowResultModal: modals.result.setShowModal,
-    }),
-    [modals.result],
-  );
-
-  const combinedModalContextValue = useMemo(
-    () => ({
-      ...studioProModalContextValue,
-      ...appModalContextValue,
-      ...widgetModalContextValue,
-      ...buildModalContextValue,
-    }),
-    [studioProModalContextValue, appModalContextValue, widgetModalContextValue, buildModalContextValue],
-  );
-
   const versionsContextValue = useMemo(
     () => ({
       searchTerm: versions.searchTerm,
@@ -200,11 +140,6 @@ export function useContextValues({
     widgetPreviewContextValue,
     widgetFormContextValue,
     buildDeployContextValue,
-    modalContextValue: combinedModalContextValue,
     versionsContextValue,
-    studioProModalContextValue,
-    appModalContextValue,
-    widgetModalContextValue,
-    buildModalContextValue,
   };
 }

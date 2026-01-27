@@ -36,7 +36,8 @@
       "Bash(then echo \"$file: useMemo imported but not used\" fi done)",
       "Bash(git -C \"C:\\\\Users\\\\dohye\\\\workspace\\\\kirakiraichigo-mendix-manager\" log --oneline -15)",
       "Bash(xargs:*)",
-      "Bash(comm:*)"
+      "Bash(comm:*)",
+      "Bash(bun test:*)"
     ]
   }
 }

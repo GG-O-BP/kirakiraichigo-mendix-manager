@@ -1,5 +1,6 @@
 import * as R from "ramda";
 import React, { useState, useMemo, useEffect } from "react";
+import { Provider as JotaiProvider } from "jotai";
 import "./styles/index.css";
 
 import { TabButton, AppHeader } from "./components/common";
@@ -15,12 +16,7 @@ import {
   WidgetPreviewProvider,
   WidgetFormProvider,
   BuildDeployProvider,
-  ModalProvider,
   VersionsProvider,
-  StudioProModalProvider,
-  AppModalProvider,
-  WidgetModalProvider,
-  BuildModalProvider,
 } from "./contexts";
 
 const TAB_KEYS = ["studio-pro", "widget-manager", "widget-preview"];
@@ -28,7 +24,7 @@ const TAB_COMPONENTS = [StudioProManager, WidgetManager, WidgetPreview];
 const TAB_LABEL_KEYS = ["studioProManager", "widgetManager", "widgetPreview"];
 
 function App() {
-  const { theme, versions, appsHook, widgetsHook, widgetPreviewHook, buildDeploy, modals } =
+  const { theme, versions, appsHook, widgetsHook, widgetPreviewHook, buildDeploy } =
     useAppInitialization();
   const { t, locale, setLocale, supportedLocales } = useI18n();
 
@@ -42,13 +38,8 @@ function App() {
     widgetPreviewContextValue,
     widgetFormContextValue,
     buildDeployContextValue,
-    modalContextValue,
     versionsContextValue,
-    studioProModalContextValue,
-    appModalContextValue,
-    widgetModalContextValue,
-    buildModalContextValue,
-  } = useContextValues({ appsHook, widgetsHook, widgetPreviewHook, buildDeploy, modals, versions });
+  } = useContextValues({ appsHook, widgetsHook, widgetPreviewHook, buildDeploy, versions });
 
   const [activeTab, setActiveTab] = useState("studio-pro");
 
@@ -86,46 +77,38 @@ function App() {
   ));
 
   return (
-    <ModalProvider value={modalContextValue}>
-      <StudioProModalProvider value={studioProModalContextValue}>
-        <AppModalProvider value={appModalContextValue}>
-          <WidgetModalProvider value={widgetModalContextValue}>
-            <BuildModalProvider value={buildModalContextValue}>
-              <VersionsProvider value={versionsContextValue}>
-                <AppProvider value={appContextValue}>
-                  <WidgetCollectionProvider value={widgetCollectionContextValue}>
-                    <WidgetPreviewProvider value={widgetPreviewContextValue}>
-                      <WidgetFormProvider value={widgetFormContextValue}>
-                        <BuildDeployProvider value={buildDeployContextValue}>
-                          <main className="app-container">
-                            <AppHeader
-                              currentTheme={theme.currentTheme}
-                              currentLogo={theme.currentLogo}
-                              handleThemeChange={theme.handleThemeChange}
-                              locale={locale}
-                              setLocale={setLocale}
-                              supportedLocales={supportedLocales}
-                            />
+    <JotaiProvider>
+      <VersionsProvider value={versionsContextValue}>
+        <AppProvider value={appContextValue}>
+          <WidgetCollectionProvider value={widgetCollectionContextValue}>
+            <WidgetPreviewProvider value={widgetPreviewContextValue}>
+              <WidgetFormProvider value={widgetFormContextValue}>
+                <BuildDeployProvider value={buildDeployContextValue}>
+                  <main className="app-container">
+                    <AppHeader
+                      currentTheme={theme.currentTheme}
+                      currentLogo={theme.currentLogo}
+                      handleThemeChange={theme.handleThemeChange}
+                      locale={locale}
+                      setLocale={setLocale}
+                      supportedLocales={supportedLocales}
+                    />
 
-                            <div className="tabs">
-                              {R.map(renderTabButton(activeTab, setActiveTab, t), tabs)}
-                            </div>
+                    <div className="tabs">
+                      {R.map(renderTabButton(activeTab, setActiveTab, t), tabs)}
+                    </div>
 
-                            <div className="tab-content">{activeTabContent}</div>
+                    <div className="tab-content">{activeTabContent}</div>
 
-                            <AppModals />
-                          </main>
-                        </BuildDeployProvider>
-                      </WidgetFormProvider>
-                    </WidgetPreviewProvider>
-                  </WidgetCollectionProvider>
-                </AppProvider>
-              </VersionsProvider>
-            </BuildModalProvider>
-          </WidgetModalProvider>
-        </AppModalProvider>
-      </StudioProModalProvider>
-    </ModalProvider>
+                    <AppModals />
+                  </main>
+                </BuildDeployProvider>
+              </WidgetFormProvider>
+            </WidgetPreviewProvider>
+          </WidgetCollectionProvider>
+        </AppProvider>
+      </VersionsProvider>
+    </JotaiProvider>
   );
 }
 

@@ -1,13 +1,19 @@
 import { memo } from "react";
+import { useAtom, useSetAtom } from "jotai";
 import {
   useAppContext,
   useWidgetCollectionContext,
   useWidgetFormContext,
   useBuildDeployContext,
-  useModalContext,
   useVersionsContext,
 } from "../../../contexts";
 import { useDistExistsCheck } from "../../../hooks/build-deploy";
+import {
+  showWidgetModalAtom,
+  showAddWidgetFormAtom,
+  openWidgetDeleteModalAtom,
+  openAppDeleteModalAtom,
+} from "../../../atoms";
 import AppsSelectionPanel from "./AppsSelectionPanel";
 import WidgetsSelectionPanel from "./WidgetsSelectionPanel";
 import BuildDeploySection from "./BuildDeploySection";
@@ -17,7 +23,6 @@ const WidgetManager = memo(() => {
   const widgetCollectionContext = useWidgetCollectionContext();
   const widgetFormContext = useWidgetFormContext();
   const buildDeployContext = useBuildDeployContext();
-  const modalContext = useModalContext();
   const { versions } = useVersionsContext();
 
   const {
@@ -61,12 +66,10 @@ const WidgetManager = memo(() => {
 
   const { allDistExist } = useDistExistsCheck({ selectedWidgets, widgets });
 
-  const {
-    setShowWidgetModal,
-    setShowAddWidgetForm,
-    handleWidgetDeleteClick,
-    openAppDeleteModal,
-  } = modalContext;
+  const [, setShowWidgetModal] = useAtom(showWidgetModalAtom);
+  const [, setShowAddWidgetForm] = useAtom(showAddWidgetFormAtom);
+  const handleWidgetDeleteClick = useSetAtom(openWidgetDeleteModalAtom);
+  const openAppDeleteModal = useSetAtom(openAppDeleteModalAtom);
 
   const modalHandlers = {
     setShowWidgetModal,

@@ -12,16 +12,4 @@ export {
   BuildDeployProvider,
   useBuildDeployContext,
 } from "./BuildDeployContext";
-export { ModalProvider, useModalContext } from "./ModalContext";
 export { VersionsProvider, useVersionsContext } from "./VersionsContext";
-
-export {
-  StudioProModalProvider,
-  useStudioProModalContext,
-  AppModalProvider,
-  useAppModalContext,
-  WidgetModalProvider,
-  useWidgetModalContext,
-  BuildModalProvider,
-  useBuildModalContext,
-} from "./modals";

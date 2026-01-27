@@ -1,12 +1,17 @@
 import * as R from "ramda";
 import { memo, useEffect } from "react";
+import { useAtom, useSetAtom } from "jotai";
 import {
   useWidgetCollectionContext,
   useWidgetPreviewContext,
   useWidgetFormContext,
-  useModalContext,
 } from "../../../contexts";
 import { useWidgetProperties } from "../../../hooks";
+import {
+  showWidgetModalAtom,
+  showAddWidgetFormAtom,
+  openWidgetDeleteModalAtom,
+} from "../../../atoms";
 import WidgetSelectionPanel from "./WidgetSelectionPanel";
 import PropertiesPanel from "./PropertiesPanel";
 import PreviewPanel from "./PreviewPanel";
@@ -15,7 +20,6 @@ const WidgetPreview = memo(() => {
   const widgetCollectionContext = useWidgetCollectionContext();
   const widgetPreviewContext = useWidgetPreviewContext();
   const widgetFormContext = useWidgetFormContext();
-  const modalContext = useModalContext();
 
   const {
     widgets,
@@ -50,11 +54,9 @@ const WidgetPreview = memo(() => {
 
   const { setNewWidgetCaption, setNewWidgetPath } = widgetFormContext;
 
-  const {
-    setShowWidgetModal,
-    setShowAddWidgetForm,
-    handleWidgetDeleteClick,
-  } = modalContext;
+  const [, setShowWidgetModal] = useAtom(showWidgetModalAtom);
+  const [, setShowAddWidgetForm] = useAtom(showAddWidgetFormAtom);
+  const handleWidgetDeleteClick = useSetAtom(openWidgetDeleteModalAtom);
 
   const selectedWidget = R.pipe(
     R.find(R.propEq(String(selectedWidgetForPreview), "id")),

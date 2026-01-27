@@ -1,6 +1,12 @@
 import { memo } from "react";
+import { useSetAtom } from "jotai";
 import { useVersionFiltering } from "../../../hooks";
-import { useVersionsContext, useModalContext, useAppContext } from "../../../contexts";
+import { useVersionsContext, useAppContext } from "../../../contexts";
+import {
+  openDownloadModalAtom,
+  openAppDeleteModalAtom,
+  useUninstallModalActions,
+} from "../../../atoms";
 import DownloadableVersionsPanel from "./DownloadableVersionsPanel";
 import InstalledVersionsPanel from "./InstalledVersionsPanel";
 import AppsPanel from "./AppsPanel";
@@ -30,7 +36,9 @@ const StudioProManager = memo(() => {
     setShowBetaOnly,
   } = useVersionsContext();
 
-  const { openUninstallModal, openDownloadModal, openAppDeleteModal } = useModalContext();
+  const openDownloadModal = useSetAtom(openDownloadModalAtom);
+  const openAppDeleteModal = useSetAtom(openAppDeleteModalAtom);
+  const { openUninstallModal } = useUninstallModalActions();
   const { apps } = useAppContext();
 
   const {

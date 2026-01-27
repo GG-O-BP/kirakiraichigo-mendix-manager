@@ -1,25 +1,33 @@
 import * as R from "ramda";
+import { useAtomValue, useSetAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
 import { ConfirmModal } from "../../common";
 import DownloadModal from "../DownloadModal";
 import { useI18n } from "../../../i18n/useI18n";
 import {
-  useStudioProModalContext,
   useVersionsContext,
   useAppContext,
 } from "../../../contexts";
+import {
+  showUninstallModalAtom,
+  versionToUninstallAtom,
+  relatedAppsAtom,
+  closeUninstallModalAtom,
+  showDownloadModalAtom,
+  versionToDownloadAtom,
+  closeDownloadModalAtom,
+} from "../../../atoms";
 
 function StudioProModals() {
   const { t } = useI18n();
-  const {
-    showUninstallModal,
-    versionToUninstall,
-    relatedApps,
-    closeUninstallModal,
-    showDownloadModal,
-    versionToDownload,
-    closeDownloadModal,
-  } = useStudioProModalContext();
+
+  const showUninstallModal = useAtomValue(showUninstallModalAtom);
+  const versionToUninstall = useAtomValue(versionToUninstallAtom);
+  const relatedApps = useAtomValue(relatedAppsAtom);
+  const closeUninstallModal = useSetAtom(closeUninstallModalAtom);
+  const showDownloadModal = useAtomValue(showDownloadModalAtom);
+  const versionToDownload = useAtomValue(versionToDownloadAtom);
+  const closeDownloadModal = useSetAtom(closeDownloadModalAtom);
 
   const {
     getLoadingStateSync,
