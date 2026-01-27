@@ -247,6 +247,7 @@ mod tests {
 
     #[test]
     fn test_matches_search_term() {
+        #[allow(clippy::ptr_arg)]
         fn name_extractor(s: &String) -> Option<String> {
             Some(s.clone())
         }

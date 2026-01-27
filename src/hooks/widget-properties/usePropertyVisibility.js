@@ -1,7 +1,6 @@
 import * as R from "ramda";
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { countAllSpecGroupsVisibleProperties } from "../../utils/data-processing/propertyCalculation";
 
 export function usePropertyVisibility({
   editorConfigContent,
@@ -15,58 +14,29 @@ export function usePropertyVisibility({
   useEffect(() => {
     if (R.or(R.isNil(editorConfigContent), R.isNil(widgetDefinition))) {
       setVisiblePropertyKeys(null);
+      setGroupCounts({});
       return;
     }
 
-    const computeVisibleKeys = async () => {
+    const computeVisibilityAndCounts = async () => {
       try {
         const combinedValues = R.mergeRight(baseProperties, dynamicProperties);
-        const visibleKeys = await invoke("get_visible_property_keys", {
+        const result = await invoke("get_property_visibility_with_counts", {
           configContent: editorConfigContent,
           values: combinedValues,
           widgetDefinition,
         });
-        setVisiblePropertyKeys(visibleKeys);
+        setVisiblePropertyKeys(R.prop("visible_keys", result));
+        setGroupCounts(R.propOr({}, "group_counts", result));
       } catch (error) {
-        console.error("Failed to get visible property keys:", error);
+        console.error("Failed to get property visibility:", error);
         setVisiblePropertyKeys(null);
-      }
-    };
-
-    computeVisibleKeys();
-  }, [editorConfigContent, widgetDefinition, dynamicProperties, baseProperties]);
-
-  useEffect(() => {
-    if (!widgetDefinition) {
-      setGroupCounts({});
-      return;
-    }
-
-    const propertyGroups = R.propOr([], "propertyGroups", widgetDefinition);
-    if (R.isEmpty(propertyGroups)) {
-      setGroupCounts({});
-      return;
-    }
-
-    const calculateCounts = async () => {
-      try {
-        const results = await countAllSpecGroupsVisibleProperties(
-          propertyGroups,
-          visiblePropertyKeys,
-        );
-        const countsMap = R.pipe(
-          R.map((item) => [item.group_path, item.count]),
-          R.fromPairs,
-        )(results);
-        setGroupCounts(countsMap);
-      } catch (error) {
-        console.error("Failed to calculate group counts:", error);
         setGroupCounts({});
       }
     };
 
-    calculateCounts();
-  }, [widgetDefinition, visiblePropertyKeys]);
+    computeVisibilityAndCounts();
+  }, [editorConfigContent, widgetDefinition, dynamicProperties, baseProperties]);
 
   return {
     visiblePropertyKeys,

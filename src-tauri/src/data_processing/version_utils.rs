@@ -2,6 +2,9 @@ use crate::mendix::MendixVersion;
 use crate::web_scraper::DownloadableVersion;
 use serde::{Deserialize, Serialize};
 
+use super::extractors::searchable_fields_downloadable_version;
+use super::{filter_by_search, SearchFilter};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionOption {
     pub value: String,
@@ -98,7 +101,7 @@ fn compute_next_page(total_items: usize, items_per_page: usize) -> usize {
     std::cmp::max(1, pages + 1)
 }
 
-fn filter_by_search(
+fn filter_versions_by_search(
     versions: Vec<DownloadableVersion>,
     search_term: Option<&str>,
 ) -> Vec<DownloadableVersion> {
@@ -106,11 +109,15 @@ fn filter_by_search(
         None => versions,
         Some(term) if term.trim().is_empty() => versions,
         Some(term) => {
-            let normalized_term = term.to_lowercase();
-            versions
-                .into_iter()
-                .filter(|v| v.version.to_lowercase().contains(&normalized_term))
-                .collect()
+            let search_filter = SearchFilter {
+                search_term: term.to_string(),
+                case_sensitive: false,
+            };
+            filter_by_search(
+                versions,
+                &search_filter,
+                &[searchable_fields_downloadable_version],
+            )
         }
     }
 }
@@ -126,7 +133,7 @@ fn apply_version_filters(
 ) -> Vec<DownloadableVersion> {
     let after_installed = exclude_already_installed(versions, installed_versions, show_only_downloadable);
     let after_support_type = filter_by_support_type(after_installed, show_lts_only, show_mts_only, show_beta_only);
-    filter_by_search(after_support_type, search_term)
+    filter_versions_by_search(after_support_type, search_term)
 }
 
 fn build_version_options(versions: &[MendixVersion]) -> Vec<VersionOption> {
@@ -354,27 +361,27 @@ mod tests {
     }
 
     #[test]
-    fn test_filter_by_search() {
+    fn test_filter_versions_by_search() {
         let versions = vec![
             create_test_downloadable_version("10.4.0", true, false, false),
             create_test_downloadable_version("10.5.0", false, true, false),
             create_test_downloadable_version("9.24.0", false, false, false),
         ];
 
-        let result = filter_by_search(versions.clone(), Some("10.4"));
+        let result = filter_versions_by_search(versions.clone(), Some("10.4"));
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].version, "10.4.0");
 
-        let result = filter_by_search(versions.clone(), Some("10"));
+        let result = filter_versions_by_search(versions.clone(), Some("10"));
         assert_eq!(result.len(), 2);
 
-        let result = filter_by_search(versions.clone(), Some(""));
+        let result = filter_versions_by_search(versions.clone(), Some(""));
         assert_eq!(result.len(), 3);
 
-        let result = filter_by_search(versions.clone(), None);
+        let result = filter_versions_by_search(versions.clone(), None);
         assert_eq!(result.len(), 3);
 
-        let result = filter_by_search(versions, Some("10.4"));
+        let result = filter_versions_by_search(versions, Some("10.4"));
         assert_eq!(result.len(), 1);
     }
 

@@ -1,4 +1,5 @@
 use crate::mendix::{MendixApp, MendixVersion};
+use crate::web_scraper::DownloadableVersion;
 
 // MendixVersion extractors
 
@@ -39,4 +40,10 @@ pub fn searchable_fields_app(item: &MendixApp) -> Option<String> {
         item.version.as_ref().unwrap_or(&String::new()),
         item.path
     ))
+}
+
+// DownloadableVersion extractors
+
+pub fn searchable_fields_downloadable_version(item: &DownloadableVersion) -> Option<String> {
+    Some(item.version.clone())
 }

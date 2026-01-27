@@ -33,9 +33,7 @@ pub use storage::{
     load_downloadable_versions_cache, load_from_storage, load_widgets_ordered,
     merge_and_save_downloadable_versions, save_to_storage,
 };
-pub use widget_parser::{
-    count_all_spec_groups_visible_properties, load_widget_complete_data, validate_mendix_widget,
-};
+pub use widget_parser::{load_widget_complete_data, validate_mendix_widget};
 pub use widget_preview::{build_and_run_preview, check_dist_exists, run_widget_preview_only};
 
 pub use data_processing::version_utils::{
@@ -54,9 +52,7 @@ pub use data_processing::{
     FilterOptions, SearchFilter, VersionFilter,
 };
 
-pub use editor_config_parser::{
-    evaluate_editor_config, get_visible_property_keys, validate_editor_config_values,
-};
+pub use editor_config_parser::get_property_visibility_with_counts;
 
 pub use state::{
     clear_selection, clear_selection_with_save, get_all_version_operations, get_selection,
@@ -142,7 +138,6 @@ pub fn run() {
             // ================================================================
             // Widget data
             // ================================================================
-            count_all_spec_groups_visible_properties,
             load_widget_complete_data,
             // ================================================================
             // Build & Deploy
@@ -159,9 +154,7 @@ pub fn run() {
             // ================================================================
             // Editor config parser
             // ================================================================
-            evaluate_editor_config,
-            get_visible_property_keys,
-            validate_editor_config_values,
+            get_property_visibility_with_counts,
             // ================================================================
             // State management
             // ================================================================

@@ -3,9 +3,10 @@ pub mod transformer;
 pub mod types;
 pub mod utils;
 
+use std::collections::HashMap;
 use std::thread;
 use runtime::EditorConfigRuntime;
-use types::{EditorConfigEvaluationResult, PropertyGroup, ValidationError, WidgetDefinitionSpec};
+use types::{PropertyGroup, PropertyVisibilityResult, WidgetDefinitionSpec};
 
 const STACK_SIZE: usize = 8 * 1024 * 1024; // 8MB stack for Boa engine
 
@@ -53,73 +54,87 @@ where
     handle.join().map_err(|_| "Thread panicked".to_string())?
 }
 
-#[tauri::command]
-pub fn evaluate_editor_config(
-    config_content: String,
-    values: serde_json::Value,
-    widget_definition: WidgetDefinitionSpec,
-) -> Result<EditorConfigEvaluationResult, String> {
-    run_in_thread(move || {
-        let mut runtime = EditorConfigRuntime::new(&config_content)?;
+fn count_visible_properties_in_group(
+    group: &PropertyGroup,
+    visible_keys: Option<&[String]>,
+) -> usize {
+    let direct_count = match (visible_keys, &group.properties) {
+        (Some(keys), Some(props)) => props
+            .iter()
+            .filter_map(|p| p.get("key").and_then(|v| v.as_str()))
+            .filter(|key| keys.contains(&key.to_string()))
+            .count(),
+        (None, Some(props)) => props.len(),
+        _ => 0,
+    };
 
-        let default_properties = deep_clone_property_groups(&widget_definition.property_groups);
-
-        let filtered_groups = if runtime.is_get_properties_available() {
-            runtime.get_properties(&values, &default_properties)?
-        } else {
-            default_properties
-        };
-
-        let visible_keys = extract_all_property_keys(&filtered_groups);
-
-        let validation_errors = if runtime.is_check_available() {
-            runtime.check(&values)?
-        } else {
-            Vec::new()
-        };
-
-        Ok(EditorConfigEvaluationResult {
-            filtered_groups,
-            visible_keys,
-            validation_errors,
+    let nested_count: usize = group
+        .property_groups
+        .as_ref()
+        .map(|groups| {
+            groups
+                .iter()
+                .map(|nested| count_visible_properties_in_group(nested, visible_keys))
+                .sum()
         })
-    })
+        .unwrap_or(0);
+
+    direct_count + nested_count
+}
+
+fn count_all_groups_recursive(
+    group: &PropertyGroup,
+    parent_path: &str,
+    visible_keys: Option<&[String]>,
+    results: &mut HashMap<String, usize>,
+) {
+    let caption = group.caption.as_deref().unwrap_or("");
+    let group_path = if parent_path.is_empty() {
+        caption.to_string()
+    } else if caption.is_empty() {
+        parent_path.to_string()
+    } else {
+        format!("{}.{}", parent_path, caption)
+    };
+
+    let count = count_visible_properties_in_group(group, visible_keys);
+    if !group_path.is_empty() {
+        results.insert(group_path.clone(), count);
+    }
+
+    if let Some(nested_groups) = &group.property_groups {
+        for nested in nested_groups {
+            count_all_groups_recursive(nested, &group_path, visible_keys, results);
+        }
+    }
 }
 
 #[tauri::command]
-pub fn get_visible_property_keys(
+pub fn get_property_visibility_with_counts(
     config_content: String,
     values: serde_json::Value,
     widget_definition: WidgetDefinitionSpec,
-) -> Result<Option<Vec<String>>, String> {
+) -> Result<PropertyVisibilityResult, String> {
     run_in_thread(move || {
         let mut runtime = EditorConfigRuntime::new(&config_content)?;
 
-        if !runtime.is_get_properties_available() {
-            return Ok(None);
+        let visible_keys = if runtime.is_get_properties_available() {
+            let default_properties = deep_clone_property_groups(&widget_definition.property_groups);
+            let filtered_groups = runtime.get_properties(&values, &default_properties)?;
+            Some(extract_all_property_keys(&filtered_groups))
+        } else {
+            None
+        };
+
+        let mut group_counts = HashMap::new();
+        for group in &widget_definition.property_groups {
+            count_all_groups_recursive(group, "", visible_keys.as_deref(), &mut group_counts);
         }
 
-        let default_properties = deep_clone_property_groups(&widget_definition.property_groups);
-        let filtered_groups = runtime.get_properties(&values, &default_properties)?;
-        let visible_keys = extract_all_property_keys(&filtered_groups);
-
-        Ok(Some(visible_keys))
-    })
-}
-
-#[tauri::command]
-pub fn validate_editor_config_values(
-    config_content: String,
-    values: serde_json::Value,
-) -> Result<Vec<ValidationError>, String> {
-    run_in_thread(move || {
-        let mut runtime = EditorConfigRuntime::new(&config_content)?;
-
-        if !runtime.is_check_available() {
-            return Ok(Vec::new());
-        }
-
-        runtime.check(&values)
+        Ok(PropertyVisibilityResult {
+            visible_keys,
+            group_counts,
+        })
     })
 }
 
@@ -149,7 +164,25 @@ mod tests {
     }
 
     #[test]
-    fn test_evaluate_editor_config_passthrough() {
+    fn test_get_property_visibility_with_counts_no_function() {
+        let config = "// no getProperties function";
+        let values = serde_json::json!({});
+        let widget_def = WidgetDefinitionSpec {
+            property_groups: vec![PropertyGroup {
+                key: Some("general".to_string()),
+                caption: Some("General".to_string()),
+                properties: Some(vec![serde_json::json!({"key": "name"})]),
+                property_groups: None,
+            }],
+        };
+
+        let result = get_property_visibility_with_counts(config.to_string(), values, widget_def).unwrap();
+        assert!(result.visible_keys.is_none());
+        assert_eq!(result.group_counts.get("General"), Some(&1));
+    }
+
+    #[test]
+    fn test_get_property_visibility_with_counts_passthrough() {
         let config = r#"
 function getProperties(values, defaultProperties) {
     return defaultProperties;
@@ -159,35 +192,14 @@ function getProperties(values, defaultProperties) {
         let widget_def = WidgetDefinitionSpec {
             property_groups: vec![PropertyGroup {
                 key: Some("general".to_string()),
-                caption: None,
+                caption: Some("General".to_string()),
                 properties: Some(vec![serde_json::json!({"key": "name"})]),
                 property_groups: None,
             }],
         };
 
-        let result = evaluate_editor_config(config.to_string(), values, widget_def).unwrap();
-        assert_eq!(result.visible_keys, vec!["name"]);
-        assert!(result.validation_errors.is_empty());
-    }
-
-    #[test]
-    fn test_get_visible_property_keys_none_when_no_function() {
-        let config = "// no getProperties function";
-        let values = serde_json::json!({});
-        let widget_def = WidgetDefinitionSpec {
-            property_groups: vec![],
-        };
-
-        let result = get_visible_property_keys(config.to_string(), values, widget_def).unwrap();
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn test_validate_returns_empty_when_no_check() {
-        let config = "// no check function";
-        let values = serde_json::json!({});
-
-        let result = validate_editor_config_values(config.to_string(), values).unwrap();
-        assert!(result.is_empty());
+        let result = get_property_visibility_with_counts(config.to_string(), values, widget_def).unwrap();
+        assert_eq!(result.visible_keys, Some(vec!["name".to_string()]));
+        assert_eq!(result.group_counts.get("General"), Some(&1));
     }
 }

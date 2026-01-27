@@ -1,7 +1,7 @@
 use boa_engine::{Context, JsValue, Source};
 
 use crate::editor_config_parser::transformer::transform_es6_to_commonjs;
-use crate::editor_config_parser::types::{PropertyGroup, ValidationError};
+use crate::editor_config_parser::types::PropertyGroup;
 use crate::editor_config_parser::utils::create_mendix_utils_injection;
 
 pub struct EditorConfigRuntime {
@@ -40,10 +40,6 @@ if (typeof getCustomCaption === 'function') exports.getCustomCaption = getCustom
 
     pub fn is_get_properties_available(&mut self) -> bool {
         self.check_function_exists("getProperties")
-    }
-
-    pub fn is_check_available(&mut self) -> bool {
-        self.check_function_exists("check")
     }
 
     fn check_function_exists(&mut self, fn_name: &str) -> bool {
@@ -86,31 +82,6 @@ if (typeof getCustomCaption === 'function') exports.getCustomCaption = getCustom
         self.js_value_to_property_groups(result)
     }
 
-    pub fn check(&mut self, values: &serde_json::Value) -> Result<Vec<ValidationError>, String> {
-        let values_json = serde_json::to_string(values)
-            .map_err(|e| format!("Failed to serialize values: {}", e))?;
-
-        let call_script = format!(
-            r#"
-(function() {{
-    var values = {values_json};
-    if (typeof exports.check === 'function') {{
-        var result = exports.check(values);
-        return JSON.stringify(result || []);
-    }}
-    return "[]";
-}})()
-"#
-        );
-
-        let result = self
-            .context
-            .eval(Source::from_bytes(&call_script))
-            .map_err(|e| format!("Failed to execute check: {}", e))?;
-
-        self.js_value_to_validation_errors(result)
-    }
-
     fn js_value_to_property_groups(&self, value: JsValue) -> Result<Vec<PropertyGroup>, String> {
         let json_str = value
             .as_string()
@@ -119,16 +90,6 @@ if (typeof getCustomCaption === 'function') exports.getCustomCaption = getCustom
 
         serde_json::from_str(&json_str)
             .map_err(|e| format!("Failed to parse getProperties result: {}", e))
-    }
-
-    fn js_value_to_validation_errors(&self, value: JsValue) -> Result<Vec<ValidationError>, String> {
-        let json_str = value
-            .as_string()
-            .map(|s| s.to_std_string_escaped())
-            .ok_or_else(|| "check did not return a string".to_string())?;
-
-        serde_json::from_str(&json_str)
-            .map_err(|e| format!("Failed to parse check result: {}", e))
     }
 }
 
@@ -156,19 +117,6 @@ function getProperties(values, defaultProperties) {
 "#;
         let mut runtime = EditorConfigRuntime::new(config).unwrap();
         assert!(runtime.is_get_properties_available());
-        assert!(!runtime.is_check_available());
-    }
-
-    #[test]
-    fn test_check_available() {
-        let config = r#"
-function check(values) {
-    return [];
-}
-"#;
-        let mut runtime = EditorConfigRuntime::new(config).unwrap();
-        assert!(!runtime.is_get_properties_available());
-        assert!(runtime.is_check_available());
     }
 
     #[test]
@@ -190,36 +138,6 @@ function getProperties(values, defaultProperties) {
         let result = runtime.get_properties(&values, &props).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].key, Some("general".to_string()));
-    }
-
-    #[test]
-    fn test_check_returns_empty() {
-        let config = r#"
-function check(values) {
-    return [];
-}
-"#;
-        let mut runtime = EditorConfigRuntime::new(config).unwrap();
-        let values = serde_json::json!({});
-
-        let result = runtime.check(&values).unwrap();
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_check_returns_errors() {
-        let config = r#"
-function check(values) {
-    return [{ property: "name", message: "Name is required" }];
-}
-"#;
-        let mut runtime = EditorConfigRuntime::new(config).unwrap();
-        let values = serde_json::json!({});
-
-        let result = runtime.check(&values).unwrap();
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].property, Some("name".to_string()));
-        assert_eq!(result[0].message, "Name is required");
     }
 
     #[test]

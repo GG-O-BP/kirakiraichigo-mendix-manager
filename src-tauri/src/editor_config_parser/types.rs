@@ -13,21 +13,13 @@ pub struct PropertyGroup {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ValidationError {
-    pub property: Option<String>,
-    pub message: String,
-    pub url: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EditorConfigEvaluationResult {
-    pub filtered_groups: Vec<PropertyGroup>,
-    pub visible_keys: Vec<String>,
-    pub validation_errors: Vec<ValidationError>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WidgetDefinitionSpec {
     #[serde(rename = "propertyGroups")]
     pub property_groups: Vec<PropertyGroup>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PropertyVisibilityResult {
+    pub visible_keys: Option<Vec<String>>,
+    pub group_counts: std::collections::HashMap<String, usize>,
 }
