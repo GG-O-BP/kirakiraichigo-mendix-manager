@@ -3,7 +3,6 @@ import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 export function useWidgetPreviewState() {
-  const [widgetPreviewSearch, setWidgetPreviewSearch] = useState("");
   const [isBuilding, setIsBuilding] = useState(false);
   const [buildError, setBuildError] = useState(null);
   const [distExists, setDistExists] = useState(false);
@@ -18,8 +17,6 @@ export function useWidgetPreviewState() {
   }, []);
 
   return {
-    widgetPreviewSearch,
-    setWidgetPreviewSearch,
     isBuilding,
     setIsBuilding,
     buildError,

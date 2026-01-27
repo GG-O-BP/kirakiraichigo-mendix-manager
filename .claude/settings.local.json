@@ -26,7 +26,8 @@
       "WebFetch(domain:crates.io)",
       "WebFetch(domain:dev.to)",
       "WebFetch(domain:gist.github.com)",
-      "Bash(cargo add:*)"
+      "Bash(cargo add:*)",
+      "Bash(grep:*)"
     ]
   }
 }

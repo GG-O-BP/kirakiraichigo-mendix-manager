@@ -14,7 +14,7 @@ export {
 
 export { wrapAsync } from "./async";
 
-export { arrayToSet, hasItems, setProperty } from "./setUtils";
+export { setProperty } from "./setUtils";
 
 export {
   createChangeHandler,

@@ -12,8 +12,6 @@ export function useVersionOperations({ onLoadVersions }) {
   const download = useDownloadOperation({ updateLoadingState, onLoadVersions });
 
   return {
-    versionLoadingStates: loadingStates.versionLoadingStates,
-    setVersionLoadingStates: loadingStates.setVersionLoadingStates,
     getLoadingStateSync,
     ...launch,
     ...uninstall,

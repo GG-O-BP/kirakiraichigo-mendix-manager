@@ -95,7 +95,21 @@ export function useVersions() {
   - `extractors.rs` - MendixVersion/MendixApp field extractors
   - `mendix_filters.rs` - Tauri filter commands
   - `version_utils.rs` - Version comparison and filtering utilities
-- `validation/` - Input validation
+- `editor_config_parser/` - Mendix widget editorConfig.ts evaluation (Boa JS engine)
+  - `runtime.rs` - EditorConfigRuntime for executing JS getProperties/check functions
+  - `transformer.rs` - Property group transformation
+  - `types.rs` - PropertyGroup, ValidationError, WidgetDefinitionSpec structs
+- `state/` - Tauri managed state (thread-safe via Mutex)
+  - `selection.rs` - Widget/app selection state management
+  - `version_operations.rs` - Version loading states tracking
+- `business_logic/` - Shared business logic (migrated from frontend)
+  - `validation/` - Widget, selection validation functions
+  - `array_ops/` - Array property manipulation
+  - `property_group.rs` - Property group expansion state
+  - `theme/` - Theme metadata and available themes
+- `js_runtime/` - JavaScript runtime utilities
+  - `collection_ops.rs` - Toggle, contains, count operations for collections
+  - `event_helpers.rs` - Value parsing utilities
 - `formatting/` - Date formatting, version status/badge text
 - `config/` - Package manager configuration types
 - `utils/` - Path utilities, widget copy operations
@@ -162,8 +176,18 @@ R.propOr([], "items", data)
 - Use `rayon` for parallel operations
 - Use `quick_xml` for XML parsing (not string search)
 - Use `semver` crate for version comparisons
+- Use `boa_engine` for evaluating Mendix widget editorConfig.ts (JavaScript execution in Rust)
 - Prefer zip pattern over index-based iteration for safety
 - Tests are inline in modules using `#[cfg(test)]` (see `widget_parser/mod.rs`, `formatting/mod.rs`, etc.)
+
+### Frontend→Rust Logic Migration Pattern
+Complex business logic is being migrated from React/JavaScript to Rust Tauri commands:
+- Collection operations (toggle, contains, count) → `js_runtime/`
+- Validation logic → `business_logic/validation/`
+- State management → `state/` (uses Tauri managed state with Mutex)
+- Property visibility evaluation → `editor_config_parser/` (runs JS via Boa engine)
+
+This keeps frontend focused on UI rendering while Rust handles computation and state.
 
 ### CSS Architecture
 - Uses **LightningCSS** (not PostCSS)

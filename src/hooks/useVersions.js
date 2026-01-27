@@ -1,4 +1,3 @@
-import * as R from "ramda";
 import {
   useVersionFilters,
   useVersionSelection,
@@ -36,8 +35,6 @@ export function useVersions() {
     setShowBetaOnly: filters.setShowBetaOnly,
     selectedVersion: selection.selectedVersion,
     handleVersionClick: selection.handleVersionClick,
-    versionLoadingStates: operations.versionLoadingStates,
-    setVersionLoadingStates: operations.setVersionLoadingStates,
     getLoadingStateSync: operations.getLoadingStateSync,
     handleLaunchStudioPro: operations.handleLaunchStudioPro,
     handleUninstallStudioPro: operations.handleUninstallStudioPro,

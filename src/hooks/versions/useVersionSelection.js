@@ -19,7 +19,6 @@ export function useVersionSelection() {
 
   return {
     selectedVersion,
-    setSelectedVersion,
     handleVersionClick,
   };
 }

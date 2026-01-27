@@ -105,7 +105,6 @@ export function useWidgetPreviewBuild({
 
   return {
     previewData,
-    previewDataByWidgetId,
     handleBuildAndRun,
     handleRunOnly,
   };

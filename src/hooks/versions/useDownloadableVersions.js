@@ -6,7 +6,6 @@ export function useDownloadableVersions() {
   const [downloadableVersions, setDownloadableVersions] = useState([]);
   const [isLoadingDownloadableVersions, setIsLoadingDownloadableVersions] =
     useState(false);
-  const [isCacheLoaded, setIsCacheLoaded] = useState(false);
 
   const hasLoadedInitialVersions = useRef(false);
 
@@ -74,8 +73,7 @@ export function useDownloadableVersions() {
       try {
         hasLoadedInitialVersions.current = true;
 
-        const cached = await loadCachedVersions();
-        setIsCacheLoaded(true);
+        await loadCachedVersions();
 
         await fetchVersionsFromDatagrid(1);
       } catch (error) {
@@ -90,7 +88,6 @@ export function useDownloadableVersions() {
   return {
     downloadableVersions,
     isLoadingDownloadableVersions,
-    isCacheLoaded,
     fetchVersionsFromDatagrid,
     clearCache,
     refreshVersions,

@@ -5,18 +5,6 @@ import { invoke } from "@tauri-apps/api/core";
 export function useVersionLoadingStates() {
   const [versionLoadingStates, setVersionLoadingStates] = useState({});
 
-  const getLoadingState = useCallback(
-    async (versionId) => {
-      try {
-        return await invoke("get_version_loading_state", { versionId });
-      } catch (error) {
-        console.error("Failed to get version loading state:", error);
-        return { isLaunching: false, isUninstalling: false, isDownloading: false };
-      }
-    },
-    [],
-  );
-
   const getLoadingStateSync = useCallback(
     (versionId) => {
       const state = versionLoadingStates[versionId];
@@ -64,9 +52,6 @@ export function useVersionLoadingStates() {
   );
 
   return {
-    versionLoadingStates,
-    setVersionLoadingStates,
-    getLoadingState,
     getLoadingStateSync,
     updateLoadingState,
     isVersionBusy,
