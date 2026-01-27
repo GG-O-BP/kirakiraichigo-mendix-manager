@@ -28,6 +28,7 @@ const WidgetManager = memo(() => {
     versionFilter,
     setVersionFilter,
     handleAppClick,
+    isAppSelected,
   } = appContext;
 
   const {
@@ -38,6 +39,8 @@ const WidgetManager = memo(() => {
     setSelectedWidgets,
     widgetSearchTerm,
     setWidgetSearchTerm,
+    toggleWidgetSelection,
+    isWidgetSelected,
   } = widgetCollectionContext;
 
   const { setNewWidgetCaption, setNewWidgetPath } = widgetFormContext;
@@ -84,17 +87,19 @@ const WidgetManager = memo(() => {
         setVersionFilter={setVersionFilter}
         handleAppClick={handleAppClick}
         onDeleteApp={openAppDeleteModal}
+        isAppSelected={isAppSelected}
       />
       <WidgetsSelectionPanel
         widgets={widgets}
         setWidgets={setWidgets}
         filteredWidgets={filteredWidgets}
         selectedWidgets={selectedWidgets}
-        setSelectedWidgets={setSelectedWidgets}
         widgetSearchTerm={widgetSearchTerm}
         setWidgetSearchTerm={setWidgetSearchTerm}
         handleWidgetDeleteClick={handleWidgetDeleteClick}
         modalHandlers={modalHandlers}
+        toggleWidgetSelection={toggleWidgetSelection}
+        isWidgetSelected={isWidgetSelected}
       />
       <BuildDeploySection
         packageManager={packageManager}

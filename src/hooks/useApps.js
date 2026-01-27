@@ -1,13 +1,13 @@
 import * as R from "ramda";
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { STORAGE_KEYS, wrapAsync } from "../utils";
+import { wrapAsync } from "../utils";
 import { processAppsPipeline } from "../utils/data-processing/appFiltering";
 import { useCollection } from "./useCollection";
 
 export function useApps() {
   const collection = useCollection({
-    selectionStorageKey: STORAGE_KEYS.SELECTED_APPS,
+    selectionType: "apps",
     getItemId: R.prop("path"),
   });
 
@@ -25,7 +25,7 @@ export function useApps() {
   );
 
   const handleAppClick = useCallback(
-    R.pipe(collection.toggleSelection),
+    collection.toggleSelection,
     [collection.toggleSelection],
   );
 
@@ -85,5 +85,6 @@ export function useApps() {
     setSelectedApps: collection.setSelectedItems,
     handleAppClick,
     handleDeleteApp,
+    isAppSelected: collection.isSelected,
   };
 }

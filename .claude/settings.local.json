@@ -28,7 +28,12 @@
       "WebFetch(domain:gist.github.com)",
       "Bash(cargo add:*)",
       "Bash(grep:*)",
-      "Bash(xargs -I {} bash -c 'echo \"\"=== {} ===\"\" && grep \"\"^use\\\\|^pub use\"\" \"\"{}\"\" | sort | uniq -d')"
+      "Bash(xargs -I {} bash -c 'echo \"\"=== {} ===\"\" && grep \"\"^use\\\\|^pub use\"\" \"\"{}\"\" | sort | uniq -d')",
+      "Bash(done)",
+      "Bash(for file in \"C:\\\\Users\\\\dohye\\\\workspace\\\\kirakiraichigo-mendix-manager\\\\src\\\\components\"/**/*.jsx \"C:\\\\Users\\\\dohye\\\\workspace\\\\kirakiraichigo-mendix-manager\\\\src\\\\hooks\"/**/*.js)",
+      "Bash(do if grep -q \"useMemo\" \"$file\")",
+      "Bash(! grep -q \"useMemo\\(\" \"$file\")",
+      "Bash(then echo \"$file: useMemo imported but not used\" fi done)"
     ]
   }
 }

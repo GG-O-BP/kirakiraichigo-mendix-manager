@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use tauri::State;
 
 use crate::state::AppState;
+use crate::storage::{load_from_storage, save_to_storage};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -10,6 +12,16 @@ pub enum SelectionType {
     Widgets,
     Apps,
     Versions,
+}
+
+impl SelectionType {
+    pub fn storage_key(&self) -> &'static str {
+        match self {
+            SelectionType::Widgets => "selectedWidgets",
+            SelectionType::Apps => "selectedApps",
+            SelectionType::Versions => "selectedVersion",
+        }
+    }
 }
 
 #[derive(Default)]
@@ -158,6 +170,89 @@ pub fn remove_from_selection(
     Ok(selection.remove(selection_type, &item_id))
 }
 
+#[tauri::command]
+pub fn init_selection_from_storage(
+    state: State<'_, AppState>,
+    selection_type: SelectionType,
+) -> Result<Vec<String>, String> {
+    let storage_key = selection_type.storage_key().to_string();
+    let stored_value = load_from_storage(storage_key, Value::Array(vec![]))?;
+
+    let items: Vec<String> = serde_json::from_value(stored_value)
+        .map_err(|e| format!("Failed to parse stored selection: {}", e))?;
+
+    let mut selection = state
+        .selection
+        .lock()
+        .map_err(|e| format!("Failed to lock selection state: {}", e))?;
+    selection.set(selection_type, items.clone());
+
+    Ok(items)
+}
+
+#[tauri::command]
+pub fn toggle_selection_with_save(
+    state: State<'_, AppState>,
+    selection_type: SelectionType,
+    item_id: String,
+) -> Result<Vec<String>, String> {
+    let result = {
+        let mut selection = state
+            .selection
+            .lock()
+            .map_err(|e| format!("Failed to lock selection state: {}", e))?;
+        selection.toggle(selection_type, item_id)
+    };
+
+    let storage_key = selection_type.storage_key().to_string();
+    let value = serde_json::to_value(&result)
+        .map_err(|e| format!("Failed to serialize selection: {}", e))?;
+    save_to_storage(storage_key, value)?;
+
+    Ok(result)
+}
+
+#[tauri::command]
+pub fn remove_from_selection_with_save(
+    state: State<'_, AppState>,
+    selection_type: SelectionType,
+    item_id: String,
+) -> Result<Vec<String>, String> {
+    let result = {
+        let mut selection = state
+            .selection
+            .lock()
+            .map_err(|e| format!("Failed to lock selection state: {}", e))?;
+        selection.remove(selection_type, &item_id)
+    };
+
+    let storage_key = selection_type.storage_key().to_string();
+    let value = serde_json::to_value(&result)
+        .map_err(|e| format!("Failed to serialize selection: {}", e))?;
+    save_to_storage(storage_key, value)?;
+
+    Ok(result)
+}
+
+#[tauri::command]
+pub fn clear_selection_with_save(
+    state: State<'_, AppState>,
+    selection_type: SelectionType,
+) -> Result<(), String> {
+    {
+        let mut selection = state
+            .selection
+            .lock()
+            .map_err(|e| format!("Failed to lock selection state: {}", e))?;
+        selection.clear(selection_type);
+    }
+
+    let storage_key = selection_type.storage_key().to_string();
+    save_to_storage(storage_key, Value::Array(vec![]))?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -244,5 +339,12 @@ mod tests {
         );
         let result = state.remove(SelectionType::Apps, "a1");
         assert_eq!(result, vec!["a2"]);
+    }
+
+    #[test]
+    fn test_storage_key() {
+        assert_eq!(SelectionType::Widgets.storage_key(), "selectedWidgets");
+        assert_eq!(SelectionType::Apps.storage_key(), "selectedApps");
+        assert_eq!(SelectionType::Versions.storage_key(), "selectedVersion");
     }
 }

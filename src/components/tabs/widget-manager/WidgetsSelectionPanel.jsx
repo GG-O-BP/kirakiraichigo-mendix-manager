@@ -5,33 +5,7 @@ import WidgetListItem from "../../common/WidgetListItem";
 import { renderLoadingIndicator } from "../../common/LoadingIndicator";
 import { renderPanel } from "../../common/Panel";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
-import { STORAGE_KEYS, saveToStorage } from "../../../utils";
 import { useI18n } from "../../../i18n/useI18n";
-
-const persistWidgetSelection = (widgetSet) =>
-  saveToStorage(STORAGE_KEYS.SELECTED_WIDGETS, Array.from(widgetSet)).catch(
-    console.error,
-  );
-
-const toggleWidgetInSet = (widgetSet, widgetId) => {
-  const newSet = new Set(widgetSet);
-  if (newSet.has(widgetId)) {
-    newSet.delete(widgetId);
-  } else {
-    newSet.add(widgetId);
-  }
-  return newSet;
-};
-
-const createWidgetClickHandler = R.curry(
-  (setSelectedWidgets, widgetId) => {
-    setSelectedWidgets((prev) => {
-      const newSet = toggleWidgetInSet(prev, widgetId);
-      persistWidgetSelection(newSet);
-      return newSet;
-    });
-  },
-);
 
 const createAddWidgetClickHandler = (modalHandlers) => () => {
   modalHandlers.setShowWidgetModal(true);
@@ -60,11 +34,12 @@ const WidgetsSelectionPanel = memo(({
   setWidgets,
   filteredWidgets,
   selectedWidgets,
-  setSelectedWidgets,
   widgetSearchTerm,
   setWidgetSearchTerm,
   handleWidgetDeleteClick,
   modalHandlers,
+  toggleWidgetSelection,
+  isWidgetSelected,
 }) => {
   const { t } = useI18n();
   const [widgetListRef, reorderedWidgets, setReorderedWidgets] =
@@ -123,8 +98,8 @@ const WidgetsSelectionPanel = memo(({
                   <WidgetListItem
                     key={R.prop("id", widget)}
                     widget={widget}
-                    isSelected={selectedWidgets.has(R.prop("id", widget))}
-                    onClick={() => createWidgetClickHandler(setSelectedWidgets, R.prop("id", widget))}
+                    isSelected={isWidgetSelected(widget)}
+                    onClick={() => toggleWidgetSelection(widget)}
                     onDelete={handleWidgetDeleteClick}
                     showIcon={true}
                   />

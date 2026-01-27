@@ -59,9 +59,10 @@ pub use editor_config_parser::{
 };
 
 pub use state::{
-    clear_selection, get_all_version_operations, get_selection, get_version_loading_state,
-    has_selection, is_selected, is_version_busy, remove_from_selection, set_selection,
-    set_version_operation, toggle_selection, AppState,
+    clear_selection, clear_selection_with_save, get_all_version_operations, get_selection,
+    get_version_loading_state, has_selection, init_selection_from_storage, is_selected,
+    is_version_busy, remove_from_selection, remove_from_selection_with_save, set_selection,
+    set_version_operation, toggle_selection, toggle_selection_with_save, AppState,
 };
 
 pub use business_logic::{
@@ -71,8 +72,8 @@ pub use business_logic::{
 };
 
 pub use js_runtime::{
-    collection_contains, collection_count, collection_has_items, collection_remove_item,
-    collection_toggle_item, parse_decimal_or_empty, parse_integer_or_empty, parse_value_by_type,
+    collection_contains, collection_count, collection_has_items, extract_selected_widget_paths,
+    parse_decimal_or_empty, parse_integer_or_empty, parse_value_by_type,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -171,6 +172,10 @@ pub fn run() {
             has_selection,
             set_selection,
             remove_from_selection,
+            init_selection_from_storage,
+            toggle_selection_with_save,
+            remove_from_selection_with_save,
+            clear_selection_with_save,
             set_version_operation,
             get_version_loading_state,
             is_version_busy,
@@ -201,11 +206,10 @@ pub fn run() {
             parse_value_by_type,
             parse_integer_or_empty,
             parse_decimal_or_empty,
-            collection_toggle_item,
             collection_has_items,
-            collection_remove_item,
             collection_count,
             collection_contains,
+            extract_selected_widget_paths,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

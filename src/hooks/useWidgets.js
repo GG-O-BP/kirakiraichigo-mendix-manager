@@ -8,7 +8,7 @@ import { useWidgetForm } from "./useWidgetForm";
 
 export function useWidgets() {
   const collection = useCollection({
-    selectionStorageKey: STORAGE_KEYS.SELECTED_WIDGETS,
+    selectionType: "widgets",
     getItemId: R.prop("id"),
   });
 
@@ -118,6 +118,8 @@ export function useWidgets() {
     setWidgetSearchTerm: collection.setSearchTerm,
     selectedWidgets: collection.selectedItems,
     setSelectedWidgets: collection.setSelectedItems,
+    toggleWidgetSelection: collection.toggleSelection,
+    isWidgetSelected: collection.isSelected,
     newWidgetCaption: form.newWidgetCaption,
     setNewWidgetCaption: form.setNewWidgetCaption,
     newWidgetPath: form.newWidgetPath,

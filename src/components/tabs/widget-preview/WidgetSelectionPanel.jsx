@@ -19,6 +19,10 @@ const toggleWidgetSelection = R.curry((currentSelection, widgetId) =>
   )(widgetId),
 );
 
+const isWidgetSelectedForPreview = R.curry((selectedWidgetId, widget) =>
+  R.equals(selectedWidgetId, R.prop("id", widget)),
+);
+
 const renderAddWidgetButton = (modalHandlers, t) => (
   <div
     className="version-list-item"
@@ -90,7 +94,7 @@ const WidgetSelectionPanel = memo(({
         <WidgetListItem
           key={R.prop("id", widget)}
           widget={widget}
-          isSelected={R.equals(selectedWidgetForPreview, R.prop("id", widget))}
+          isSelected={isWidgetSelectedForPreview(selectedWidgetForPreview, widget)}
           onClick={() => setSelectedWidgetForPreview(
             toggleWidgetSelection(selectedWidgetForPreview, R.prop("id", widget))
           )}

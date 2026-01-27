@@ -6,16 +6,17 @@ export function useDistExistsCheck({ selectedWidgets, widgets }) {
   const [allDistExist, setAllDistExist] = useState(false);
 
   const checkDistExists = useCallback(async () => {
-    if (R.equals(0, selectedWidgets.size)) {
+    const selectedWidgetIds = Array.from(selectedWidgets);
+
+    if (R.isEmpty(selectedWidgetIds)) {
       setAllDistExist(false);
       return;
     }
 
-    const selectedWidgetIds = Array.from(selectedWidgets);
-    const selectedWidgetPaths = R.pipe(
-      R.filter((widget) => R.includes(R.prop("id", widget), selectedWidgetIds)),
-      R.pluck("path"),
-    )(widgets);
+    const selectedWidgetPaths = await invoke("extract_selected_widget_paths", {
+      selectedIds: selectedWidgetIds,
+      widgets,
+    });
 
     if (R.isEmpty(selectedWidgetPaths)) {
       setAllDistExist(false);

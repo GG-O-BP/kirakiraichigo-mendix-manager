@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "KiraIchi"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "boa_engine",
  "chromiumoxide",

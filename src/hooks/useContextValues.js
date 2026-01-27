@@ -20,6 +20,7 @@ export function useContextValues({
       handleAppClick: appsHook.handleAppClick,
       handleDeleteApp: appsHook.handleDeleteApp,
       loadApps: appsHook.loadApps,
+      isAppSelected: appsHook.isAppSelected,
     }),
     [appsHook],
   );
@@ -35,6 +36,8 @@ export function useContextValues({
       setWidgetSearchTerm: widgetsHook.setWidgetSearchTerm,
       handleAddWidget: widgetsHook.handleAddWidget,
       handleWidgetDelete: widgetsHook.handleWidgetDelete,
+      toggleWidgetSelection: widgetsHook.toggleWidgetSelection,
+      isWidgetSelected: widgetsHook.isWidgetSelected,
     }),
     [widgetsHook],
   );

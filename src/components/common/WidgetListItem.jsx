@@ -21,19 +21,20 @@ const handleDeleteClick = R.curry((onDelete, widget, e) =>
 const WidgetListItem = memo(
   ({
     widget,
-    isSelected,
+    isSelected = false,
     onClick,
     onDelete,
     showIcon = true,
     selectedIcon = "☑️",
     unselectedIcon = "🧩",
   }) => {
+    const widgetId = R.prop("id", widget);
     const icon = isSelected ? selectedIcon : unselectedIcon;
 
     return (
       <div
-        key={R.prop("id", widget)}
-        data-label={R.prop("id", widget)}
+        key={widgetId}
+        data-label={widgetId}
         className={getWidgetClassName(isSelected)}
         onClick={onClick}
       >
