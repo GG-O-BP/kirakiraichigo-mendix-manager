@@ -9,13 +9,10 @@ export function useBuildDeploy({ onShowResultModal, packageManagerPersistence } 
 
   const install = useInstallOperation({
     packageManager: packageManagerPersistence.packageManager,
-    setIsInstalling: state.setIsInstalling,
   });
 
   const buildDeploy = useBuildDeployOperation({
     packageManager: packageManagerPersistence.packageManager,
-    setIsBuilding: state.setIsBuilding,
-    setIsDeploying: state.setIsDeploying,
     setBuildResults: state.setBuildResults,
     setInlineResults: state.setInlineResults,
     setLastOperationType: state.setLastOperationType,
@@ -25,9 +22,9 @@ export function useBuildDeploy({ onShowResultModal, packageManagerPersistence } 
   return {
     packageManager: packageManagerPersistence.packageManager,
     setPackageManager: packageManagerPersistence.setPackageManager,
-    isInstalling: state.isInstalling,
-    isBuilding: state.isBuilding,
-    isDeploying: state.isDeploying,
+    isInstalling: install.isInstalling,
+    isBuilding: buildDeploy.isBuilding,
+    isDeploying: buildDeploy.isDeploying,
     buildResults: state.buildResults,
     setBuildResults: state.setBuildResults,
     inlineResults: state.inlineResults,

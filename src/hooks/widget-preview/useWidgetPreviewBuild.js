@@ -1,14 +1,21 @@
 import * as R from "ramda";
-import { useState, useCallback } from "react";
+import { useState } from "react";
+import useSWRMutation from "swr/mutation";
 import { invoke } from "@tauri-apps/api/core";
 
-export function useWidgetPreviewBuild({
-  selectedWidgetForPreview,
-  packageManager,
-  setIsBuilding,
-  setBuildError,
-}) {
+const buildAndRunPreview = async (_, { arg }) => {
+  const { widgetPath, packageManager } = arg;
+  return invoke("build_and_run_preview", { widgetPath, packageManager });
+};
+
+const runPreviewOnly = async (_, { arg }) => {
+  const { widgetPath } = arg;
+  return invoke("run_widget_preview_only", { widgetPath });
+};
+
+export function useWidgetPreviewBuild({ selectedWidgetForPreview, packageManager }) {
   const [previewDataByWidgetId, setPreviewDataByWidgetId] = useState({});
+  const [buildError, setBuildError] = useState(null);
 
   const previewData = R.ifElse(
     R.isNil,
@@ -16,96 +23,85 @@ export function useWidgetPreviewBuild({
     (widgetId) => R.propOr(null, String(widgetId), previewDataByWidgetId),
   )(selectedWidgetForPreview);
 
-  const handleBuildAndRun = useCallback(async (selectedWidget) => {
+  const { trigger: triggerBuild, isMutating: isBuildingPreview } = useSWRMutation(
+    "widget-preview-build",
+    buildAndRunPreview,
+  );
+
+  const { trigger: triggerRun, isMutating: isRunningPreview } = useSWRMutation(
+    "widget-preview-run",
+    runPreviewOnly,
+  );
+
+  const processResponse = (widgetId, response) => {
+    R.ifElse(
+      R.prop("success"),
+      R.pipe(
+        R.tap(() => setBuildError(null)),
+        (res) => setPreviewDataByWidgetId((cache) =>
+          R.assoc(String(widgetId), {
+            bundle: R.prop("bundle_content", res),
+            css: R.prop("css_content", res),
+            widgetName: R.prop("widget_name", res),
+            widgetId: R.prop("widget_id", res),
+          }, cache),
+        ),
+      ),
+      R.pipe(
+        R.tap((res) => setBuildError(R.propOr("Build failed", "error", res))),
+        R.tap(() => setPreviewDataByWidgetId((cache) =>
+          R.assoc(String(widgetId), null, cache),
+        )),
+      ),
+    )(response);
+  };
+
+  const handleBuildAndRun = async (selectedWidget) => {
     if (R.isNil(selectedWidget)) return;
 
     const widgetId = R.prop("id", selectedWidget);
-    setIsBuilding(true);
     setBuildError(null);
 
     try {
-      const response = await invoke("build_and_run_preview", {
+      const response = await triggerBuild({
         widgetPath: R.prop("path", selectedWidget),
-        packageManager: packageManager,
+        packageManager,
       });
-
-      R.ifElse(
-        R.prop("success"),
-        R.pipe(
-          R.tap(() => setBuildError(null)),
-          (res) => setPreviewDataByWidgetId((cache) =>
-            R.assoc(String(widgetId), {
-              bundle: R.prop("bundle_content", res),
-              css: R.prop("css_content", res),
-              widgetName: R.prop("widget_name", res),
-              widgetId: R.prop("widget_id", res),
-            }, cache),
-          ),
-        ),
-        R.pipe(
-          R.tap((res) => setBuildError(R.propOr("Build failed", "error", res))),
-          R.tap(() => setPreviewDataByWidgetId((cache) =>
-            R.assoc(String(widgetId), null, cache),
-          )),
-        ),
-      )(response);
+      processResponse(widgetId, response);
     } catch (error) {
       console.error("[Widget Preview] Error:", error);
       setBuildError(String(error));
       setPreviewDataByWidgetId((cache) =>
         R.assoc(String(widgetId), null, cache),
       );
-    } finally {
-      setIsBuilding(false);
     }
-  }, [packageManager, setIsBuilding, setBuildError]);
+  };
 
-  const handleRunOnly = useCallback(async (selectedWidget) => {
+  const handleRunOnly = async (selectedWidget) => {
     if (R.isNil(selectedWidget)) return;
 
     const widgetId = R.prop("id", selectedWidget);
-    setIsBuilding(true);
     setBuildError(null);
 
     try {
-      const response = await invoke("run_widget_preview_only", {
+      const response = await triggerRun({
         widgetPath: R.prop("path", selectedWidget),
       });
-
-      R.ifElse(
-        R.prop("success"),
-        R.pipe(
-          R.tap(() => setBuildError(null)),
-          (res) => setPreviewDataByWidgetId((cache) =>
-            R.assoc(String(widgetId), {
-              bundle: R.prop("bundle_content", res),
-              css: R.prop("css_content", res),
-              widgetName: R.prop("widget_name", res),
-              widgetId: R.prop("widget_id", res),
-            }, cache),
-          ),
-        ),
-        R.pipe(
-          R.tap((res) => setBuildError(R.propOr("No build output found", "error", res))),
-          R.tap(() => setPreviewDataByWidgetId((cache) =>
-            R.assoc(String(widgetId), null, cache),
-          )),
-        ),
-      )(response);
+      processResponse(widgetId, response);
     } catch (error) {
       console.error("[Widget Preview] Run Only Error:", error);
       setBuildError(String(error));
       setPreviewDataByWidgetId((cache) =>
         R.assoc(String(widgetId), null, cache),
       );
-    } finally {
-      setIsBuilding(false);
     }
-  }, [setIsBuilding, setBuildError]);
+  };
 
   return {
     previewData,
     handleBuildAndRun,
     handleRunOnly,
+    isBuilding: isBuildingPreview || isRunningPreview,
+    buildError,
   };
 }

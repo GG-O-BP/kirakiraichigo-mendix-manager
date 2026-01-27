@@ -35,12 +35,6 @@ const WidgetPreview = memo(() => {
     properties,
     dynamicProperties,
     setDynamicProperties,
-    lastLoadedWidgetId,
-    setLastLoadedWidgetId,
-    widgetDefinition: contextWidgetDefinition,
-    setWidgetDefinition,
-    editorConfigContent: contextEditorConfigContent,
-    setEditorConfigContent,
     previewData,
     isBuilding,
     buildError,
@@ -75,16 +69,10 @@ const WidgetPreview = memo(() => {
   } = useWidgetProperties(selectedWidget, properties, {
     dynamicProperties,
     setDynamicProperties,
-    lastLoadedWidgetId,
-    setLastLoadedWidgetId,
-    widgetDefinition: contextWidgetDefinition,
-    setWidgetDefinition,
-    editorConfigContent: contextEditorConfigContent,
-    setEditorConfigContent,
   });
 
   useEffect(() => {
-    checkDistExists(R.prop("path", selectedWidget));
+    checkDistExists();
   }, [selectedWidget, checkDistExists]);
 
   const modalHandlers = {

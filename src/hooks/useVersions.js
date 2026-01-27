@@ -11,12 +11,13 @@ export function useVersions() {
   const installed = useInstalledVersions(filters.searchTerm);
   const downloadable = useDownloadableVersions();
   const selection = useVersionSelection();
-  const operations = useVersionOperations({ onLoadVersions: installed.loadVersions });
+  const operations = useVersionOperations();
 
   return {
     versions: installed.versions,
     filteredVersions: installed.filteredVersions,
     loadVersions: installed.loadVersions,
+    isLoadingVersions: installed.isLoading,
     downloadableVersions: downloadable.downloadableVersions,
     isLoadingDownloadableVersions: downloadable.isLoadingDownloadableVersions,
     fetchVersionsFromDatagrid: downloadable.fetchVersionsFromDatagrid,
@@ -39,5 +40,8 @@ export function useVersions() {
     handleLaunchStudioPro: operations.handleLaunchStudioPro,
     handleUninstallStudioPro: operations.handleUninstallStudioPro,
     handleModalDownload: operations.handleModalDownload,
+    isDownloading: operations.isDownloading,
+    isUninstalling: operations.isUninstalling,
+    isLaunching: operations.isLaunching,
   };
 }

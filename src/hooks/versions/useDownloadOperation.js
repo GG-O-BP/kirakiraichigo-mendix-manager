@@ -1,32 +1,45 @@
 import * as R from "ramda";
-import { useCallback } from "react";
+import useSWRMutation from "swr/mutation";
 import { invoke } from "@tauri-apps/api/core";
+import { useSWRConfig } from "swr";
+import { SWR_KEYS } from "../../lib/swr";
 
-export function useDownloadOperation({ updateLoadingState, onLoadVersions }) {
-  const handleModalDownload = useCallback(
-    async (version) => {
-      const versionId = R.prop("version", version);
-      try {
-        updateLoadingState(versionId, "download", true);
+const downloadVersion = async (_, { arg }) => {
+  const { versionId, updateLoadingState } = arg;
+  try {
+    updateLoadingState(versionId, "download", true);
+    const result = await invoke("download_and_install_mendix_version", {
+      version: versionId,
+    });
+    return result;
+  } finally {
+    updateLoadingState(versionId, "download", false);
+  }
+};
 
-        const result = await invoke("download_and_install_mendix_version", {
-          version: versionId,
-        });
+export function useDownloadOperation({ updateLoadingState }) {
+  const { mutate } = useSWRConfig();
 
-        await onLoadVersions();
-
-        return result;
-      } catch (error) {
-        console.error("Error in download process:", error);
-        throw error;
-      } finally {
-        updateLoadingState(versionId, "download", false);
-      }
-    },
-    [updateLoadingState, onLoadVersions],
+  const { trigger, isMutating, error } = useSWRMutation(
+    "download-version",
+    downloadVersion,
   );
+
+  const handleModalDownload = async (version) => {
+    const versionId = R.prop("version", version);
+    try {
+      const result = await trigger({ versionId, updateLoadingState });
+      await mutate(SWR_KEYS.INSTALLED_VERSIONS);
+      return result;
+    } catch (err) {
+      console.error("Error in download process:", err);
+      throw err;
+    }
+  };
 
   return {
     handleModalDownload,
+    isDownloading: isMutating,
+    downloadError: error,
   };
 }

@@ -1,27 +1,27 @@
 import * as R from "ramda";
-import { useState, useCallback } from "react";
+import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
+import { SWR_KEYS } from "../../lib/swr";
 
-export function useWidgetPreviewState() {
-  const [isBuilding, setIsBuilding] = useState(false);
-  const [buildError, setBuildError] = useState(null);
-  const [distExists, setDistExists] = useState(false);
+const fetchDistExists = async (key) => {
+  const widgetPath = key[1];
+  if (R.isNil(widgetPath)) {
+    return false;
+  }
+  return invoke("check_dist_exists", { widgetPath });
+};
 
-  const checkDistExists = useCallback(async (widgetPath) => {
-    if (R.isNil(widgetPath)) {
-      setDistExists(false);
-      return;
-    }
-    const exists = await invoke("check_dist_exists", { widgetPath });
-    setDistExists(exists);
-  }, []);
+export function useWidgetPreviewState(widgetPath) {
+  const {
+    data: distExists = false,
+    mutate: checkDistExists,
+  } = useSWR(
+    R.isNil(widgetPath) ? null : SWR_KEYS.DIST_EXISTS(widgetPath),
+    fetchDistExists,
+  );
 
   return {
-    isBuilding,
-    setIsBuilding,
-    buildError,
-    setBuildError,
     distExists,
-    checkDistExists,
+    checkDistExists: () => checkDistExists(),
   };
 }

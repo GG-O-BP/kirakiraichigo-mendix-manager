@@ -37,9 +37,11 @@ KiraKira Ichigo ("KiraIchi") is a **Windows-only** Tauri-based desktop applicati
 - Self-documenting code - minimize comments through clear naming
 
 **Import Conventions**:
-- Import utilities from `src/utils` (e.g., `import { STORAGE_KEYS, wrapAsync } from "../utils"`)
+- Import utilities from `src/utils` (e.g., `import { STORAGE_KEYS } from "../utils"`)
 - Import data processing from specific modules: `import { filterMendixApps } from "../utils/data-processing/appFiltering"`
 - Import Ramda as namespace: `import * as R from "ramda"`
+- Import SWR hooks: `import useSWR from "swr"`, `import useSWRMutation from "swr/mutation"`
+- Import SWR keys: `import { SWR_KEYS } from "../lib/swr"`
 
 **Data Flow**:
 1. `App.jsx` initializes hooks via `useAppInitialization()` and `useContextValues()`
@@ -55,13 +57,36 @@ KiraKira Ichigo ("KiraIchi") is a **Windows-only** Tauri-based desktop applicati
 export function useVersions() {
   const filters = useVersionFilters();
   const installed = useInstalledVersions(filters.searchTerm);
-  const operations = useVersionOperations({ onLoadVersions: installed.loadVersions });
+  const operations = useVersionOperations();
   return { ...filters, ...installed, ...operations };
 }
 ```
 - Sub-hooks have single responsibility (pure state, data loading, or operations)
-- Use dependency injection via parameters for callbacks
+- SWR handles data fetching with automatic caching and revalidation
 - Handler wrapping happens in `useAppInitialization`, not in context value creation
+
+**SWR Data Fetching Pattern**:
+```javascript
+import useSWR from "swr";
+import { SWR_KEYS } from "../lib/swr";
+
+// Data fetching with useSWR
+const { data, error, isLoading, mutate } = useSWR(
+  SWR_KEYS.INSTALLED_VERSIONS,
+  () => invoke("get_installed_mendix_versions")
+);
+
+// Mutations with useSWRMutation
+import useSWRMutation from "swr/mutation";
+
+const { trigger, isMutating } = useSWRMutation(
+  "operation-key",
+  async (_, { arg }) => invoke("command", arg)
+);
+
+// Revalidate after mutation
+await mutate(SWR_KEYS.INSTALLED_VERSIONS);
+```
 
 ### Backend (Rust + Tauri)
 
@@ -200,9 +225,11 @@ This keeps frontend focused on UI rendering while Rust handles computation and s
 
 - **Windows paths**: Rust uses `C:\\...` format. Use `\\` for path separators.
 - **Set operations**: Convert JavaScript `Set` to Array before sending to Rust.
-- **Async invoke**: Always `await` Tauri invoke calls; use `wrapAsync` helper for error handling.
+- **Async invoke**: Always `await` Tauri invoke calls; use SWR (`useSWR` for data fetching, `useSWRMutation` for mutations).
+- **SWR Keys**: Use `SWR_KEYS` from `src/lib/swr.js` for consistent cache keys.
+- **SWR Revalidation**: After mutations, call `mutate(SWR_KEYS.KEY)` to refresh related data.
 - **LightningCSS**: Don't use PostCSS plugins - Vite config uses lightningcss as CSS transformer.
 - **React 19**: Frontend uses React 19.x with concurrent features.
 - **Tauri plugins**: Import from `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@tauri-apps/plugin-os`, `@tauri-apps/plugin-shell`. Backend storage uses native Rust filesystem operations to `%APPDATA%/kirakiraichigo-mendix-manager/app_state.json`.
 - **Package Manager**: Development uses Bun; widget builds support npm, pnpm, yarn, bun (user-selectable).
-- **State Management**: Uses nanostores for i18n (`@nanostores/i18n`, `@nanostores/react`).
+- **State Management**: Uses Jotai for global state, nanostores for i18n (`@nanostores/i18n`, `@nanostores/react`), SWR for server state.

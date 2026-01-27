@@ -44,18 +44,11 @@ export function useContextValues({
   const widgetPreviewContextValue = useMemo(
     () => ({
       selectedWidgetForPreview: widgetPreviewHook.selectedWidgetForPreview,
-      setSelectedWidgetForPreview:
-        widgetPreviewHook.setSelectedWidgetForPreview,
+      setSelectedWidgetForPreview: widgetPreviewHook.setSelectedWidgetForPreview,
       properties: widgetPreviewHook.properties,
       updateProperty: widgetPreviewHook.updateProperty,
       dynamicProperties: widgetPreviewHook.dynamicProperties,
       setDynamicProperties: widgetPreviewHook.setDynamicProperties,
-      lastLoadedWidgetId: widgetPreviewHook.lastLoadedWidgetId,
-      setLastLoadedWidgetId: widgetPreviewHook.setLastLoadedWidgetId,
-      widgetDefinition: widgetPreviewHook.widgetDefinition,
-      setWidgetDefinition: widgetPreviewHook.setWidgetDefinition,
-      editorConfigContent: widgetPreviewHook.editorConfigContent,
-      setEditorConfigContent: widgetPreviewHook.setEditorConfigContent,
       previewData: widgetPreviewHook.previewData,
       isBuilding: widgetPreviewHook.isBuilding,
       buildError: widgetPreviewHook.buildError,

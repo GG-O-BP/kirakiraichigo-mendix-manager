@@ -14,7 +14,10 @@ export function useHooksInitializer() {
   const appsHook = useApps();
   const widgetsHook = useWidgets();
   const packageManagerPersistence = usePackageManagerPersistence();
-  const widgetPreviewHook = useWidgetPreview({ packageManagerPersistence });
+  const widgetPreviewHook = useWidgetPreview({
+    packageManagerPersistence,
+    widgets: widgetsHook.widgets,
+  });
 
   const setShowResultModal = useSetAtom(showResultModalAtom);
 

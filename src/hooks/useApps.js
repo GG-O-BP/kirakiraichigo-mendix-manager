@@ -1,9 +1,12 @@
 import * as R from "ramda";
 import { useState, useCallback, useEffect } from "react";
+import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
-import { wrapAsync } from "../utils";
+import { SWR_KEYS } from "../lib/swr";
 import { processAppsPipeline } from "../utils/data-processing/appFiltering";
 import { useCollection } from "./useCollection";
+
+const fetchInstalledApps = () => invoke("get_installed_mendix_apps");
 
 export function useApps() {
   const collection = useCollection({
@@ -13,16 +16,14 @@ export function useApps() {
 
   const [versionFilter, setVersionFilter] = useState("all");
 
-  const loadApps = useCallback(
-    wrapAsync(
-      (error) => console.error("Failed to load apps:", error),
-      R.pipeWith(R.andThen, [
-        () => invoke("get_installed_mendix_apps"),
-        collection.setItems,
-      ]),
-    ),
-    [collection.setItems],
-  );
+  const {
+    data: apps = [],
+    error,
+    isLoading,
+    mutate,
+  } = useSWR(SWR_KEYS.APPS, fetchInstalledApps, {
+    onSuccess: collection.setItems,
+  });
 
   const handleAppClick = useCallback(
     collection.toggleSelection,
@@ -33,16 +34,15 @@ export function useApps() {
     async (appPath) => {
       try {
         await invoke("delete_mendix_app", { appPath });
-        await loadApps();
-
+        await mutate();
         collection.removeFromSelection({ path: appPath });
         return true;
-      } catch (error) {
-        console.error("Failed to delete app:", error);
-        throw error;
+      } catch (err) {
+        console.error("Failed to delete app:", err);
+        throw err;
       }
     },
-    [loadApps, collection.removeFromSelection],
+    [mutate, collection.removeFromSelection],
   );
 
   useEffect(() => {
@@ -59,8 +59,8 @@ export function useApps() {
           onlyValid: true,
         });
         collection.setFilteredItems(filtered);
-      } catch (error) {
-        console.error("Failed to filter apps:", error);
+      } catch (err) {
+        console.error("Failed to filter apps:", err);
         collection.setFilteredItems(collection.items);
       }
     };
@@ -76,7 +76,7 @@ export function useApps() {
     apps: collection.items,
     setApps: collection.setItems,
     filteredApps: collection.filteredItems,
-    loadApps,
+    loadApps: mutate,
     appSearchTerm: collection.searchTerm,
     setAppSearchTerm: collection.setSearchTerm,
     versionFilter,
@@ -86,5 +86,7 @@ export function useApps() {
     handleAppClick,
     handleDeleteApp,
     isAppSelected: collection.isSelected,
+    isLoading,
+    error,
   };
 }

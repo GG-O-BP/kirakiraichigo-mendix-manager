@@ -3,13 +3,13 @@ import { useLaunchOperation } from "./useLaunchOperation";
 import { useUninstallOperation } from "./useUninstallOperation";
 import { useDownloadOperation } from "./useDownloadOperation";
 
-export function useVersionOperations({ onLoadVersions }) {
+export function useVersionOperations() {
   const loadingStates = useVersionLoadingStates();
   const { updateLoadingState, isVersionBusy, getLoadingStateSync } = loadingStates;
 
   const launch = useLaunchOperation({ updateLoadingState, isVersionBusy });
-  const uninstall = useUninstallOperation({ updateLoadingState, onLoadVersions });
-  const download = useDownloadOperation({ updateLoadingState, onLoadVersions });
+  const uninstall = useUninstallOperation({ updateLoadingState });
+  const download = useDownloadOperation({ updateLoadingState });
 
   return {
     getLoadingStateSync,

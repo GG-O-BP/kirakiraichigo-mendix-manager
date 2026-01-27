@@ -12,8 +12,6 @@ export {
   invokeCreateCatastrophicErrorResult,
 } from "./widgetHelpers";
 
-export { wrapAsync } from "./async";
-
 export { setProperty } from "./setUtils";
 
 export {

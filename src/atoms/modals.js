@@ -2,8 +2,8 @@ import * as R from "ramda";
 import { atom } from "jotai";
 import { useAtom, useSetAtom } from "jotai";
 import { useCallback } from "react";
+import useSWRMutation from "swr/mutation";
 import { invoke } from "@tauri-apps/api/core";
-import { wrapAsync } from "../utils";
 
 // ===== State Atoms =====
 
@@ -98,24 +98,31 @@ export const closeWidgetDeleteModalAtom = atom(null, (get, set) =>
 );
 
 // ===== Custom Hook for Async Uninstall Modal =====
+const fetchRelatedApps = async (_, { arg }) => {
+  const versionId = R.prop("version", arg);
+  return invoke("get_apps_by_version", { version: versionId });
+};
+
 export function useUninstallModalActions() {
   const [, setShowModal] = useAtom(showUninstallModalAtom);
   const [, setVersionToUninstall] = useAtom(versionToUninstallAtom);
   const [, setRelatedApps] = useAtom(relatedAppsAtom);
   const closeModal = useSetAtom(closeUninstallModalAtom);
 
+  const { trigger } = useSWRMutation("uninstall-modal-apps", fetchRelatedApps);
+
   const openUninstallModal = useCallback(
-    wrapAsync(
-      (error) => alert(`Failed to get related apps: ${error}`),
-      async (version) => {
-        const versionId = R.prop("version", version);
-        const apps = await invoke("get_apps_by_version", { version: versionId });
+    async (version) => {
+      try {
+        const apps = await trigger(version);
         setShowModal(true);
         setVersionToUninstall(version);
         setRelatedApps(apps);
-      },
-    ),
-    [setShowModal, setVersionToUninstall, setRelatedApps],
+      } catch (error) {
+        alert(`Failed to get related apps: ${error}`);
+      }
+    },
+    [trigger, setShowModal, setVersionToUninstall, setRelatedApps],
   );
 
   return {

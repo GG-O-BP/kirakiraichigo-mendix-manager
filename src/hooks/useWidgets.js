@@ -1,10 +1,14 @@
 import * as R from "ramda";
 import { useCallback, useEffect } from "react";
+import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
 import { STORAGE_KEYS, saveToStorage } from "../utils";
+import { SWR_KEYS } from "../lib/swr";
 import { processWidgetsPipeline } from "../utils/data-processing/widgetFiltering";
 import { useCollection } from "./useCollection";
 import { useWidgetForm } from "./useWidgetForm";
+
+const fetchWidgets = () => invoke("load_widgets_ordered");
 
 export function useWidgets() {
   const collection = useCollection({
@@ -14,15 +18,14 @@ export function useWidgets() {
 
   const form = useWidgetForm();
 
-  const loadWidgets = useCallback(async () => {
-    try {
-      const orderedWidgets = await invoke("load_widgets_ordered");
-      collection.setItems(orderedWidgets);
-    } catch (error) {
-      console.error("Failed to load widgets:", error);
-      collection.setItems([]);
-    }
-  }, [collection.setItems]);
+  const {
+    data: widgets = [],
+    error,
+    isLoading,
+    mutate,
+  } = useSWR(SWR_KEYS.WIDGETS, fetchWidgets, {
+    onSuccess: collection.setItems,
+  });
 
   const handleAddWidget = useCallback(
     async (onSuccess) => {
@@ -38,15 +41,19 @@ export function useWidgets() {
           caption: form.newWidgetCaption,
           path: form.newWidgetPath,
         });
-        const updatedWidgets = R.append(newWidget, collection.items);
-        collection.setItems(updatedWidgets);
+
+        await mutate(
+          (currentWidgets) => R.append(newWidget, currentWidgets || []),
+          false,
+        );
+
         form.resetForm();
         R.when(R.complement(R.isNil), R.call)(onSuccess);
-      } catch (error) {
-        console.error("Failed to add widget:", error);
+      } catch (err) {
+        console.error("Failed to add widget:", err);
       }
     },
-    [form.newWidgetCaption, form.newWidgetPath, form.resetForm, collection.items, collection.setItems],
+    [form.newWidgetCaption, form.newWidgetPath, form.resetForm, mutate],
   );
 
   const handleWidgetDelete = useCallback(
@@ -62,16 +69,17 @@ export function useWidgets() {
 
         const widgetId = R.prop("id", widgetToDelete);
         const newWidgets = await invoke("delete_widget_and_save", { widgetId });
-        collection.setItems(newWidgets);
+
+        await mutate(newWidgets, false);
         collection.removeFromSelection(widgetToDelete);
 
         return true;
-      } catch (error) {
-        console.error("Failed to delete widget:", error);
+      } catch (err) {
+        console.error("Failed to delete widget:", err);
         return false;
       }
     },
-    [collection.setItems, collection.removeFromSelection],
+    [mutate, collection.removeFromSelection],
   );
 
   useEffect(() => {
@@ -81,8 +89,8 @@ export function useWidgets() {
           const widgetOrder = R.pluck("id", collection.items);
           await saveToStorage(STORAGE_KEYS.WIDGET_ORDER, widgetOrder);
           await saveToStorage(STORAGE_KEYS.WIDGETS, collection.items);
-        } catch (error) {
-          console.error("Failed to save widgets:", error);
+        } catch (err) {
+          console.error("Failed to save widgets:", err);
         }
       }
     };
@@ -96,8 +104,8 @@ export function useWidgets() {
           searchTerm: collection.searchTerm,
         });
         collection.setFilteredItems(filtered);
-      } catch (error) {
-        console.error("Failed to filter widgets:", error);
+      } catch (err) {
+        console.error("Failed to filter widgets:", err);
         collection.setFilteredItems(collection.items);
       }
     };
@@ -113,7 +121,7 @@ export function useWidgets() {
     widgets: collection.items,
     setWidgets: collection.setItems,
     filteredWidgets: collection.filteredItems,
-    loadWidgets,
+    loadWidgets: mutate,
     widgetSearchTerm: collection.searchTerm,
     setWidgetSearchTerm: collection.setSearchTerm,
     selectedWidgets: collection.selectedItems,
@@ -126,5 +134,7 @@ export function useWidgets() {
     setNewWidgetPath: form.setNewWidgetPath,
     handleAddWidget,
     handleWidgetDelete,
+    isLoading,
+    error,
   };
 }

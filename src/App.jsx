@@ -1,6 +1,7 @@
 import * as R from "ramda";
 import React, { useState, useMemo, useEffect } from "react";
 import { Provider as JotaiProvider } from "jotai";
+import { SWRConfig, swrConfig } from "./lib/swr";
 import "./styles/index.css";
 
 import { TabButton, AppHeader } from "./components/common";
@@ -78,36 +79,38 @@ function App() {
 
   return (
     <JotaiProvider>
-      <VersionsProvider value={versionsContextValue}>
-        <AppProvider value={appContextValue}>
-          <WidgetCollectionProvider value={widgetCollectionContextValue}>
-            <WidgetPreviewProvider value={widgetPreviewContextValue}>
-              <WidgetFormProvider value={widgetFormContextValue}>
-                <BuildDeployProvider value={buildDeployContextValue}>
-                  <main className="app-container">
-                    <AppHeader
-                      currentTheme={theme.currentTheme}
-                      currentLogo={theme.currentLogo}
-                      handleThemeChange={theme.handleThemeChange}
-                      locale={locale}
-                      setLocale={setLocale}
-                      supportedLocales={supportedLocales}
-                    />
+      <SWRConfig value={swrConfig}>
+        <VersionsProvider value={versionsContextValue}>
+          <AppProvider value={appContextValue}>
+            <WidgetCollectionProvider value={widgetCollectionContextValue}>
+              <WidgetPreviewProvider value={widgetPreviewContextValue}>
+                <WidgetFormProvider value={widgetFormContextValue}>
+                  <BuildDeployProvider value={buildDeployContextValue}>
+                    <main className="app-container">
+                      <AppHeader
+                        currentTheme={theme.currentTheme}
+                        currentLogo={theme.currentLogo}
+                        handleThemeChange={theme.handleThemeChange}
+                        locale={locale}
+                        setLocale={setLocale}
+                        supportedLocales={supportedLocales}
+                      />
 
-                    <div className="tabs">
-                      {R.map(renderTabButton(activeTab, setActiveTab, t), tabs)}
-                    </div>
+                      <div className="tabs">
+                        {R.map(renderTabButton(activeTab, setActiveTab, t), tabs)}
+                      </div>
 
-                    <div className="tab-content">{activeTabContent}</div>
+                      <div className="tab-content">{activeTabContent}</div>
 
-                    <AppModals />
-                  </main>
-                </BuildDeployProvider>
-              </WidgetFormProvider>
-            </WidgetPreviewProvider>
-          </WidgetCollectionProvider>
-        </AppProvider>
-      </VersionsProvider>
+                      <AppModals />
+                    </main>
+                  </BuildDeployProvider>
+                </WidgetFormProvider>
+              </WidgetPreviewProvider>
+            </WidgetCollectionProvider>
+          </AppProvider>
+        </VersionsProvider>
+      </SWRConfig>
     </JotaiProvider>
   );
 }

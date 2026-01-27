@@ -1,23 +1,21 @@
 import * as R from "ramda";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
-import { wrapAsync } from "../../utils";
+import { SWR_KEYS } from "../../lib/swr";
 import { filterMendixVersions } from "../../utils/data-processing/versionFiltering";
 
+const fetchInstalledVersions = () => invoke("get_installed_mendix_versions");
+
 export function useInstalledVersions(searchTerm = "") {
-  const [versions, setVersions] = useState([]);
   const [filteredVersions, setFilteredVersions] = useState([]);
 
-  const loadVersions = useCallback(
-    wrapAsync(
-      (error) => console.error("Failed to load versions:", error),
-      R.pipeWith(R.andThen, [
-        () => invoke("get_installed_mendix_versions"),
-        setVersions,
-      ]),
-    ),
-    [],
-  );
+  const {
+    data: versions = [],
+    error,
+    isLoading,
+    mutate,
+  } = useSWR(SWR_KEYS.INSTALLED_VERSIONS, fetchInstalledVersions);
 
   useEffect(() => {
     const processVersions = async () => {
@@ -25,8 +23,8 @@ export function useInstalledVersions(searchTerm = "") {
         const term = R.defaultTo(null, searchTerm);
         const filtered = await filterMendixVersions(versions, term, true);
         setFilteredVersions(filtered);
-      } catch (error) {
-        console.error("Failed to filter versions:", error);
+      } catch (err) {
+        console.error("Failed to filter versions:", err);
         setFilteredVersions(versions);
       }
     };
@@ -41,6 +39,8 @@ export function useInstalledVersions(searchTerm = "") {
   return {
     versions,
     filteredVersions,
-    loadVersions,
+    loadVersions: mutate,
+    isLoading,
+    error,
   };
 }
