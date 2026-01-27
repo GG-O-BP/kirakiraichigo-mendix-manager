@@ -26,10 +26,14 @@ export function useWidgets() {
 
   const handleAddWidget = useCallback(
     async (onSuccess) => {
-      const isValid = R.all(R.complement(R.isEmpty), [form.newWidgetCaption, form.newWidgetPath]);
-      if (!isValid) return;
-
       try {
+        const validation = await invoke("validate_widget_input", {
+          caption: form.newWidgetCaption,
+          path: form.newWidgetPath,
+        });
+
+        if (!validation.isValid) return;
+
         const newWidget = await invoke("add_widget_and_save", {
           caption: form.newWidgetCaption,
           path: form.newWidgetPath,
@@ -47,11 +51,15 @@ export function useWidgets() {
 
   const handleWidgetDelete = useCallback(
     async (widgetToDelete) => {
-      if (R.isNil(widgetToDelete)) {
-        return false;
-      }
-
       try {
+        const canDelete = await invoke("validate_widget_for_delete", {
+          widget: widgetToDelete,
+        });
+
+        if (!canDelete) {
+          return false;
+        }
+
         const widgetId = R.prop("id", widgetToDelete);
         const newWidgets = await invoke("delete_widget_and_save", { widgetId });
         collection.setItems(newWidgets);

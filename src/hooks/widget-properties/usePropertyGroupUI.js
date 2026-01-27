@@ -1,37 +1,48 @@
 import * as R from "ramda";
 import { useState, useCallback, useEffect } from "react";
-
-const buildInitialExpandedState = (widgetDefinition) => {
-  const propertyGroups = R.propOr([], "propertyGroups", widgetDefinition);
-  const firstGroupCaption = R.pipe(R.head, R.propOr(null, "caption"))(propertyGroups);
-
-  return R.ifElse(
-    R.isNil,
-    R.always({}),
-    (caption) => R.pipe(
-      R.map((group) => [R.prop("caption", group), false]),
-      R.fromPairs,
-      R.assoc(caption, true),
-    )(propertyGroups),
-  )(firstGroupCaption);
-};
+import { invoke } from "@tauri-apps/api/core";
 
 export function usePropertyGroupUI(widgetDefinition) {
   const [expandedGroups, setExpandedGroups] = useState({});
 
   useEffect(() => {
-    R.when(
-      R.complement(R.isNil),
-      R.pipe(buildInitialExpandedState, setExpandedGroups),
-    )(widgetDefinition);
+    const initializeExpandedGroups = async () => {
+      R.when(
+        R.complement(R.isNil),
+        async (definition) => {
+          try {
+            const propertyGroups = R.propOr([], "propertyGroups", definition);
+            const initialState = await invoke("build_initial_expanded_state", {
+              propertyGroups: R.map(
+                (group) => ({ caption: R.prop("caption", group) }),
+                propertyGroups,
+              ),
+            });
+            setExpandedGroups(initialState);
+          } catch (error) {
+            console.error("Failed to build initial expanded state:", error);
+          }
+        },
+      )(widgetDefinition);
+    };
+    initializeExpandedGroups();
   }, [widgetDefinition]);
 
-  const toggleGroup = useCallback((category) => {
-    setExpandedGroups((prev) => ({
-      ...prev,
-      [category]: !R.propOr(true, category, prev),
-    }));
-  }, []);
+  const toggleGroup = useCallback(async (category) => {
+    try {
+      const result = await invoke("toggle_group_expansion", {
+        expandedGroups,
+        groupCaption: category,
+      });
+      setExpandedGroups(result);
+    } catch (error) {
+      console.error("Failed to toggle group expansion:", error);
+      setExpandedGroups((prev) => ({
+        ...prev,
+        [category]: !R.propOr(true, category, prev),
+      }));
+    }
+  }, [expandedGroups]);
 
   return {
     expandedGroups,

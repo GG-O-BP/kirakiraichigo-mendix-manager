@@ -1,10 +1,13 @@
 mod build_deploy;
+mod business_logic;
 mod config;
 mod data_processing;
 mod editor_config_parser;
 mod formatting;
+mod js_runtime;
 mod mendix;
 mod package_manager;
+mod state;
 mod storage;
 mod utils;
 mod web_scraper;
@@ -55,12 +58,30 @@ pub use editor_config_parser::{
     evaluate_editor_config, get_visible_property_keys, validate_editor_config_values,
 };
 
+pub use state::{
+    clear_selection, get_all_version_operations, get_selection, get_version_loading_state,
+    has_selection, is_selected, is_version_busy, remove_from_selection, set_selection,
+    set_version_operation, toggle_selection, AppState,
+};
+
+pub use business_logic::{
+    build_initial_expanded_state, get_available_themes, get_theme_metadata,
+    manipulate_array_property, toggle_group_expansion, validate_selection_not_empty,
+    validate_widget_for_delete, validate_widget_input,
+};
+
+pub use js_runtime::{
+    collection_contains, collection_count, collection_has_items, collection_remove_item,
+    collection_toggle_item, parse_decimal_or_empty, parse_integer_or_empty, parse_value_by_type,
+};
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os::init())
+        .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             // ================================================================
             // Mendix version management
@@ -140,6 +161,51 @@ pub fn run() {
             evaluate_editor_config,
             get_visible_property_keys,
             validate_editor_config_values,
+            // ================================================================
+            // State management
+            // ================================================================
+            toggle_selection,
+            get_selection,
+            clear_selection,
+            is_selected,
+            has_selection,
+            set_selection,
+            remove_from_selection,
+            set_version_operation,
+            get_version_loading_state,
+            is_version_busy,
+            get_all_version_operations,
+            // ================================================================
+            // Business logic - validation
+            // ================================================================
+            validate_widget_input,
+            validate_widget_for_delete,
+            validate_selection_not_empty,
+            // ================================================================
+            // Business logic - array operations
+            // ================================================================
+            manipulate_array_property,
+            // ================================================================
+            // Business logic - property groups
+            // ================================================================
+            build_initial_expanded_state,
+            toggle_group_expansion,
+            // ================================================================
+            // Business logic - theme
+            // ================================================================
+            get_theme_metadata,
+            get_available_themes,
+            // ================================================================
+            // JS runtime helpers
+            // ================================================================
+            parse_value_by_type,
+            parse_integer_or_empty,
+            parse_decimal_or_empty,
+            collection_toggle_item,
+            collection_has_items,
+            collection_remove_item,
+            collection_count,
+            collection_contains,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

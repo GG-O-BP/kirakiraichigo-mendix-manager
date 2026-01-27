@@ -1,21 +1,24 @@
 import * as R from "ramda";
 import { useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { hasItems } from "../../utils";
 
 export function useInstallOperation({ packageManager, setIsInstalling }) {
   const handleInstall = useCallback(
     async ({ selectedWidgets, widgets }) => {
-      if (!hasItems(selectedWidgets)) {
-        alert("Please select at least one widget to install");
-        return;
-      }
-
-      setIsInstalling(true);
-
-      const selectedWidgetIds = Array.from(selectedWidgets);
-
       try {
+        const hasSelection = await invoke("collection_has_items", {
+          items: Array.from(selectedWidgets),
+        });
+
+        if (!hasSelection) {
+          alert("Please select at least one widget to install");
+          return;
+        }
+
+        setIsInstalling(true);
+
+        const selectedWidgetIds = Array.from(selectedWidgets);
+
         const summary = await invoke("batch_install_widgets", {
           widgets,
           packageManager,

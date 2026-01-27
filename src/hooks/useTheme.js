@@ -1,5 +1,6 @@
 import * as R from "ramda";
 import { useState, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { flavors } from "@catppuccin/palette";
 import catppuccinLogo from "../assets/catppuccin_circle.png";
 import catppuccinLatteLogo from "../assets/catppuccin_latte_circle.png";
@@ -43,12 +44,6 @@ const CATPPUCCIN_CSS_VARS = [
   "crust",
 ];
 
-const CUSTOM_THEMES = ["kiraichi", "kiraichi-light"];
-const LIGHT_THEMES = ["latte", "kiraichi-light"];
-
-const isCustomTheme = R.includes(R.__, CUSTOM_THEMES);
-const isLightTheme = R.includes(R.__, LIGHT_THEMES);
-
 const applyCatppuccinColors = R.curry((root, flavor) => {
   R.forEach((colorName) => {
     root.style.setProperty(
@@ -58,37 +53,58 @@ const applyCatppuccinColors = R.curry((root, flavor) => {
   }, CATPPUCCIN_CSS_VARS);
 });
 
-const applyTheme = (themeName) => {
+const applyTheme = async (themeName) => {
   const root = document.documentElement;
 
   root.classList.remove(...THEME_CLASSES);
   root.classList.add(`theme-${themeName}`);
 
-  R.unless(
-    R.always(isCustomTheme(themeName)),
-    () => {
-      const flavor = R.prop(themeName, flavors);
-      R.when(R.complement(R.isNil), applyCatppuccinColors(root))(flavor);
-    },
-  )();
+  try {
+    const metadata = await invoke("get_theme_metadata", { themeName });
+
+    R.unless(
+      R.always(metadata.isCustom),
+      () => {
+        const flavor = R.prop(themeName, flavors);
+        R.when(R.complement(R.isNil), applyCatppuccinColors(root))(flavor);
+      },
+    )();
+  } catch (error) {
+    console.error("Failed to get theme metadata:", error);
+    const flavor = R.prop(themeName, flavors);
+    R.when(R.complement(R.isNil), applyCatppuccinColors(root))(flavor);
+  }
 };
 
 export function useTheme() {
   const [currentTheme, setCurrentTheme] = useState("kiraichi");
+  const [themeMetadata, setThemeMetadata] = useState({ isLight: false, isCustom: true });
+
+  useEffect(() => {
+    const loadThemeMetadata = async () => {
+      try {
+        const metadata = await invoke("get_theme_metadata", { themeName: currentTheme });
+        setThemeMetadata(metadata);
+      } catch (error) {
+        console.error("Failed to load theme metadata:", error);
+      }
+    };
+    loadThemeMetadata();
+  }, [currentTheme]);
 
   const currentLogo = R.ifElse(
-    isLightTheme,
+    R.prop("isLight"),
     R.always(catppuccinLatteLogo),
     R.always(catppuccinLogo),
-  )(currentTheme);
+  )(themeMetadata);
 
   const handleThemeChange = useCallback(
-    R.pipe(
-      R.path(["target", "value"]),
-      R.tap(setCurrentTheme),
-      R.tap((newTheme) => saveToStorage(STORAGE_KEYS.THEME, newTheme).catch(console.error)),
-      R.tap(applyTheme),
-    ),
+    async (event) => {
+      const newTheme = R.path(["target", "value"], event);
+      setCurrentTheme(newTheme);
+      await saveToStorage(STORAGE_KEYS.THEME, newTheme).catch(console.error);
+      await applyTheme(newTheme);
+    },
     [],
   );
 
@@ -101,7 +117,7 @@ export function useTheme() {
       try {
         const savedTheme = await loadFromStorage(STORAGE_KEYS.THEME, "kiraichi");
         setCurrentTheme(savedTheme);
-        applyTheme(savedTheme);
+        await applyTheme(savedTheme);
       } catch (error) {
         console.error("Failed to load theme:", error);
       }
@@ -113,5 +129,6 @@ export function useTheme() {
     currentTheme,
     currentLogo,
     handleThemeChange,
+    themeMetadata,
   };
 }

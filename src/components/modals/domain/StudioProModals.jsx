@@ -2,7 +2,6 @@ import * as R from "ramda";
 import { invoke } from "@tauri-apps/api/core";
 import { ConfirmModal } from "../../common";
 import DownloadModal from "../DownloadModal";
-import { getVersionLoadingState } from "../../../utils";
 import { useI18n } from "../../../i18n/useI18n";
 import {
   useStudioProModalContext,
@@ -23,7 +22,7 @@ function StudioProModals() {
   } = useStudioProModalContext();
 
   const {
-    versionLoadingStates,
+    getLoadingStateSync,
     handleUninstallStudioPro,
     handleModalDownload,
   } = useVersionsContext();
@@ -80,10 +79,7 @@ function StudioProModals() {
         onCancel={closeUninstallModal}
         isLoading={
           versionToUninstall
-            ? getVersionLoadingState(
-                versionLoadingStates,
-                versionToUninstall.version,
-              ).isUninstalling
+            ? getLoadingStateSync(versionToUninstall.version).isUninstalling
             : false
         }
         relatedApps={relatedApps}
@@ -97,10 +93,7 @@ function StudioProModals() {
         onCancel={closeDownloadModal}
         isLoading={
           versionToDownload
-            ? getVersionLoadingState(
-                versionLoadingStates,
-                versionToDownload.version,
-              ).isDownloading
+            ? getLoadingStateSync(versionToDownload.version).isDownloading
             : false
         }
       />

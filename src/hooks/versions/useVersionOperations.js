@@ -5,7 +5,7 @@ import { useDownloadOperation } from "./useDownloadOperation";
 
 export function useVersionOperations({ onLoadVersions }) {
   const loadingStates = useVersionLoadingStates();
-  const { updateLoadingState, isVersionBusy } = loadingStates;
+  const { updateLoadingState, isVersionBusy, getLoadingStateSync } = loadingStates;
 
   const launch = useLaunchOperation({ updateLoadingState, isVersionBusy });
   const uninstall = useUninstallOperation({ updateLoadingState, onLoadVersions });
@@ -14,6 +14,7 @@ export function useVersionOperations({ onLoadVersions }) {
   return {
     versionLoadingStates: loadingStates.versionLoadingStates,
     setVersionLoadingStates: loadingStates.setVersionLoadingStates,
+    getLoadingStateSync,
     ...launch,
     ...uninstall,
     ...download,

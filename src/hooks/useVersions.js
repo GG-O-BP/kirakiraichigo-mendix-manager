@@ -38,6 +38,7 @@ export function useVersions() {
     handleVersionClick: selection.handleVersionClick,
     versionLoadingStates: operations.versionLoadingStates,
     setVersionLoadingStates: operations.setVersionLoadingStates,
+    getLoadingStateSync: operations.getLoadingStateSync,
     handleLaunchStudioPro: operations.handleLaunchStudioPro,
     handleUninstallStudioPro: operations.handleUninstallStudioPro,
     handleModalDownload: operations.handleModalDownload,

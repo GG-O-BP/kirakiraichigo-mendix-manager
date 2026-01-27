@@ -1,6 +1,7 @@
 import * as R from "ramda";
 import { useState, useCallback, useEffect } from "react";
-import { saveToStorage, loadFromStorage, arrayToSet } from "../utils";
+import { invoke } from "@tauri-apps/api/core";
+import { saveToStorage, loadFromStorage } from "../utils";
 
 export function useCollection({
   selectionStorageKey,
@@ -12,27 +13,23 @@ export function useCollection({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState(new Set());
 
-  const createToggledSet = R.curry((item, set) => {
-    const newSet = new Set(set);
-    R.ifElse(
-      () => newSet.has(item),
-      () => newSet.delete(item),
-      () => newSet.add(item),
-    )();
-    return newSet;
-  });
-
   const toggleSelection = useCallback(
-    (item) => {
+    async (item) => {
       const itemId = getItemId(item);
-      setSelectedItems((prev) => {
-        const newSet = createToggledSet(itemId, prev);
-        const newArray = Array.from(newSet);
-        saveToStorage(selectionStorageKey, newArray).catch(console.error);
-        return newSet;
-      });
+      try {
+        const currentArray = Array.from(selectedItems);
+        const result = await invoke("collection_toggle_item", {
+          items: currentArray,
+          item: itemId,
+        });
+        const newSet = new Set(result);
+        setSelectedItems(newSet);
+        await saveToStorage(selectionStorageKey, result);
+      } catch (error) {
+        console.error("Failed to toggle selection:", error);
+      }
     },
-    [selectionStorageKey, getItemId],
+    [selectionStorageKey, getItemId, selectedItems],
   );
 
   const isSelected = useCallback(
@@ -40,34 +37,35 @@ export function useCollection({
     [selectedItems, getItemId],
   );
 
-  const clearSelection = useCallback(() => {
+  const clearSelection = useCallback(async () => {
     setSelectedItems(new Set());
-    saveToStorage(selectionStorageKey, []).catch(console.error);
+    await saveToStorage(selectionStorageKey, []);
   }, [selectionStorageKey]);
 
   const removeFromSelection = useCallback(
-    (item) => {
+    async (item) => {
       const itemId = getItemId(item);
-      setSelectedItems((prev) => {
-        const newSet = new Set(prev);
-        R.when(
-          () => newSet.has(itemId),
-          () => {
-            newSet.delete(itemId);
-            saveToStorage(selectionStorageKey, Array.from(newSet)).catch(console.error);
-          },
-        )();
-        return newSet;
-      });
+      try {
+        const currentArray = Array.from(selectedItems);
+        const result = await invoke("collection_remove_item", {
+          items: currentArray,
+          item: itemId,
+        });
+        const newSet = new Set(result);
+        setSelectedItems(newSet);
+        await saveToStorage(selectionStorageKey, result);
+      } catch (error) {
+        console.error("Failed to remove from selection:", error);
+      }
     },
-    [selectionStorageKey, getItemId],
+    [selectionStorageKey, getItemId, selectedItems],
   );
 
   useEffect(() => {
     const restoreSelectedItemsFromStorage = async () => {
       try {
         const selectedArray = await loadFromStorage(selectionStorageKey, []);
-        setSelectedItems(arrayToSet(selectedArray));
+        setSelectedItems(new Set(selectedArray));
       } catch (error) {
         console.error("Failed to load selected items:", error);
       }

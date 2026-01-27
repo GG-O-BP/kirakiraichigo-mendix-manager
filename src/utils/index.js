@@ -8,11 +8,6 @@ export {
 export { saveToStorage, loadFromStorage } from "./storage";
 
 export {
-  updateVersionLoadingStates,
-  getVersionLoadingState,
-} from "./versionState";
-
-export {
   invokeCreateWidget,
   invokeCreateCatastrophicErrorResult,
 } from "./widgetHelpers";

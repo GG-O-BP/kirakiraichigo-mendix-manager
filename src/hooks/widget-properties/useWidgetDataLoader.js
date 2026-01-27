@@ -27,7 +27,7 @@ export function useWidgetDataLoader(selectedWidget, externalState = {}) {
     [setDynamicProperties]
   );
 
-  const arrayOperations = useArrayPropertyOperations(setDynamicProperties);
+  const arrayOperations = useArrayPropertyOperations(dynamicProperties, setDynamicProperties);
 
   useEffect(() => {
     if (R.isNil(selectedWidget)) {

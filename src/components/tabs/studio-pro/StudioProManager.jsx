@@ -16,7 +16,7 @@ const StudioProManager = memo(() => {
     handleVersionClick,
     downloadableVersions,
     isLoadingDownloadableVersions,
-    versionLoadingStates,
+    getLoadingStateSync,
     handleLaunchStudioPro,
     fetchVersionsFromDatagrid,
     refreshDownloadableVersions,
@@ -59,7 +59,7 @@ const StudioProManager = memo(() => {
         setSearchTerm={setSearchTerm}
         displayedDownloadableVersions={displayedDownloadableVersions}
         installedVersions={versions}
-        versionLoadingStates={versionLoadingStates}
+        getLoadingStateSync={getLoadingStateSync}
         handleDownloadVersion={openDownloadModal}
         loadMoreHandler={loadMoreHandler}
         isLoadingDownloadableVersions={isLoadingDownloadableVersions}
@@ -78,7 +78,7 @@ const StudioProManager = memo(() => {
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         displayedInstalledVersions={displayedInstalledVersions}
-        versionLoadingStates={versionLoadingStates}
+        getLoadingStateSync={getLoadingStateSync}
         handleLaunchStudioPro={handleLaunchStudioPro}
         handleUninstallClick={openUninstallModal}
         handleVersionClick={handleVersionClick}

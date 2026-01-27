@@ -1,41 +1,73 @@
 import * as R from "ramda";
 import { useState, useCallback } from "react";
-import {
-  updateVersionLoadingStates,
-  getVersionLoadingState,
-} from "../../utils";
+import { invoke } from "@tauri-apps/api/core";
 
 export function useVersionLoadingStates() {
   const [versionLoadingStates, setVersionLoadingStates] = useState({});
 
   const getLoadingState = useCallback(
-    (versionId) => getVersionLoadingState(versionLoadingStates, versionId),
+    async (versionId) => {
+      try {
+        return await invoke("get_version_loading_state", { versionId });
+      } catch (error) {
+        console.error("Failed to get version loading state:", error);
+        return { isLaunching: false, isUninstalling: false, isDownloading: false };
+      }
+    },
+    [],
+  );
+
+  const getLoadingStateSync = useCallback(
+    (versionId) => {
+      const state = versionLoadingStates[versionId];
+      const noActiveOperations = { isLaunching: false, isUninstalling: false, isDownloading: false };
+
+      if (!state) return noActiveOperations;
+
+      const isActiveOperation = (operationType) =>
+        state.operation === operationType && state.value;
+
+      return {
+        isLaunching: isActiveOperation("launch"),
+        isUninstalling: isActiveOperation("uninstall"),
+        isDownloading: isActiveOperation("download"),
+      };
+    },
     [versionLoadingStates],
   );
 
   const updateLoadingState = useCallback(
-    (versionId, operation, isLoading) =>
-      setVersionLoadingStates((prev) =>
-        updateVersionLoadingStates(versionId, operation, isLoading, prev),
-      ),
+    async (versionId, operation, isLoading) => {
+      try {
+        const result = await invoke("set_version_operation", {
+          versionId,
+          operation,
+          isActive: isLoading,
+        });
+        setVersionLoadingStates(result);
+      } catch (error) {
+        console.error("Failed to update version loading state:", error);
+      }
+    },
     [],
   );
 
   const isVersionBusy = useCallback(
     (versionId) => {
-      const loadingState = getVersionLoadingState(versionLoadingStates, versionId);
+      const loadingState = getLoadingStateSync(versionId);
       return R.either(
         R.prop("isLaunching"),
         R.prop("isUninstalling"),
       )(loadingState);
     },
-    [versionLoadingStates],
+    [getLoadingStateSync],
   );
 
   return {
     versionLoadingStates,
     setVersionLoadingStates,
     getLoadingState,
+    getLoadingStateSync,
     updateLoadingState,
     isVersionBusy,
   };

@@ -5,7 +5,6 @@ import SearchBox from "../../common/SearchBox";
 import { renderPanel } from "../../common/Panel";
 import { renderFilterCheckbox } from "../../common/FilterCheckbox";
 import { renderLoadMoreIndicator } from "../../common/LoadMoreIndicator";
-import { getVersionLoadingState } from "../../../utils";
 import { useI18n } from "../../../i18n/useI18n";
 
 const VERSION_SUPPORT_BADGES = {
@@ -65,12 +64,12 @@ const renderEmptyListMessage = (message) => (
 const DownloadableVersionItem = memo(({
   version,
   installedVersions,
-  versionLoadingStates,
+  getLoadingStateSync,
   handleDownload,
   t,
 }) => {
   const [isInstalled, setIsInstalled] = useState(false);
-  const loadingState = getVersionLoadingState(versionLoadingStates, version.version);
+  const loadingState = getLoadingStateSync(version.version);
 
   useEffect(() => {
     invokeCheckVersionInstalled(version.version, installedVersions)
@@ -123,7 +122,7 @@ const DownloadableVersionsPanel = memo(({
   setSearchTerm,
   displayedDownloadableVersions,
   installedVersions,
-  versionLoadingStates,
+  getLoadingStateSync,
   handleDownloadVersion,
   loadMoreHandler,
   isLoadingDownloadableVersions,
@@ -153,7 +152,7 @@ const DownloadableVersionsPanel = memo(({
           key={`downloadable-${version.version}`}
           version={version}
           installedVersions={installedVersions}
-          versionLoadingStates={versionLoadingStates}
+          getLoadingStateSync={getLoadingStateSync}
           handleDownload={handleDownloadVersion}
           t={t}
         />

@@ -175,6 +175,7 @@ export function useContextValues({
       selectedVersion: versions.selectedVersion,
       handleVersionClick: versions.handleVersionClick,
       versionLoadingStates: versions.versionLoadingStates,
+      getLoadingStateSync: versions.getLoadingStateSync,
       handleLaunchStudioPro: versions.handleLaunchStudioPro,
       handleUninstallStudioPro: versions.handleUninstallStudioPro,
       fetchVersionsFromDatagrid: versions.fetchVersionsFromDatagrid,
