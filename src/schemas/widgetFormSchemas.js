@@ -35,8 +35,3 @@ export const validateAddWidgetForm = (data) => {
     ),
   )(result);
 };
-
-export const isFormValid = (data) => {
-  const result = v.safeParse(addWidgetSchema, data);
-  return R.prop("success", result);
-};

@@ -12,7 +12,6 @@ export function useAppInitialization() {
     widgetsHook,
     widgetPreviewHook,
     buildDeploy,
-    modals,
   } = useHooksInitializer();
 
   useDataLoader({ versions, appsHook, widgetsHook });
@@ -33,6 +32,5 @@ export function useAppInitialization() {
       ...buildDeploy,
       ...wrappedHandlers,
     },
-    modals,
   };
 }

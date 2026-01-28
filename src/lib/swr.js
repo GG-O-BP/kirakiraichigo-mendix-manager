@@ -21,6 +21,7 @@ export const swrConfig = {
   revalidateOnReconnect: false,
   shouldRetryOnError: false,
   dedupingInterval: 2000,
+  keepPreviousData: true,
   onError: R.curry((error, key) => {
     console.error(`SWR Error [${key}]:`, error);
   }),
