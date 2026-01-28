@@ -25,17 +25,13 @@ const isWidgetActionModalVisible = R.both(
   R.complement(R.prop("showAddWidgetForm")),
 );
 
-const hasValidCaptionAndPath = R.both(
-  R.pipe(R.prop("newWidgetCaption"), R.complement(R.isEmpty)),
-  R.pipe(R.prop("newWidgetPath"), R.complement(R.isEmpty)),
-);
+const hasValidCaptionAndPath = R.prop("isFormValid");
 
 const closeFormAndResetFields = R.curry((props) =>
   R.pipe(
     R.tap(() => props.setShowAddWidgetForm(false)),
     R.tap(() => props.setShowWidgetModal(false)),
-    R.tap(() => props.setNewWidgetCaption("")),
-    R.tap(() => props.setNewWidgetPath("")),
+    R.tap(() => props.resetForm()),
     R.always(undefined),
   )(),
 );

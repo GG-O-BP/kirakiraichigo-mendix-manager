@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useAtom } from "jotai";
+import {
+  buildResultsAtom,
+  inlineResultsAtom,
+  isUninstallingAtom,
+  lastOperationTypeAtom,
+} from "../../atoms";
 
 export function useBuildDeployState() {
-  const [buildResults, setBuildResults] = useState({
-    successful: [],
-    failed: [],
-  });
-  const [inlineResults, setInlineResults] = useState(null);
-  const [isUninstalling, setIsUninstalling] = useState(false);
-  const [lastOperationType, setLastOperationType] = useState(null);
+  const [buildResults, setBuildResults] = useAtom(buildResultsAtom);
+  const [inlineResults, setInlineResults] = useAtom(inlineResultsAtom);
+  const [isUninstalling, setIsUninstalling] = useAtom(isUninstallingAtom);
+  const [lastOperationType, setLastOperationType] = useAtom(lastOperationTypeAtom);
 
   return {
     buildResults,

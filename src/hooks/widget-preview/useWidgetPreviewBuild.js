@@ -1,7 +1,13 @@
 import * as R from "ramda";
-import { useState } from "react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import useSWRMutation from "swr/mutation";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  previewDataCacheAtom,
+  buildErrorAtom,
+  currentPreviewDataAtom,
+  setPreviewDataAtom,
+} from "../../atoms";
 
 const buildAndRunPreview = async (_, { arg }) => {
   const { widgetPath, packageManager } = arg;
@@ -14,14 +20,9 @@ const runPreviewOnly = async (_, { arg }) => {
 };
 
 export function useWidgetPreviewBuild({ selectedWidgetForPreview, packageManager }) {
-  const [previewDataByWidgetId, setPreviewDataByWidgetId] = useState({});
-  const [buildError, setBuildError] = useState(null);
-
-  const previewData = R.ifElse(
-    R.isNil,
-    R.always(null),
-    (widgetId) => R.propOr(null, String(widgetId), previewDataByWidgetId),
-  )(selectedWidgetForPreview);
+  const previewData = useAtomValue(currentPreviewDataAtom);
+  const setPreviewData = useSetAtom(setPreviewDataAtom);
+  const [buildError, setBuildError] = useAtom(buildErrorAtom);
 
   const { trigger: triggerBuild, isMutating: isBuildingPreview } = useSWRMutation(
     "widget-preview-build",
@@ -38,20 +39,19 @@ export function useWidgetPreviewBuild({ selectedWidgetForPreview, packageManager
       R.prop("success"),
       R.pipe(
         R.tap(() => setBuildError(null)),
-        (res) => setPreviewDataByWidgetId((cache) =>
-          R.assoc(String(widgetId), {
+        (res) => setPreviewData({
+          widgetId,
+          data: {
             bundle: R.prop("bundle_content", res),
             css: R.prop("css_content", res),
             widgetName: R.prop("widget_name", res),
             widgetId: R.prop("widget_id", res),
-          }, cache),
-        ),
+          },
+        }),
       ),
       R.pipe(
         R.tap((res) => setBuildError(R.propOr("Build failed", "error", res))),
-        R.tap(() => setPreviewDataByWidgetId((cache) =>
-          R.assoc(String(widgetId), null, cache),
-        )),
+        R.tap(() => setPreviewData({ widgetId, data: null })),
       ),
     )(response);
   };
@@ -71,9 +71,7 @@ export function useWidgetPreviewBuild({ selectedWidgetForPreview, packageManager
     } catch (error) {
       console.error("[Widget Preview] Error:", error);
       setBuildError(String(error));
-      setPreviewDataByWidgetId((cache) =>
-        R.assoc(String(widgetId), null, cache),
-      );
+      setPreviewData({ widgetId, data: null });
     }
   };
 
@@ -91,9 +89,7 @@ export function useWidgetPreviewBuild({ selectedWidgetForPreview, packageManager
     } catch (error) {
       console.error("[Widget Preview] Run Only Error:", error);
       setBuildError(String(error));
-      setPreviewDataByWidgetId((cache) =>
-        R.assoc(String(widgetId), null, cache),
-      );
+      setPreviewData({ widgetId, data: null });
     }
   };
 

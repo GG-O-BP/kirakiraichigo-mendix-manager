@@ -42,6 +42,8 @@ KiraKira Ichigo ("KiraIchi") is a **Windows-only** Tauri-based desktop applicati
 - Import Ramda as namespace: `import * as R from "ramda"`
 - Import SWR hooks: `import useSWR from "swr"`, `import useSWRMutation from "swr/mutation"`
 - Import SWR keys: `import { SWR_KEYS } from "../lib/swr"`
+- Import Jotai: `import { atom } from "jotai"`, `import { useAtom, useSetAtom } from "jotai"`
+- Import i18n: `import { messages, locale, setLocale } from "../i18n"`, `import { useStore } from "@nanostores/react"`
 
 **Data Flow**:
 1. `App.jsx` initializes hooks via `useAppInitialization()` and `useContextValues()`
@@ -87,6 +89,24 @@ const { trigger, isMutating } = useSWRMutation(
 // Revalidate after mutation
 await mutate(SWR_KEYS.INSTALLED_VERSIONS);
 ```
+
+**Dynamic SWR Keys** (from `src/lib/swr.js`):
+- `SWR_KEYS.WIDGET_DATA(widgetId)` - Returns `["widget-data", widgetId]`
+- `SWR_KEYS.THEME_METADATA(themeName)` - Returns `["theme-metadata", themeName]`
+- `SWR_KEYS.DIST_EXISTS(widgetPath)` - Returns `["dist-exists", widgetPath]`
+- `SWR_KEYS.SELECTION(selectionType)` - Returns `["selection", selectionType]`
+
+**State Management Hierarchy**:
+1. **Jotai atoms** (`src/atoms/`) - Modal state, simple UI state
+2. **SWR** (`src/lib/swr.js`) - Server state, data fetching with caching
+3. **React Context** - Complex composed state (versions, apps, widgets)
+4. **nanostores** - i18n locale state only
+
+**Internationalization (i18n)**:
+- Uses `@nanostores/i18n` with locale files in `src/i18n/locales/` (en, ko, ja)
+- Access translations: `const t = useStore(messages); t.common.loading`
+- Change locale: `await setLocale("ko")`
+- Supported locales defined in `src/i18n/index.js`: `SUPPORTED_LOCALES`
 
 ### Backend (Rust + Tauri)
 
@@ -232,4 +252,4 @@ This keeps frontend focused on UI rendering while Rust handles computation and s
 - **React 19**: Frontend uses React 19.x with concurrent features.
 - **Tauri plugins**: Import from `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@tauri-apps/plugin-os`, `@tauri-apps/plugin-shell`. Backend storage uses native Rust filesystem operations to `%APPDATA%/kirakiraichigo-mendix-manager/app_state.json`.
 - **Package Manager**: Development uses Bun; widget builds support npm, pnpm, yarn, bun (user-selectable).
-- **State Management**: Uses Jotai for global state, nanostores for i18n (`@nanostores/i18n`, `@nanostores/react`), SWR for server state.
+- **Drag and Drop**: Uses `@formkit/drag-and-drop` for widget list ordering.

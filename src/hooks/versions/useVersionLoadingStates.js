@@ -1,28 +1,16 @@
-import * as R from "ramda";
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
+import { useAtom, useAtomValue } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  versionLoadingStatesAtom,
+  getLoadingStateSyncAtom,
+  isVersionBusyAtom,
+} from "../../atoms";
 
 export function useVersionLoadingStates() {
-  const [versionLoadingStates, setVersionLoadingStates] = useState({});
-
-  const getLoadingStateSync = useCallback(
-    (versionId) => {
-      const state = versionLoadingStates[versionId];
-      const noActiveOperations = { isLaunching: false, isUninstalling: false, isDownloading: false };
-
-      if (!state) return noActiveOperations;
-
-      const isActiveOperation = (operationType) =>
-        state.operation === operationType && state.value;
-
-      return {
-        isLaunching: isActiveOperation("launch"),
-        isUninstalling: isActiveOperation("uninstall"),
-        isDownloading: isActiveOperation("download"),
-      };
-    },
-    [versionLoadingStates],
-  );
+  const [, setVersionLoadingStates] = useAtom(versionLoadingStatesAtom);
+  const getLoadingStateSync = useAtomValue(getLoadingStateSyncAtom);
+  const isVersionBusy = useAtomValue(isVersionBusyAtom);
 
   const updateLoadingState = useCallback(
     async (versionId, operation, isLoading) => {
@@ -37,18 +25,7 @@ export function useVersionLoadingStates() {
         console.error("Failed to update version loading state:", error);
       }
     },
-    [],
-  );
-
-  const isVersionBusy = useCallback(
-    (versionId) => {
-      const loadingState = getLoadingStateSync(versionId);
-      return R.either(
-        R.prop("isLaunching"),
-        R.prop("isUninstalling"),
-      )(loadingState);
-    },
-    [getLoadingStateSync],
+    [setVersionLoadingStates],
   );
 
   return {

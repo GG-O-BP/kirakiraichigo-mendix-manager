@@ -6,6 +6,7 @@ export { useWidgetPreview } from "./useWidgetPreview";
 export { useBuildDeploy } from "./useBuildDeploy";
 export { useCollection } from "./useCollection";
 export { useWidgetForm } from "./useWidgetForm";
+export { useFieldValidation, useFormValidation, useDynamicSchema } from "./useValidation";
 
 export { useAppInitialization } from "./useAppInitialization";
 export { useContextValues } from "./useContextValues";

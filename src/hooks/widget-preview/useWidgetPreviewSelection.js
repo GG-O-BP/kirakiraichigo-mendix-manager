@@ -1,56 +1,21 @@
 import * as R from "ramda";
-import { useState, useCallback, useRef } from "react";
+import { useCallback } from "react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { setProperty } from "../../utils";
+import {
+  selectedWidgetForPreviewAtom,
+  propertiesAtom,
+  dynamicPropertiesAtom,
+  dynamicPropertiesCacheAtom,
+  setSelectedWidgetForPreviewAtom,
+} from "../../atoms";
 
 export function useWidgetPreviewSelection() {
-  const [selectedWidgetForPreview, setSelectedWidgetForPreviewInternal] = useState(null);
-  const [properties, setProperties] = useState({});
-  const [dynamicProperties, setDynamicPropertiesInternal] = useState({});
-
-  const [dynamicPropertiesCache, setDynamicPropertiesCache] = useState({});
-
-  const currentWidgetIdRef = useRef(null);
-  const dynamicPropertiesRef = useRef(dynamicProperties);
-
-  dynamicPropertiesRef.current = dynamicProperties;
-
-  const dynamicPropertiesCacheRef = useRef(dynamicPropertiesCache);
-
-  dynamicPropertiesCacheRef.current = dynamicPropertiesCache;
-
-  const setSelectedWidgetForPreview = useCallback((newWidgetId) => {
-    const prevWidgetId = currentWidgetIdRef.current;
-
-    R.when(
-      R.complement(R.isNil),
-      (prevId) => {
-        const prevIdStr = String(prevId);
-        setDynamicPropertiesCache((cache) =>
-          R.assoc(prevIdStr, dynamicPropertiesRef.current, cache),
-        );
-      },
-    )(prevWidgetId);
-
-    currentWidgetIdRef.current = newWidgetId;
-    setSelectedWidgetForPreviewInternal(newWidgetId);
-
-    R.ifElse(
-      R.isNil,
-      () => {
-        setDynamicPropertiesInternal({});
-      },
-      (widgetId) => {
-        const widgetIdStr = String(widgetId);
-        const cachedDynamicProps = R.prop(widgetIdStr, dynamicPropertiesCacheRef.current);
-
-        R.ifElse(
-          R.complement(R.isNil),
-          () => setDynamicPropertiesInternal(cachedDynamicProps),
-          () => setDynamicPropertiesInternal({}),
-        )(cachedDynamicProps);
-      },
-    )(newWidgetId);
-  }, []);
+  const selectedWidgetForPreview = useAtomValue(selectedWidgetForPreviewAtom);
+  const setSelectedWidgetAction = useSetAtom(setSelectedWidgetForPreviewAtom);
+  const [properties, setProperties] = useAtom(propertiesAtom);
+  const [dynamicProperties, setDynamicPropertiesInternal] = useAtom(dynamicPropertiesAtom);
+  const [dynamicPropertiesCache, setDynamicPropertiesCache] = useAtom(dynamicPropertiesCacheAtom);
 
   const setDynamicProperties = useCallback((updater) => {
     setDynamicPropertiesInternal(updater);
@@ -64,16 +29,16 @@ export function useWidgetPreviewSelection() {
         });
       },
     )(selectedWidgetForPreview);
-  }, [selectedWidgetForPreview]);
+  }, [selectedWidgetForPreview, setDynamicPropertiesCache, setDynamicPropertiesInternal]);
 
   const updateProperty = useCallback(
     R.curry((key, value) => setProperties(setProperty(key, value))),
-    [],
+    [setProperties],
   );
 
   return {
     selectedWidgetForPreview,
-    setSelectedWidgetForPreview,
+    setSelectedWidgetForPreview: setSelectedWidgetAction,
     properties,
     updateProperty,
     dynamicProperties,

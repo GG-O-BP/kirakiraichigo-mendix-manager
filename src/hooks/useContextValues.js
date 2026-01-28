@@ -68,12 +68,18 @@ export function useContextValues({
       setNewWidgetCaption: widgetsHook.setNewWidgetCaption,
       newWidgetPath: widgetsHook.newWidgetPath,
       setNewWidgetPath: widgetsHook.setNewWidgetPath,
+      resetForm: widgetsHook.resetForm,
+      isFormValid: widgetsHook.isFormValid,
+      formErrors: widgetsHook.formErrors,
     }),
     [
       widgetsHook.newWidgetCaption,
       widgetsHook.setNewWidgetCaption,
       widgetsHook.newWidgetPath,
       widgetsHook.setNewWidgetPath,
+      widgetsHook.resetForm,
+      widgetsHook.isFormValid,
+      widgetsHook.formErrors,
     ],
   );
 

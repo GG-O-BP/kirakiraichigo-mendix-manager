@@ -35,6 +35,8 @@ function WidgetModals() {
     setNewWidgetCaption,
     newWidgetPath,
     setNewWidgetPath,
+    resetForm,
+    isFormValid,
   } = useWidgetFormContext();
 
   const handleConfirmAddWidget = () => {
@@ -77,6 +79,8 @@ function WidgetModals() {
         newWidgetPath={newWidgetPath}
         setNewWidgetPath={setNewWidgetPath}
         setWidgets={setWidgets}
+        resetForm={resetForm}
+        isFormValid={isFormValid}
       />
 
       <ConfirmModal
