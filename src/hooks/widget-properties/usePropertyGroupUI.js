@@ -1,9 +1,19 @@
 import * as R from "ramda";
-import { useState, useCallback, useEffect } from "react";
+import { useEffect, useCallback } from "react";
+import { useAtom, useSetAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  expandedGroupsAtomFamily,
+  toggleGroupAtomFamily,
+  initializeExpandedGroupsAtomFamily,
+} from "../../atoms/widgetPreview";
 
 export function usePropertyGroupUI(widgetDefinition) {
-  const [expandedGroups, setExpandedGroups] = useState({});
+  const widgetId = R.propOr("unknown", "id", widgetDefinition);
+
+  const [expandedGroups] = useAtom(expandedGroupsAtomFamily(widgetId));
+  const toggleGroupAction = useSetAtom(toggleGroupAtomFamily(widgetId));
+  const initializeAction = useSetAtom(initializeExpandedGroupsAtomFamily(widgetId));
 
   useEffect(() => {
     const initializeExpandedGroups = async () => {
@@ -18,7 +28,9 @@ export function usePropertyGroupUI(widgetDefinition) {
                 propertyGroups,
               ),
             });
-            setExpandedGroups(initialState);
+            initializeAction(
+              R.map((group) => ({ caption: R.prop("caption", group) }), propertyGroups),
+            );
           } catch (error) {
             console.error("Failed to build initial expanded state:", error);
           }
@@ -26,23 +38,14 @@ export function usePropertyGroupUI(widgetDefinition) {
       )(widgetDefinition);
     };
     initializeExpandedGroups();
-  }, [widgetDefinition]);
+  }, [widgetDefinition, initializeAction]);
 
-  const toggleGroup = useCallback(async (category) => {
-    try {
-      const result = await invoke("toggle_group_expansion", {
-        expandedGroups,
-        groupCaption: category,
-      });
-      setExpandedGroups(result);
-    } catch (error) {
-      console.error("Failed to toggle group expansion:", error);
-      setExpandedGroups((prev) => ({
-        ...prev,
-        [category]: !R.propOr(true, category, prev),
-      }));
-    }
-  }, [expandedGroups]);
+  const toggleGroup = useCallback(
+    (category) => {
+      toggleGroupAction(category);
+    },
+    [toggleGroupAction],
+  );
 
   return {
     expandedGroups,

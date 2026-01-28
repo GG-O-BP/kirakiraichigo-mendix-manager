@@ -1,10 +1,13 @@
 import * as R from "ramda";
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect } from "react";
+import { useAtom } from "jotai";
+import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
 import { flavors } from "@catppuccin/palette";
 import catppuccinLogo from "../assets/catppuccin_circle.png";
 import catppuccinLatteLogo from "../assets/catppuccin_latte_circle.png";
-import { STORAGE_KEYS, loadFromStorage, saveToStorage } from "../utils";
+import { SWR_KEYS } from "../lib/swr";
+import { currentThemeAtom } from "../atoms/theme";
 
 const THEME_CLASSES = [
   "theme-kiraichi",
@@ -76,21 +79,23 @@ const applyTheme = async (themeName) => {
   }
 };
 
-export function useTheme() {
-  const [currentTheme, setCurrentTheme] = useState("kiraichi");
-  const [themeMetadata, setThemeMetadata] = useState({ isLight: false, isCustom: true });
+const fetchThemeMetadata = async (key) => {
+  const themeName = key[1];
+  try {
+    return await invoke("get_theme_metadata", { themeName });
+  } catch (error) {
+    console.error("Failed to load theme metadata:", error);
+    return { isLight: false, isCustom: true };
+  }
+};
 
-  useEffect(() => {
-    const loadThemeMetadata = async () => {
-      try {
-        const metadata = await invoke("get_theme_metadata", { themeName: currentTheme });
-        setThemeMetadata(metadata);
-      } catch (error) {
-        console.error("Failed to load theme metadata:", error);
-      }
-    };
-    loadThemeMetadata();
-  }, [currentTheme]);
+export function useTheme() {
+  const [currentTheme, setCurrentTheme] = useAtom(currentThemeAtom);
+
+  const { data: themeMetadata = { isLight: false, isCustom: true } } = useSWR(
+    SWR_KEYS.THEME_METADATA(currentTheme),
+    fetchThemeMetadata,
+  );
 
   const currentLogo = R.ifElse(
     R.prop("isLight"),
@@ -102,28 +107,14 @@ export function useTheme() {
     async (event) => {
       const newTheme = R.path(["target", "value"], event);
       setCurrentTheme(newTheme);
-      await saveToStorage(STORAGE_KEYS.THEME, newTheme).catch(console.error);
       await applyTheme(newTheme);
     },
-    [],
+    [setCurrentTheme],
   );
 
   useEffect(() => {
     applyTheme(currentTheme);
   }, [currentTheme]);
-
-  useEffect(() => {
-    const loadSavedTheme = async () => {
-      try {
-        const savedTheme = await loadFromStorage(STORAGE_KEYS.THEME, "kiraichi");
-        setCurrentTheme(savedTheme);
-        await applyTheme(savedTheme);
-      } catch (error) {
-        console.error("Failed to load theme:", error);
-      }
-    };
-    loadSavedTheme();
-  }, []);
 
   return {
     currentTheme,

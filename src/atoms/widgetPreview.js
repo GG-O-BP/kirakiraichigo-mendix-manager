@@ -1,5 +1,6 @@
 import * as R from "ramda";
 import { atom } from "jotai";
+import { atomFamily } from "jotai-family";
 
 // ===== Widget Preview Selection Atoms =====
 export const selectedWidgetForPreviewAtom = atom(null);
@@ -69,3 +70,26 @@ export const setPreviewDataAtom = atom(null, (get, set, { widgetId, data }) => {
 export const clearBuildErrorAtom = atom(null, (get, set) => {
   set(buildErrorAtom, null);
 });
+
+// ===== Property Group Expansion Atoms (per widget) =====
+export const expandedGroupsAtomFamily = atomFamily((widgetId) => atom({}));
+
+export const toggleGroupAtomFamily = atomFamily((widgetId) =>
+  atom(null, (get, set, groupCaption) => {
+    const expandedGroupsAtom = expandedGroupsAtomFamily(widgetId);
+    const currentState = get(expandedGroupsAtom);
+    const currentValue = R.propOr(true, groupCaption, currentState);
+    set(expandedGroupsAtom, R.assoc(groupCaption, R.not(currentValue), currentState));
+  }),
+);
+
+export const initializeExpandedGroupsAtomFamily = atomFamily((widgetId) =>
+  atom(null, (get, set, propertyGroups) => {
+    const expandedGroupsAtom = expandedGroupsAtomFamily(widgetId);
+    const initialState = R.pipe(
+      R.map(R.prop("caption")),
+      R.reduce((acc, caption) => R.assoc(caption, true, acc), {}),
+    )(propertyGroups);
+    set(expandedGroupsAtom, initialState);
+  }),
+);

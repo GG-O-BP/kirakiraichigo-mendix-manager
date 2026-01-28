@@ -1,10 +1,12 @@
 import * as R from "ramda";
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect } from "react";
+import { useAtom } from "jotai";
 import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
 import { SWR_KEYS } from "../lib/swr";
 import { processAppsPipeline } from "../utils/data-processing/appFiltering";
 import { useCollection } from "./useCollection";
+import { appVersionFilterAtom, targetVersionAtom } from "../atoms/apps";
 
 const fetchInstalledApps = () => invoke("get_installed_mendix_apps");
 
@@ -14,7 +16,8 @@ export function useApps() {
     getItemId: R.prop("path"),
   });
 
-  const [versionFilter, setVersionFilter] = useState("all");
+  const [versionFilter, setVersionFilter] = useAtom(appVersionFilterAtom);
+  const [targetVersion] = useAtom(targetVersionAtom);
 
   const {
     data: apps = [],
@@ -48,11 +51,6 @@ export function useApps() {
   useEffect(() => {
     const processApps = async () => {
       try {
-        const targetVersion = R.ifElse(
-          R.equals("all"),
-          R.always(null),
-          R.identity,
-        )(versionFilter);
         const filtered = await processAppsPipeline(collection.items, {
           searchTerm: collection.searchTerm,
           targetVersion,
@@ -70,7 +68,7 @@ export function useApps() {
       processApps,
       () => collection.setFilteredItems([]),
     )(collection.items);
-  }, [collection.items, versionFilter, collection.searchTerm]);
+  }, [collection.items, targetVersion, collection.searchTerm]);
 
   return {
     apps: collection.items,

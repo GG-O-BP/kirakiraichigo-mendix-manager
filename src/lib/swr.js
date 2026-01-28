@@ -10,6 +10,10 @@ export const SWR_KEYS = {
   THEME_METADATA: (themeName) => ["theme-metadata", themeName],
   DIST_EXISTS: (widgetPath) => ["dist-exists", widgetPath],
   SELECTION: (selectionType) => ["selection", selectionType],
+  FILTERED_DOWNLOADABLE: (deps) => ["filtered-downloadable", JSON.stringify(deps)],
+  FILTERED_INSTALLED: (deps) => ["filtered-installed", JSON.stringify(deps)],
+  FILTERED_APPS: (deps) => ["filtered-apps", JSON.stringify(deps)],
+  PROPERTY_VISIBILITY: (widgetId, inputHash) => ["property-visibility", widgetId, inputHash],
 };
 
 export const swrConfig = {

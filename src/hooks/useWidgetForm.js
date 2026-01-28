@@ -1,16 +1,28 @@
-import { useState, useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import * as R from "ramda";
+import { useAtom, useSetAtom } from "jotai";
 import { validateAddWidgetForm } from "../schemas";
+import {
+  widgetCaptionAtom,
+  widgetPathAtom,
+  widgetFormTouchedAtom,
+  widgetFormDataAtom,
+  setCaptionWithTouchAtom,
+  setPathWithTouchAtom,
+  resetWidgetFormAtom,
+  touchAllFieldsAtom,
+} from "../atoms/widgetForm";
 
 export function useWidgetForm() {
-  const [newWidgetCaption, setNewWidgetCaption] = useState("");
-  const [newWidgetPath, setNewWidgetPath] = useState("");
-  const [touched, setTouched] = useState({ caption: false, path: false });
+  const [newWidgetCaption] = useAtom(widgetCaptionAtom);
+  const [newWidgetPath] = useAtom(widgetPathAtom);
+  const [touched] = useAtom(widgetFormTouchedAtom);
+  const [formData] = useAtom(widgetFormDataAtom);
 
-  const formData = useMemo(
-    () => ({ caption: newWidgetCaption, path: newWidgetPath }),
-    [newWidgetCaption, newWidgetPath],
-  );
+  const setCaption = useSetAtom(setCaptionWithTouchAtom);
+  const setPath = useSetAtom(setPathWithTouchAtom);
+  const resetForm = useSetAtom(resetWidgetFormAtom);
+  const touchAll = useSetAtom(touchAllFieldsAtom);
 
   const validation = useMemo(
     () => validateAddWidgetForm(formData),
@@ -28,26 +40,6 @@ export function useWidgetForm() {
       )(R.propOr({}, "errors", validation)),
     [validation, touched],
   );
-
-  const setCaption = useCallback((value) => {
-    setNewWidgetCaption(value);
-    setTouched((prev) => R.assoc("caption", true, prev));
-  }, []);
-
-  const setPath = useCallback((value) => {
-    setNewWidgetPath(value);
-    setTouched((prev) => R.assoc("path", true, prev));
-  }, []);
-
-  const resetForm = useCallback(() => {
-    setNewWidgetCaption("");
-    setNewWidgetPath("");
-    setTouched({ caption: false, path: false });
-  }, []);
-
-  const touchAll = useCallback(() => {
-    setTouched({ caption: true, path: true });
-  }, []);
 
   return {
     newWidgetCaption,

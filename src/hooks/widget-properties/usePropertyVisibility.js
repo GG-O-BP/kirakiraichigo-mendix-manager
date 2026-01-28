@@ -1,6 +1,31 @@
 import * as R from "ramda";
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
+import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
+import { SWR_KEYS } from "../../lib/swr";
+
+const createInputHash = (inputs) => JSON.stringify(inputs);
+
+const fetchPropertyVisibility = async (key) => {
+  const [, , inputHash] = key;
+  const { editorConfigContent, widgetDefinition, dynamicProperties, baseProperties } = JSON.parse(inputHash);
+
+  if (R.or(R.isNil(editorConfigContent), R.isNil(widgetDefinition))) {
+    return { visible_keys: null, group_counts: {} };
+  }
+
+  try {
+    const combinedValues = R.mergeRight(baseProperties, dynamicProperties);
+    return await invoke("get_property_visibility_with_counts", {
+      configContent: editorConfigContent,
+      values: combinedValues,
+      widgetDefinition,
+    });
+  } catch (error) {
+    console.error("Failed to get property visibility:", error);
+    return { visible_keys: null, group_counts: {} };
+  }
+};
 
 export function usePropertyVisibility({
   editorConfigContent,
@@ -8,38 +33,27 @@ export function usePropertyVisibility({
   dynamicProperties,
   baseProperties = {},
 }) {
-  const [visiblePropertyKeys, setVisiblePropertyKeys] = useState(null);
-  const [groupCounts, setGroupCounts] = useState({});
+  const widgetId = R.propOr("unknown", "id", widgetDefinition);
 
-  useEffect(() => {
-    if (R.or(R.isNil(editorConfigContent), R.isNil(widgetDefinition))) {
-      setVisiblePropertyKeys(null);
-      setGroupCounts({});
-      return;
-    }
+  const inputHash = useMemo(
+    () =>
+      createInputHash({
+        editorConfigContent,
+        widgetDefinition,
+        dynamicProperties,
+        baseProperties,
+      }),
+    [editorConfigContent, widgetDefinition, dynamicProperties, baseProperties],
+  );
 
-    const computeVisibilityAndCounts = async () => {
-      try {
-        const combinedValues = R.mergeRight(baseProperties, dynamicProperties);
-        const result = await invoke("get_property_visibility_with_counts", {
-          configContent: editorConfigContent,
-          values: combinedValues,
-          widgetDefinition,
-        });
-        setVisiblePropertyKeys(R.prop("visible_keys", result));
-        setGroupCounts(R.propOr({}, "group_counts", result));
-      } catch (error) {
-        console.error("Failed to get property visibility:", error);
-        setVisiblePropertyKeys(null);
-        setGroupCounts({});
-      }
-    };
-
-    computeVisibilityAndCounts();
-  }, [editorConfigContent, widgetDefinition, dynamicProperties, baseProperties]);
+  const { data = { visible_keys: null, group_counts: {} } } = useSWR(
+    SWR_KEYS.PROPERTY_VISIBILITY(widgetId, inputHash),
+    fetchPropertyVisibility,
+    { keepPreviousData: true },
+  );
 
   return {
-    visiblePropertyKeys,
-    groupCounts,
+    visiblePropertyKeys: R.prop("visible_keys", data),
+    groupCounts: R.propOr({}, "group_counts", data),
   };
 }
