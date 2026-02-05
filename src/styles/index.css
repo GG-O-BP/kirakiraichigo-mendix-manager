@@ -21,7 +21,6 @@
 
 /* ============= Utility Classes ============= */
 @import "./utilities/animations.css";
-@import "./utilities/typography.css";
 
 /* ============= Global Application Styles ============= */
 
@@ -62,58 +61,6 @@ body {
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-right: var(--space-sm);
-}
-
-/* ============= Global States ============= */
-
-.hidden {
-    display: none !important;
-}
-
-.invisible {
-    visibility: hidden;
-}
-
-.visible {
-    visibility: visible;
-}
-
-.opacity-0 {
-    opacity: 0;
-}
-
-.opacity-50 {
-    opacity: 0.5;
-}
-
-.opacity-100 {
-    opacity: 1;
-}
-
-/* ============= Global Transitions ============= */
-
-.transition-all {
-    transition: all var(--animation-duration-normal)
-        var(--animation-timing-ease);
-}
-
-.transition-colors {
-    transition:
-        color var(--animation-duration-normal) var(--animation-timing-ease),
-        background-color var(--animation-duration-normal)
-            var(--animation-timing-ease),
-        border-color var(--animation-duration-normal)
-            var(--animation-timing-ease);
-}
-
-.transition-transform {
-    transition: transform var(--animation-duration-normal)
-        var(--animation-timing-ease);
-}
-
-.transition-opacity {
-    transition: opacity var(--animation-duration-normal)
-        var(--animation-timing-ease);
 }
 
 /* ============= Global Disabled States ============= */

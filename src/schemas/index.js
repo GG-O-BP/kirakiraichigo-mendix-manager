@@ -4,6 +4,5 @@ export {
 } from "./widgetPropertySchemas";
 
 export {
-  addWidgetSchema,
   validateAddWidgetForm,
 } from "./widgetFormSchemas";

@@ -13,19 +13,19 @@ const parseDecimalValue = R.cond([
 
 const isValidParsedNumber = R.either(R.isNil, R.complement(isNaN));
 
-export const integerSchema = v.pipe(
+const integerSchema = v.pipe(
   v.union([v.string(), v.number(), v.null(), v.undefined()]),
   v.transform(parseIntegerValue),
   v.check(isValidParsedNumber, "Must be a valid integer"),
 );
 
-export const decimalSchema = v.pipe(
+const decimalSchema = v.pipe(
   v.union([v.string(), v.number(), v.null(), v.undefined()]),
   v.transform(parseDecimalValue),
   v.check(isValidParsedNumber, "Must be a valid decimal number"),
 );
 
-export const createEnumerationSchema = (options) =>
+const createEnumerationSchema = (options) =>
   v.pipe(
     v.optional(v.union([v.string(), v.null(), v.undefined()])),
     v.check(
@@ -47,7 +47,7 @@ const isValidJsonString = R.either(
   tryParseJson,
 );
 
-export const jsonSchema = v.pipe(
+const jsonSchema = v.pipe(
   v.optional(v.union([v.string(), v.null(), v.undefined()])),
   v.check(isValidJsonString, "Invalid JSON format"),
 );
@@ -57,7 +57,7 @@ const schemaByType = {
   decimal: decimalSchema,
 };
 
-export const getSchemaForType = (type, property) =>
+const getSchemaForType = (type, property) =>
   R.cond([
     [R.equals("enumeration"), () => createEnumerationSchema(R.propOr([], "options", property))],
     [R.has(R.__, schemaByType), R.prop(R.__, schemaByType)],

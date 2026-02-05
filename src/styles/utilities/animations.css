@@ -1,47 +1,5 @@
 /* ============= Animation Utilities - Kirakira Ichigo Mendix Manager ============= */
 
-/* ============= Animation Variables ============= */
-:root {
-    --animation-duration-fast: 0.15s;
-    --animation-duration-normal: 0.3s;
-    --animation-duration-slow: 0.5s;
-    --animation-duration-slower: 1s;
-    --animation-timing-ease: cubic-bezier(0.4, 0, 0.2, 1);
-    --animation-timing-ease-in: cubic-bezier(0.4, 0, 1, 1);
-    --animation-timing-ease-out: cubic-bezier(0, 0, 0.2, 1);
-    --animation-timing-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* ============= Bounce Animation ============= */
-
-@keyframes bounce {
-    0%,
-    100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-8px);
-    }
-}
-
-/* ============= Sparkle Animation ============= */
-
-.sparkle-animation {
-    animation: sparkle-animation 2s infinite ease-in-out;
-}
-
-@keyframes sparkle-animation {
-    0%,
-    100% {
-        opacity: 0.6;
-        transform: scale(1);
-    }
-    50% {
-        opacity: 1;
-        transform: scale(1.2);
-    }
-}
-
 /* ============= Spin Animation ============= */
 
 @keyframes spin {
