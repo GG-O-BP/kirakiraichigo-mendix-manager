@@ -29,18 +29,16 @@ export function useWidgetDataLoader(selectedWidget, externalState = {}) {
     () => fetchWidgetData(["widget-data", widgetPath]),
     {
       revalidateOnFocus: false,
+      keepPreviousData: false,
     },
   );
 
   useEffect(() => {
     if (data && widgetId && !initializedWidgetsRef.current.has(String(widgetId))) {
-      const hasExistingProperties = R.complement(R.isEmpty)(dynamicProperties);
-      if (!hasExistingProperties) {
-        setDynamicProperties(R.always(data.initial_values));
-      }
+      setDynamicProperties(R.always(data.initial_values));
       initializedWidgetsRef.current.add(String(widgetId));
     }
-  }, [data, widgetId, dynamicProperties, setDynamicProperties]);
+  }, [data, widgetId, setDynamicProperties]);
 
   const widgetDefinition = R.prop("definition", data);
   const editorConfigContent = R.pipe(
