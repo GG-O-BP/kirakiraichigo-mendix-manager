@@ -28,9 +28,7 @@ export function usePropertyGroupUI(widgetDefinition) {
                 propertyGroups,
               ),
             });
-            initializeAction(
-              R.map((group) => ({ caption: R.prop("caption", group) }), propertyGroups),
-            );
+            initializeAction(initialState);
           } catch (error) {
             console.error("Failed to build initial expanded state:", error);
           }

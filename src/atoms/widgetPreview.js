@@ -80,12 +80,8 @@ export const toggleGroupAtomFamily = atomFamily((widgetId) =>
 );
 
 export const initializeExpandedGroupsAtomFamily = atomFamily((widgetId) =>
-  atom(null, (get, set, propertyGroups) => {
+  atom(null, (get, set, initialState) => {
     const expandedGroupsAtom = expandedGroupsAtomFamily(widgetId);
-    const initialState = R.pipe(
-      R.map(R.prop("caption")),
-      R.reduce((acc, caption) => R.assoc(caption, true, acc), {}),
-    )(propertyGroups);
     set(expandedGroupsAtom, initialState);
   }),
 );
