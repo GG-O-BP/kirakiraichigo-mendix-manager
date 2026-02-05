@@ -205,7 +205,7 @@
         var(--theme-secondary)
     );
     border-color: var(--theme-primary);
-    color: var(--theme-surface);
+    color: var(--theme-primary-contrast, var(--theme-surface));
 }
 
 .btn-primary:hover:not(:disabled) {
