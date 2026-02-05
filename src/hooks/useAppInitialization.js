@@ -1,36 +1,7 @@
-import {
-  useHooksInitializer,
-  useDataLoader,
-  useWrappedBuildDeployHandlers,
-} from "./app-initialization";
+import { useTheme } from "./useTheme";
 
 export function useAppInitialization() {
-  const {
-    theme,
-    versions,
-    appsHook,
-    widgetsHook,
-    widgetPreviewHook,
-    buildDeploy,
-  } = useHooksInitializer();
+  const theme = useTheme();
 
-  useDataLoader({ versions, appsHook, widgetsHook });
-
-  const wrappedHandlers = useWrappedBuildDeployHandlers({
-    buildDeploy,
-    widgetsHook,
-    appsHook,
-  });
-
-  return {
-    theme,
-    versions,
-    appsHook,
-    widgetsHook,
-    widgetPreviewHook,
-    buildDeploy: {
-      ...buildDeploy,
-      ...wrappedHandlers,
-    },
-  };
+  return { theme };
 }

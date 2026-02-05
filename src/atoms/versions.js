@@ -1,6 +1,9 @@
 import * as R from "ramda";
 import { atom } from "jotai";
 
+// ===== Installed Filtered Versions Atom =====
+export const installedFilteredVersionsAtom = atom([]);
+
 // ===== Version Filters Atoms =====
 export const versionSearchTermAtom = atom("");
 export const appSearchTermAtom = atom("");

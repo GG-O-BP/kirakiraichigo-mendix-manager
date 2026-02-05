@@ -1,13 +1,17 @@
 import * as R from "ramda";
+import { useAtomValue } from "jotai";
 import {
   useWidgetPreviewState,
   useWidgetPreviewSelection,
   useWidgetPreviewBuild,
 } from "./widget-preview";
+import { usePackageManagerPersistence } from "./build-deploy/usePackageManagerPersistence";
+import { itemsAtomFamily } from "../atoms/collection";
 
-export function useWidgetPreview({ packageManagerPersistence, widgets = [] }) {
+export function useWidgetPreview() {
   const selection = useWidgetPreviewSelection();
-  const { packageManager, setPackageManager } = packageManagerPersistence;
+  const { packageManager, setPackageManager } = usePackageManagerPersistence();
+  const widgets = useAtomValue(itemsAtomFamily("widgets"));
 
   const selectedWidget = R.find(
     R.propEq(selection.selectedWidgetForPreview, "id"),

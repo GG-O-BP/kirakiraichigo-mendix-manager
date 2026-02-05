@@ -2,10 +2,7 @@ import * as R from "ramda";
 import { useAtomValue, useSetAtom } from "jotai";
 import { ConfirmModal } from "../../common";
 import { useI18n } from "../../../i18n/useI18n";
-import {
-  useAppContext,
-  useBuildDeployContext,
-} from "../../../contexts";
+import { useApps, useBuildDeploy } from "../../../hooks";
 import {
   showAppDeleteModalAtom,
   appToDeleteAtom,
@@ -19,8 +16,8 @@ function AppDeleteModals() {
   const appToDelete = useAtomValue(appToDeleteAtom);
   const closeAppDeleteModal = useSetAtom(closeAppDeleteModalAtom);
 
-  const { handleDeleteApp } = useAppContext();
-  const { isUninstalling, setIsUninstalling } = useBuildDeployContext();
+  const { handleDeleteApp } = useApps();
+  const { isUninstalling, setIsUninstalling } = useBuildDeploy();
 
   const handleConfirmAppDelete = async () => {
     if (appToDelete) {

@@ -8,7 +8,7 @@ import { processAppsPipeline } from "../utils/data-processing/appFiltering";
 
 const DOWNLOADABLE_VERSIONS_PAGE_SIZE = 10;
 
-export const invokeFilterDownloadableVersions = async (
+const invokeFilterDownloadableVersions = async (
   versions,
   installedVersions,
   showOnlyDownloadable,
@@ -26,9 +26,6 @@ export const invokeFilterDownloadableVersions = async (
     showBetaOnly,
     searchTerm,
   });
-
-export const invokeCalculateNextPageNumber = async (totalItems, itemsPerPage) =>
-  invoke("calculate_next_page_number", { totalItems, itemsPerPage });
 
 const fetchFilteredDownloadable = async (key) => {
   const deps = JSON.parse(key[1]);

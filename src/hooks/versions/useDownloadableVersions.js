@@ -1,14 +1,14 @@
 import * as R from "ramda";
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
 import { SWR_KEYS } from "../../lib/swr";
 
 const fetchCachedVersions = () => invoke("load_downloadable_versions_cache");
 
-export function useDownloadableVersions() {
-  const hasLoadedInitialVersions = useRef(false);
+let hasLoadedInitialVersions = false;
 
+export function useDownloadableVersions() {
   const {
     data: downloadableVersions = [],
     error,
@@ -19,10 +19,10 @@ export function useDownloadableVersions() {
       R.when(
         R.both(
           R.complement(R.isEmpty),
-          () => !hasLoadedInitialVersions.current,
+          () => !hasLoadedInitialVersions,
         ),
         async () => {
-          hasLoadedInitialVersions.current = true;
+          hasLoadedInitialVersions = true;
           await fetchVersionsFromDatagrid(1);
         },
       )(cached);
@@ -30,10 +30,10 @@ export function useDownloadableVersions() {
       R.when(
         R.both(
           R.isEmpty,
-          () => !hasLoadedInitialVersions.current,
+          () => !hasLoadedInitialVersions,
         ),
         async () => {
-          hasLoadedInitialVersions.current = true;
+          hasLoadedInitialVersions = true;
           await fetchVersionsFromDatagrid(1);
         },
       )(cached);
@@ -67,7 +67,7 @@ export function useDownloadableVersions() {
     try {
       await invoke("clear_downloadable_versions_cache");
       mutate([], false);
-      hasLoadedInitialVersions.current = false;
+      hasLoadedInitialVersions = false;
       return true;
     } catch (err) {
       console.error("Failed to clear cache:", err);

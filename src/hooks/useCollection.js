@@ -1,11 +1,11 @@
 import * as R from "ramda";
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useAtom } from "jotai";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { invoke } from "@tauri-apps/api/core";
 import { SWR_KEYS } from "../lib/swr";
-import { searchTermAtomFamily, filteredItemsAtomFamily } from "../atoms/collection";
+import { itemsAtomFamily, searchTermAtomFamily, filteredItemsAtomFamily } from "../atoms/collection";
 
 const fetchSelection = async (key) => {
   const selectionType = key[1];
@@ -33,8 +33,8 @@ const removeFromSelectionMutation = async (_, { arg }) => {
   return result;
 };
 
-export function useCollection({ selectionType, getItemId, defaultItems = [] }) {
-  const [items, setItems] = useState(defaultItems);
+export function useCollection({ selectionType, getItemId }) {
+  const [items, setItems] = useAtom(itemsAtomFamily(selectionType));
   const [searchTerm, setSearchTerm] = useAtom(searchTermAtomFamily(selectionType));
   const [filteredItems, setFilteredItems] = useAtom(filteredItemsAtomFamily(selectionType));
 

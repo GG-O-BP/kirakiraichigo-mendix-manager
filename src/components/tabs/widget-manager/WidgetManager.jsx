@@ -1,12 +1,7 @@
 import { memo } from "react";
 import { useAtom, useSetAtom } from "jotai";
-import {
-  useAppContext,
-  useWidgetCollectionContext,
-  useWidgetFormContext,
-  useBuildDeployContext,
-  useVersionsContext,
-} from "../../../contexts";
+import { useVersions, useApps, useWidgets, useBuildDeploy } from "../../../hooks";
+import { useWidgetForm } from "../../../hooks/useWidgetForm";
 import { useDistExistsCheck } from "../../../hooks/build-deploy";
 import {
   showWidgetModalAtom,
@@ -19,11 +14,7 @@ import WidgetsSelectionPanel from "./WidgetsSelectionPanel";
 import BuildDeploySection from "./BuildDeploySection";
 
 const WidgetManager = memo(() => {
-  const appContext = useAppContext();
-  const widgetCollectionContext = useWidgetCollectionContext();
-  const widgetFormContext = useWidgetFormContext();
-  const buildDeployContext = useBuildDeployContext();
-  const { versions } = useVersionsContext();
+  const { versions } = useVersions();
 
   const {
     filteredApps,
@@ -34,7 +25,7 @@ const WidgetManager = memo(() => {
     setVersionFilter,
     handleAppClick,
     isAppSelected,
-  } = appContext;
+  } = useApps();
 
   const {
     widgets,
@@ -46,9 +37,9 @@ const WidgetManager = memo(() => {
     setWidgetSearchTerm,
     toggleWidgetSelection,
     isWidgetSelected,
-  } = widgetCollectionContext;
+  } = useWidgets();
 
-  const { setNewWidgetCaption, setNewWidgetPath } = widgetFormContext;
+  const { setNewWidgetCaption, setNewWidgetPath } = useWidgetForm();
 
   const {
     packageManager,
@@ -62,7 +53,7 @@ const WidgetManager = memo(() => {
     inlineResults,
     setInlineResults,
     lastOperationType,
-  } = buildDeployContext;
+  } = useBuildDeploy();
 
   const { allDistExist } = useDistExistsCheck({ selectedWidgets, widgets });
 

@@ -1,11 +1,8 @@
 import * as R from "ramda";
 import { memo, useEffect } from "react";
 import { useAtom, useSetAtom } from "jotai";
-import {
-  useWidgetCollectionContext,
-  useWidgetPreviewContext,
-  useWidgetFormContext,
-} from "../../../contexts";
+import { useWidgets, useWidgetPreview } from "../../../hooks";
+import { useWidgetForm } from "../../../hooks/useWidgetForm";
 import { useWidgetProperties } from "../../../hooks";
 import {
   showWidgetModalAtom,
@@ -17,17 +14,13 @@ import PropertiesPanel from "./PropertiesPanel";
 import PreviewPanel from "./PreviewPanel";
 
 const WidgetPreview = memo(() => {
-  const widgetCollectionContext = useWidgetCollectionContext();
-  const widgetPreviewContext = useWidgetPreviewContext();
-  const widgetFormContext = useWidgetFormContext();
-
   const {
     widgets,
     setWidgets,
     filteredWidgets,
     widgetSearchTerm,
     setWidgetSearchTerm,
-  } = widgetCollectionContext;
+  } = useWidgets();
 
   const {
     selectedWidgetForPreview,
@@ -44,9 +37,9 @@ const WidgetPreview = memo(() => {
     checkDistExists,
     handleBuildAndRun,
     handleRunOnly,
-  } = widgetPreviewContext;
+  } = useWidgetPreview();
 
-  const { setNewWidgetCaption, setNewWidgetPath } = widgetFormContext;
+  const { setNewWidgetCaption, setNewWidgetPath } = useWidgetForm();
 
   const [, setShowWidgetModal] = useAtom(showWidgetModalAtom);
   const [, setShowAddWidgetForm] = useAtom(showAddWidgetFormAtom);

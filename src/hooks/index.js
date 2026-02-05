@@ -8,7 +8,6 @@ export { useCollection } from "./useCollection";
 export { useWidgetForm } from "./useWidgetForm";
 
 export { useAppInitialization } from "./useAppInitialization";
-export { useContextValues } from "./useContextValues";
 
 export { useVersionFiltering } from "./useVersionFiltering";
 export { useWidgetProperties } from "./useWidgetProperties";

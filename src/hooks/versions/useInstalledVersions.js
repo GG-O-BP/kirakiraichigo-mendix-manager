@@ -1,14 +1,16 @@
 import * as R from "ramda";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useAtom } from "jotai";
 import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
 import { SWR_KEYS } from "../../lib/swr";
+import { installedFilteredVersionsAtom } from "../../atoms/versions";
 import { filterMendixVersions } from "../../utils/data-processing/versionFiltering";
 
 const fetchInstalledVersions = () => invoke("get_installed_mendix_versions");
 
 export function useInstalledVersions(searchTerm = "") {
-  const [filteredVersions, setFilteredVersions] = useState([]);
+  const [filteredVersions, setFilteredVersions] = useAtom(installedFilteredVersionsAtom);
 
   const {
     data: versions = [],

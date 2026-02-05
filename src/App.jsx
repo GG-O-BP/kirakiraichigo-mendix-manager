@@ -8,39 +8,21 @@ import { TabButton, AppHeader } from "./components/common";
 import { StudioProManager, WidgetManager, WidgetPreview } from "./components/tabs";
 import { AppModals } from "./components/modals";
 
-import { useAppInitialization, useContextValues } from "./hooks";
+import { useAppInitialization } from "./hooks";
 import { useI18n } from "./i18n/useI18n";
 import { initializeLocale } from "./i18n";
-import {
-  AppProvider,
-  WidgetCollectionProvider,
-  WidgetPreviewProvider,
-  WidgetFormProvider,
-  BuildDeployProvider,
-  VersionsProvider,
-} from "./contexts";
 
 const TAB_KEYS = ["studio-pro", "widget-manager", "widget-preview"];
 const TAB_COMPONENTS = [StudioProManager, WidgetManager, WidgetPreview];
 const TAB_LABEL_KEYS = ["studioProManager", "widgetManager", "widgetPreview"];
 
 function App() {
-  const { theme, versions, appsHook, widgetsHook, widgetPreviewHook, buildDeploy } =
-    useAppInitialization();
+  const { theme } = useAppInitialization();
   const { t, locale, setLocale, supportedLocales } = useI18n();
 
   useEffect(() => {
     initializeLocale();
   }, []);
-
-  const {
-    appContextValue,
-    widgetCollectionContextValue,
-    widgetPreviewContextValue,
-    widgetFormContextValue,
-    buildDeployContextValue,
-    versionsContextValue,
-  } = useContextValues({ appsHook, widgetsHook, widgetPreviewHook, buildDeploy, versions });
 
   const [activeTab, setActiveTab] = useState("studio-pro");
 
@@ -80,36 +62,24 @@ function App() {
   return (
     <JotaiProvider>
       <SWRConfig value={swrConfig}>
-        <VersionsProvider value={versionsContextValue}>
-          <AppProvider value={appContextValue}>
-            <WidgetCollectionProvider value={widgetCollectionContextValue}>
-              <WidgetPreviewProvider value={widgetPreviewContextValue}>
-                <WidgetFormProvider value={widgetFormContextValue}>
-                  <BuildDeployProvider value={buildDeployContextValue}>
-                    <main className="app-container">
-                      <AppHeader
-                        currentTheme={theme.currentTheme}
-                        currentLogo={theme.currentLogo}
-                        handleThemeChange={theme.handleThemeChange}
-                        locale={locale}
-                        setLocale={setLocale}
-                        supportedLocales={supportedLocales}
-                      />
+        <main className="app-container">
+          <AppHeader
+            currentTheme={theme.currentTheme}
+            currentLogo={theme.currentLogo}
+            handleThemeChange={theme.handleThemeChange}
+            locale={locale}
+            setLocale={setLocale}
+            supportedLocales={supportedLocales}
+          />
 
-                      <div className="tabs">
-                        {R.map(renderTabButton(activeTab, setActiveTab, t), tabs)}
-                      </div>
+          <div className="tabs">
+            {R.map(renderTabButton(activeTab, setActiveTab, t), tabs)}
+          </div>
 
-                      <div className="tab-content">{activeTabContent}</div>
+          <div className="tab-content">{activeTabContent}</div>
 
-                      <AppModals />
-                    </main>
-                  </BuildDeployProvider>
-                </WidgetFormProvider>
-              </WidgetPreviewProvider>
-            </WidgetCollectionProvider>
-          </AppProvider>
-        </VersionsProvider>
+          <AppModals />
+        </main>
       </SWRConfig>
     </JotaiProvider>
   );

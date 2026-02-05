@@ -4,10 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ConfirmModal } from "../../common";
 import DownloadModal from "../DownloadModal";
 import { useI18n } from "../../../i18n/useI18n";
-import {
-  useVersionsContext,
-  useAppContext,
-} from "../../../contexts";
+import { useVersions, useApps } from "../../../hooks";
 import {
   showUninstallModalAtom,
   versionToUninstallAtom,
@@ -33,9 +30,9 @@ function StudioProModals() {
     getLoadingStateSync,
     handleUninstallStudioPro,
     handleModalDownload,
-  } = useVersionsContext();
+  } = useVersions();
 
-  const { loadApps } = useAppContext();
+  const { loadApps } = useApps();
 
   const handleConfirmUninstall = async (deleteApps = false) => {
     if (versionToUninstall) {

@@ -1,11 +1,11 @@
 import { useAtom } from "jotai";
 import BuildResultModal from "../BuildResultModal";
-import { useBuildDeployContext } from "../../../contexts";
+import { useBuildDeploy } from "../../../hooks";
 import { showResultModalAtom } from "../../../atoms";
 
 function BuildResultModals() {
   const [showResultModal, setShowResultModal] = useAtom(showResultModalAtom);
-  const { buildResults, setBuildResults } = useBuildDeployContext();
+  const { buildResults, setBuildResults } = useBuildDeploy();
 
   return (
     <BuildResultModal

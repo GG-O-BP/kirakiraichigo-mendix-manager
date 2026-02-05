@@ -3,10 +3,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { ConfirmModal } from "../../common";
 import WidgetModal from "../WidgetModal";
 import { useI18n } from "../../../i18n/useI18n";
-import {
-  useWidgetCollectionContext,
-  useWidgetFormContext,
-} from "../../../contexts";
+import { useWidgets, useWidgetForm } from "../../../hooks";
 import {
   showWidgetModalAtom,
   showAddWidgetFormAtom,
@@ -28,7 +25,7 @@ function WidgetModals() {
     setWidgets,
     handleAddWidget,
     handleWidgetDelete,
-  } = useWidgetCollectionContext();
+  } = useWidgets();
 
   const {
     newWidgetCaption,
@@ -36,8 +33,8 @@ function WidgetModals() {
     newWidgetPath,
     setNewWidgetPath,
     resetForm,
-    isFormValid,
-  } = useWidgetFormContext();
+    isValid: isFormValid,
+  } = useWidgetForm();
 
   const handleConfirmAddWidget = () => {
     handleAddWidget(() => {
