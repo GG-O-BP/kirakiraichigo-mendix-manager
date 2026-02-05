@@ -1,10 +1,9 @@
 import * as R from "ramda";
-import useSWRMutation from "swr/mutation";
+import { useAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
+import { isInstallingAtom } from "../../atoms";
 
-const installWidgets = async (_, { arg }) => {
-  const { selectedWidgets, widgets, packageManager } = arg;
-
+const executeInstall = async ({ selectedWidgets, widgets, packageManager }) => {
   const hasSelection = await invoke("collection_has_items", {
     items: Array.from(selectedWidgets),
   });
@@ -32,22 +31,21 @@ const installWidgets = async (_, { arg }) => {
 };
 
 export function useInstallOperation({ packageManager }) {
-  const { trigger, isMutating: isInstalling, error } = useSWRMutation(
-    "install-widgets",
-    installWidgets,
-  );
+  const [isInstalling, setIsInstalling] = useAtom(isInstallingAtom);
 
   const handleInstall = async ({ selectedWidgets, widgets }) => {
+    setIsInstalling(true);
     try {
-      await trigger({ selectedWidgets, widgets, packageManager });
+      await executeInstall({ selectedWidgets, widgets, packageManager });
     } catch (err) {
       alert(err.message || `Installation failed: ${err}`);
+    } finally {
+      setIsInstalling(false);
     }
   };
 
   return {
     handleInstall,
     isInstalling,
-    installError: error,
   };
 }

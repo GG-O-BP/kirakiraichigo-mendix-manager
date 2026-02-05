@@ -1,37 +1,32 @@
 import * as R from "ramda";
-import useSWRMutation from "swr/mutation";
+import { useAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
 import { invokeCreateCatastrophicErrorResult } from "../../utils";
+import { isBuildingAtom, isDeployingAtom } from "../../atoms";
 
-const buildDeploy = async (_, { arg }) => {
-  const { selectedWidgets, selectedApps, widgets, apps, packageManager } = arg;
+const executeBuildDeploy = async ({ selectedWidgets, selectedApps, widgets, apps, packageManager }) => {
   const selectedWidgetIds = Array.from(selectedWidgets);
   const selectedAppPaths = Array.from(selectedApps);
 
-  const response = await invoke("validate_and_build_deploy", {
+  return invoke("validate_and_build_deploy", {
     widgets,
     apps,
     packageManager,
     selectedWidgetIds,
     selectedAppPaths,
   });
-
-  return response;
 };
 
-const deployOnly = async (_, { arg }) => {
-  const { selectedWidgets, selectedApps, widgets, apps } = arg;
+const executeDeployOnly = async ({ selectedWidgets, selectedApps, widgets, apps }) => {
   const selectedWidgetIds = Array.from(selectedWidgets);
   const selectedAppPaths = Array.from(selectedApps);
 
-  const response = await invoke("validate_and_deploy_only", {
+  return invoke("validate_and_deploy_only", {
     widgets,
     apps,
     selectedWidgetIds,
     selectedAppPaths,
   });
-
-  return response;
 };
 
 export function useBuildDeployOperation({
@@ -41,17 +36,8 @@ export function useBuildDeployOperation({
   setLastOperationType,
   onShowResultModal,
 }) {
-  const {
-    trigger: triggerBuild,
-    isMutating: isBuilding,
-    error: buildError,
-  } = useSWRMutation("build-deploy", buildDeploy);
-
-  const {
-    trigger: triggerDeploy,
-    isMutating: isDeploying,
-    error: deployError,
-  } = useSWRMutation("deploy-only", deployOnly);
+  const [isBuilding, setIsBuilding] = useAtom(isBuildingAtom);
+  const [isDeploying, setIsDeploying] = useAtom(isDeployingAtom);
 
   const handleBuildDeploy = async ({ selectedWidgets, selectedApps, widgets, apps }) => {
     R.pipe(
@@ -60,36 +46,37 @@ export function useBuildDeployOperation({
       R.tap(() => setLastOperationType("build")),
     )({});
 
-    let response;
+    setIsBuilding(true);
     try {
-      response = await triggerBuild({
+      const response = await executeBuildDeploy({
         selectedWidgets,
         selectedApps,
         widgets,
         apps,
         packageManager,
       });
+
+      if (response.validation_error) {
+        alert(response.validation_error);
+        return;
+      }
+
+      const results = response.results;
+      setBuildResults(results);
+      setInlineResults(results);
+
+      R.when(
+        R.always(response.has_failures && onShowResultModal),
+        () => onShowResultModal(true),
+      )({});
     } catch (error) {
       const errorResult = await invokeCreateCatastrophicErrorResult(error);
       setBuildResults(errorResult);
       setInlineResults(errorResult);
       R.when(R.identity, () => onShowResultModal(true))(onShowResultModal);
-      return;
+    } finally {
+      setIsBuilding(false);
     }
-
-    if (response.validation_error) {
-      alert(response.validation_error);
-      return;
-    }
-
-    const results = response.results;
-    setBuildResults(results);
-    setInlineResults(results);
-
-    R.when(
-      R.always(response.has_failures && onShowResultModal),
-      () => onShowResultModal(true),
-    )({});
   };
 
   const handleDeployOnly = async ({ selectedWidgets, selectedApps, widgets, apps }) => {
@@ -99,35 +86,36 @@ export function useBuildDeployOperation({
       R.tap(() => setLastOperationType("deploy")),
     )({});
 
-    let response;
+    setIsDeploying(true);
     try {
-      response = await triggerDeploy({
+      const response = await executeDeployOnly({
         selectedWidgets,
         selectedApps,
         widgets,
         apps,
       });
+
+      if (response.validation_error) {
+        alert(response.validation_error);
+        return;
+      }
+
+      const results = response.results;
+      setBuildResults(results);
+      setInlineResults(results);
+
+      R.when(
+        R.always(response.has_failures && onShowResultModal),
+        () => onShowResultModal(true),
+      )({});
     } catch (error) {
       const errorResult = await invokeCreateCatastrophicErrorResult(error);
       setBuildResults(errorResult);
       setInlineResults(errorResult);
       R.when(R.identity, () => onShowResultModal(true))(onShowResultModal);
-      return;
+    } finally {
+      setIsDeploying(false);
     }
-
-    if (response.validation_error) {
-      alert(response.validation_error);
-      return;
-    }
-
-    const results = response.results;
-    setBuildResults(results);
-    setInlineResults(results);
-
-    R.when(
-      R.always(response.has_failures && onShowResultModal),
-      () => onShowResultModal(true),
-    )({});
   };
 
   return {
@@ -135,7 +123,5 @@ export function useBuildDeployOperation({
     handleDeployOnly,
     isBuilding,
     isDeploying,
-    buildError,
-    deployError,
   };
 }
