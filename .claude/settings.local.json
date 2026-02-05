@@ -37,7 +37,11 @@
       "Bash(git -C \"C:\\\\Users\\\\dohye\\\\workspace\\\\kirakiraichigo-mendix-manager\" log --oneline -15)",
       "Bash(xargs:*)",
       "Bash(comm:*)",
-      "Bash(bun test:*)"
+      "Bash(bun test:*)",
+      "WebFetch(domain:www.humanlayer.dev)",
+      "WebFetch(domain:www.builder.io)",
+      "WebFetch(domain:arize.com)",
+      "WebFetch(domain:www.gend.co)"
     ]
   }
 }

@@ -1,14 +1,17 @@
 use crate::data_processing::mendix_filters::Widget;
 use crate::web_scraper::{DownloadableVersion, DownloadableVersionsCache};
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
-static STORAGE_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+static STORAGE_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn storage_mutex() -> &'static Mutex<()> {
+    STORAGE_MUTEX.get_or_init(|| Mutex::new(()))
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StorageKey {
@@ -185,7 +188,7 @@ fn load_state_from_file() -> Result<AppState, String> {
 }
 
 fn save_specific_state_typed(key: StorageKey, value: Value) -> Result<(), String> {
-    let _lock = STORAGE_MUTEX
+    let _lock = storage_mutex()
         .lock()
         .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
 
@@ -253,7 +256,7 @@ pub fn load_widgets_ordered() -> Result<Vec<Widget>, String> {
 
 #[tauri::command]
 pub fn delete_widget_and_save(widget_id: String) -> Result<Vec<Widget>, String> {
-    let _lock = STORAGE_MUTEX
+    let _lock = storage_mutex()
         .lock()
         .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
 
@@ -299,7 +302,7 @@ pub fn delete_widget_and_save(widget_id: String) -> Result<Vec<Widget>, String> 
 pub fn add_widget_and_save(caption: String, path: String) -> Result<Widget, String> {
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    let _lock = STORAGE_MUTEX
+    let _lock = storage_mutex()
         .lock()
         .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
 
@@ -405,7 +408,7 @@ pub fn load_downloadable_versions_cache() -> Result<Vec<DownloadableVersion>, St
 pub fn merge_and_save_downloadable_versions(
     fresh: Vec<DownloadableVersion>,
 ) -> Result<Vec<DownloadableVersion>, String> {
-    let _lock = STORAGE_MUTEX
+    let _lock = storage_mutex()
         .lock()
         .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
 
@@ -432,7 +435,7 @@ pub fn merge_and_save_downloadable_versions(
 
 #[tauri::command]
 pub fn clear_downloadable_versions_cache() -> Result<(), String> {
-    let _lock = STORAGE_MUTEX
+    let _lock = storage_mutex()
         .lock()
         .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
 

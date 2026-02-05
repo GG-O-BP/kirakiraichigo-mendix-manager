@@ -21,7 +21,6 @@ export function useApps() {
 
   const {
     data: apps = [],
-    error,
     isLoading,
     mutate,
   } = useSWR(SWR_KEYS.APPS, fetchInstalledApps, {
@@ -85,6 +84,5 @@ export function useApps() {
     handleDeleteApp,
     isAppSelected: collection.isSelected,
     isLoading,
-    error,
   };
 }

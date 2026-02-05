@@ -24,12 +24,6 @@ const toggleSelectionMutation = async (_, { arg }) => {
   return result;
 };
 
-const clearSelectionMutation = async (_, { arg }) => {
-  const { selectionType } = arg;
-  await invoke("clear_selection_with_save", { selectionType });
-  return [];
-};
-
 const removeFromSelectionMutation = async (_, { arg }) => {
   const { selectionType, itemId } = arg;
   const result = await invoke("remove_from_selection_with_save", {
@@ -71,11 +65,6 @@ export function useCollection({ selectionType, getItemId, defaultItems = [] }) {
     toggleSelectionMutation,
   );
 
-  const { trigger: triggerClear } = useSWRMutation(
-    `clear-selection-${selectionType}`,
-    clearSelectionMutation,
-  );
-
   const { trigger: triggerRemove } = useSWRMutation(
     `remove-selection-${selectionType}`,
     removeFromSelectionMutation,
@@ -102,15 +91,6 @@ export function useCollection({ selectionType, getItemId, defaultItems = [] }) {
     [selectedItems, getItemId],
   );
 
-  const clearSelection = useCallback(async () => {
-    try {
-      const result = await triggerClear({ selectionType });
-      mutateSelectedItems(result, { revalidate: false });
-    } catch (error) {
-      console.error("Failed to clear selection:", error);
-    }
-  }, [selectionType, triggerClear, mutateSelectedItems]);
-
   const removeFromSelection = useCallback(
     async (item) => {
       const itemId = getItemId(item);
@@ -135,7 +115,6 @@ export function useCollection({ selectionType, getItemId, defaultItems = [] }) {
     setSelectedItems,
     toggleSelection,
     isSelected,
-    clearSelection,
     removeFromSelection,
   };
 }

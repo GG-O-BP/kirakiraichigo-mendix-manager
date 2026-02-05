@@ -1,9 +1,4 @@
-export {
-  STORAGE_KEYS,
-  PACKAGE_MANAGERS,
-  ITEMS_PER_PAGE,
-  VERSION_OPERATIONS,
-} from "./constants";
+export { STORAGE_KEYS, PACKAGE_MANAGERS } from "./constants";
 
 export { saveToStorage, loadFromStorage } from "./storage";
 

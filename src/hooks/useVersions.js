@@ -17,7 +17,6 @@ export function useVersions() {
     versions: installed.versions,
     filteredVersions: installed.filteredVersions,
     loadVersions: installed.loadVersions,
-    isLoadingVersions: installed.isLoading,
     downloadableVersions: downloadable.downloadableVersions,
     isLoadingDownloadableVersions: downloadable.isLoadingDownloadableVersions,
     fetchVersionsFromDatagrid: downloadable.fetchVersionsFromDatagrid,

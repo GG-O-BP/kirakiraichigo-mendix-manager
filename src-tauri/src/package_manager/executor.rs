@@ -151,9 +151,14 @@ impl StrategyExecutor {
     }
 }
 
+use std::sync::OnceLock;
+
 /// Global executor instance for convenience
-static EXECUTOR: once_cell::sync::Lazy<StrategyExecutor> =
-    once_cell::sync::Lazy::new(StrategyExecutor::new);
+static EXECUTOR: OnceLock<StrategyExecutor> = OnceLock::new();
+
+fn executor() -> &'static StrategyExecutor {
+    EXECUTOR.get_or_init(StrategyExecutor::new)
+}
 
 /// Executes a package manager command using the global executor
 pub fn execute_package_manager_command(
@@ -161,5 +166,5 @@ pub fn execute_package_manager_command(
     command: &str,
     working_directory: &str,
 ) -> Result<String, String> {
-    EXECUTOR.execute(package_manager, command, working_directory)
+    executor().execute(package_manager, command, working_directory)
 }

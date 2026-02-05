@@ -20,7 +20,6 @@ export function useWidgets() {
 
   const {
     data: widgets = [],
-    error,
     isLoading,
     mutate,
   } = useSWR(SWR_KEYS.WIDGETS, fetchWidgets, {
@@ -138,6 +137,5 @@ export function useWidgets() {
     handleAddWidget,
     handleWidgetDelete,
     isLoading,
-    error,
   };
 }

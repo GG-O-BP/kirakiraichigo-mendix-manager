@@ -1,11 +1,16 @@
-use once_cell::sync::Lazy;
 use regex::Regex;
+use std::sync::OnceLock;
 
-static HAS_HIDE_PROPERTY_IN: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"\bhidePropertyIn\s*=").unwrap());
+static HAS_HIDE_PROPERTY_IN: OnceLock<Regex> = OnceLock::new();
+static HAS_HIDE_PROPERTIES_IN: OnceLock<Regex> = OnceLock::new();
 
-static HAS_HIDE_PROPERTIES_IN: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"\bhidePropertiesIn\s*=").unwrap());
+fn has_hide_property_in() -> &'static Regex {
+    HAS_HIDE_PROPERTY_IN.get_or_init(|| Regex::new(r"\bhidePropertyIn\s*=").unwrap())
+}
+
+fn has_hide_properties_in() -> &'static Regex {
+    HAS_HIDE_PROPERTIES_IN.get_or_init(|| Regex::new(r"\bhidePropertiesIn\s*=").unwrap())
+}
 
 pub const HIDE_PROPERTY_IN_JS: &str = r#"
 var hidePropertyIn = function(propertyGroups, propertyName) {
@@ -36,11 +41,11 @@ var hidePropertiesIn = function(propertyGroups, propertyNames) {
 pub fn create_mendix_utils_injection(config_content: &str) -> String {
     let mut injection = String::new();
 
-    if !HAS_HIDE_PROPERTY_IN.is_match(config_content) {
+    if !has_hide_property_in().is_match(config_content) {
         injection.push_str(HIDE_PROPERTY_IN_JS);
     }
 
-    if !HAS_HIDE_PROPERTIES_IN.is_match(config_content) {
+    if !has_hide_properties_in().is_match(config_content) {
         injection.push_str(HIDE_PROPERTIES_IN_JS);
     }
 

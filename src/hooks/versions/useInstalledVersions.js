@@ -12,7 +12,6 @@ export function useInstalledVersions(searchTerm = "") {
 
   const {
     data: versions = [],
-    error,
     isLoading,
     mutate,
   } = useSWR(SWR_KEYS.INSTALLED_VERSIONS, fetchInstalledVersions);
@@ -41,6 +40,5 @@ export function useInstalledVersions(searchTerm = "") {
     filteredVersions,
     loadVersions: mutate,
     isLoading,
-    error,
   };
 }

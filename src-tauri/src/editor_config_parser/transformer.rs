@@ -1,31 +1,56 @@
-use once_cell::sync::Lazy;
 use regex::Regex;
+use std::sync::OnceLock;
 
-static IMPORT_NAMED: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"import\s+\{[^}]*\}\s+from\s+['"][^'"]*['"]\s*;?"#).unwrap());
+static IMPORT_NAMED: OnceLock<Regex> = OnceLock::new();
+static IMPORT_WILDCARD: OnceLock<Regex> = OnceLock::new();
+static IMPORT_DEFAULT: OnceLock<Regex> = OnceLock::new();
+static EXPORT_CONST: OnceLock<Regex> = OnceLock::new();
+static EXPORT_FUNCTION: OnceLock<Regex> = OnceLock::new();
+static EXPORT_DEFAULT: OnceLock<Regex> = OnceLock::new();
+static EXPORT_BRACES: OnceLock<Regex> = OnceLock::new();
 
-static IMPORT_WILDCARD: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"import\s+\*\s+as\s+\w+\s+from\s+['"][^'"]*['"]\s*;?"#).unwrap());
+fn import_named() -> &'static Regex {
+    IMPORT_NAMED.get_or_init(|| {
+        Regex::new(r#"import\s+\{[^}]*\}\s+from\s+['"][^'"]*['"]\s*;?"#).unwrap()
+    })
+}
 
-static IMPORT_DEFAULT: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"import\s+\w+\s+from\s+['"][^'"]*['"]\s*;?"#).unwrap());
+fn import_wildcard() -> &'static Regex {
+    IMPORT_WILDCARD.get_or_init(|| {
+        Regex::new(r#"import\s+\*\s+as\s+\w+\s+from\s+['"][^'"]*['"]\s*;?"#).unwrap()
+    })
+}
 
-static EXPORT_CONST: Lazy<Regex> = Lazy::new(|| Regex::new(r"export\s+const\s+").unwrap());
+fn import_default() -> &'static Regex {
+    IMPORT_DEFAULT.get_or_init(|| {
+        Regex::new(r#"import\s+\w+\s+from\s+['"][^'"]*['"]\s*;?"#).unwrap()
+    })
+}
 
-static EXPORT_FUNCTION: Lazy<Regex> = Lazy::new(|| Regex::new(r"export\s+function\s+").unwrap());
+fn export_const() -> &'static Regex {
+    EXPORT_CONST.get_or_init(|| Regex::new(r"export\s+const\s+").unwrap())
+}
 
-static EXPORT_DEFAULT: Lazy<Regex> = Lazy::new(|| Regex::new(r"export\s+default\s+").unwrap());
+fn export_function() -> &'static Regex {
+    EXPORT_FUNCTION.get_or_init(|| Regex::new(r"export\s+function\s+").unwrap())
+}
 
-static EXPORT_BRACES: Lazy<Regex> = Lazy::new(|| Regex::new(r"export\s*\{[^}]*\}").unwrap());
+fn export_default() -> &'static Regex {
+    EXPORT_DEFAULT.get_or_init(|| Regex::new(r"export\s+default\s+").unwrap())
+}
+
+fn export_braces() -> &'static Regex {
+    EXPORT_BRACES.get_or_init(|| Regex::new(r"export\s*\{[^}]*\}").unwrap())
+}
 
 pub fn transform_es6_to_commonjs(content: &str) -> String {
-    let result = IMPORT_NAMED.replace_all(content, "");
-    let result = IMPORT_WILDCARD.replace_all(&result, "");
-    let result = IMPORT_DEFAULT.replace_all(&result, "");
-    let result = EXPORT_CONST.replace_all(&result, "const ");
-    let result = EXPORT_FUNCTION.replace_all(&result, "function ");
-    let result = EXPORT_DEFAULT.replace_all(&result, "module.exports.default = ");
-    let result = EXPORT_BRACES.replace_all(&result, "");
+    let result = import_named().replace_all(content, "");
+    let result = import_wildcard().replace_all(&result, "");
+    let result = import_default().replace_all(&result, "");
+    let result = export_const().replace_all(&result, "const ");
+    let result = export_function().replace_all(&result, "function ");
+    let result = export_default().replace_all(&result, "module.exports.default = ");
+    let result = export_braces().replace_all(&result, "");
 
     result.into_owned()
 }
