@@ -67,10 +67,6 @@ export const setPreviewDataAtom = atom(null, (get, set, { widgetId, data }) => {
   set(previewDataCacheAtom, (cache) => R.assoc(String(widgetId), data, cache));
 });
 
-export const clearBuildErrorAtom = atom(null, (get, set) => {
-  set(buildErrorAtom, null);
-});
-
 // ===== Property Group Expansion Atoms (per widget) =====
 export const expandedGroupsAtomFamily = atomFamily((widgetId) => atom({}));
 

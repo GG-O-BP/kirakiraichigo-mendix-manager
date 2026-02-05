@@ -7,7 +7,6 @@ export { useBuildDeploy } from "./useBuildDeploy";
 export { useCollection } from "./useCollection";
 export { useWidgetForm } from "./useWidgetForm";
 
-export { useAppInitialization } from "./useAppInitialization";
 
 export { useVersionFiltering } from "./useVersionFiltering";
 export { useWidgetProperties } from "./useWidgetProperties";

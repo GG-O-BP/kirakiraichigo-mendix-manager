@@ -128,6 +128,5 @@ export function useUninstallModalActions() {
   return {
     openUninstallModal,
     closeUninstallModal: closeModal,
-    setRelatedApps,
   };
 }

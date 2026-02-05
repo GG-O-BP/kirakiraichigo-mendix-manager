@@ -44,13 +44,6 @@ export const toggleVersionSelectionAtom = atom(null, (get, set, version) => {
   set(selectedVersionAtom, newSelection);
 });
 
-export const resetVersionFiltersAtom = atom(null, (get, set) => {
-  set(versionSearchTermAtom, "");
-  set(showOnlyDownloadableVersionsAtom, false);
-  set(showLTSOnlyAtom, false);
-  set(showMTSOnlyAtom, false);
-  set(showBetaOnlyAtom, false);
-});
 
 // ===== Loading State Helper Atoms =====
 export const getLoadingStateSyncAtom = atom((get) => (versionId) => {

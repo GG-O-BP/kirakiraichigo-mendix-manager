@@ -8,7 +8,7 @@ import { TabButton, AppHeader } from "./components/common";
 import { StudioProManager, WidgetManager, WidgetPreview } from "./components/tabs";
 import { AppModals } from "./components/modals";
 
-import { useAppInitialization } from "./hooks";
+import { useTheme } from "./hooks";
 import { useI18n } from "./i18n/useI18n";
 import { initializeLocale } from "./i18n";
 
@@ -17,7 +17,7 @@ const TAB_COMPONENTS = [StudioProManager, WidgetManager, WidgetPreview];
 const TAB_LABEL_KEYS = ["studioProManager", "widgetManager", "widgetPreview"];
 
 function App() {
-  const { theme } = useAppInitialization();
+  const theme = useTheme();
   const { t, locale, setLocale, supportedLocales } = useI18n();
 
   useEffect(() => {

@@ -1,9 +1,4 @@
 export {
-  integerSchema,
-  decimalSchema,
-  createEnumerationSchema,
-  jsonSchema,
-  getSchemaForType,
   validatePropertyValue,
   validateJson,
 } from "./widgetPropertySchemas";
