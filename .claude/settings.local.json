@@ -42,7 +42,10 @@
       "WebFetch(domain:www.builder.io)",
       "WebFetch(domain:arize.com)",
       "WebFetch(domain:www.gend.co)",
-      "Bash(ls \"C:\\\\Users\\\\dohye\\\\workspace\\\\kirakiraichigo-mendix-manager\\\\src\\\\hooks\\\\app-initialization\"\" 2>/dev/null || echo \"empty or deleted \")"
+      "Bash(ls \"C:\\\\Users\\\\dohye\\\\workspace\\\\kirakiraichigo-mendix-manager\\\\src\\\\hooks\\\\app-initialization\"\" 2>/dev/null || echo \"empty or deleted \")",
+      "Bash(cargo tree:*)",
+      "WebFetch(domain:www.mozilla.org)",
+      "WebFetch(domain:spdx.org)"
     ]
   }
 }
