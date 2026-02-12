@@ -1,79 +1,114 @@
 import * as R from "ramda";
-import { useState, useCallback, useEffect } from "react";
-import { saveToStorage, loadFromStorage, arrayToSet } from "../utils";
+import { useCallback, useEffect, useMemo } from "react";
+import { useAtom, useSetAtom } from "jotai";
+import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
+import { invoke } from "@tauri-apps/api/core";
+import { SWR_KEYS } from "../lib/swr";
+import { itemsAtomFamily, searchTermAtomFamily, filteredItemsAtomFamily, selectedItemsAtomFamily } from "../atoms/collection";
 
-export function useCollection({
-  selectionStorageKey,
-  getItemId,
-  defaultItems = [],
-}) {
-  const [items, setItems] = useState(defaultItems);
-  const [filteredItems, setFilteredItems] = useState(defaultItems);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedItems, setSelectedItems] = useState(new Set());
-
-  const createToggledSet = R.curry((item, set) => {
-    const newSet = new Set(set);
-    R.ifElse(
-      () => newSet.has(item),
-      () => newSet.delete(item),
-      () => newSet.add(item),
-    )();
-    return newSet;
+const fetchSelection = async (key) => {
+  const selectionType = key[1];
+  const storedItems = await invoke("init_selection_from_storage", {
+    selectionType,
   });
+  return storedItems;
+};
 
-  const toggleSelection = useCallback(
-    (item) => {
-      const itemId = getItemId(item);
-      setSelectedItems((prev) => {
-        const newSet = createToggledSet(itemId, prev);
-        const newArray = Array.from(newSet);
-        saveToStorage(selectionStorageKey, newArray).catch(console.error);
-        return newSet;
-      });
-    },
-    [selectionStorageKey, getItemId],
-  );
+const toggleSelectionMutation = async (_, { arg }) => {
+  const { selectionType, itemId } = arg;
+  const result = await invoke("toggle_selection_with_save", {
+    selectionType,
+    itemId,
+  });
+  return result;
+};
 
-  const isSelected = useCallback(
-    (item) => selectedItems.has(getItemId(item)),
-    [selectedItems, getItemId],
-  );
+const removeFromSelectionMutation = async (_, { arg }) => {
+  const { selectionType, itemId } = arg;
+  const result = await invoke("remove_from_selection_with_save", {
+    selectionType,
+    itemId,
+  });
+  return result;
+};
 
-  const clearSelection = useCallback(() => {
-    setSelectedItems(new Set());
-    saveToStorage(selectionStorageKey, []).catch(console.error);
-  }, [selectionStorageKey]);
+export function useCollection({ selectionType, getItemId }) {
+  const [items, setItems] = useAtom(itemsAtomFamily(selectionType));
+  const [searchTerm, setSearchTerm] = useAtom(searchTermAtomFamily(selectionType));
+  const [filteredItems, setFilteredItems] = useAtom(filteredItemsAtomFamily(selectionType));
 
-  const removeFromSelection = useCallback(
-    (item) => {
-      const itemId = getItemId(item);
-      setSelectedItems((prev) => {
-        const newSet = new Set(prev);
-        R.when(
-          () => newSet.has(itemId),
-          () => {
-            newSet.delete(itemId);
-            saveToStorage(selectionStorageKey, Array.from(newSet)).catch(console.error);
-          },
-        )();
-        return newSet;
-      });
-    },
-    [selectionStorageKey, getItemId],
+  const {
+    data: selectedItemsArray = [],
+    mutate: mutateSelectedItems,
+  } = useSWR(SWR_KEYS.SELECTION(selectionType), fetchSelection);
+
+  const setSelectedItemsAtom = useSetAtom(selectedItemsAtomFamily(selectionType));
+
+  const selectedItems = useMemo(
+    () => new Set(selectedItemsArray),
+    [selectedItemsArray],
   );
 
   useEffect(() => {
-    const restoreSelectedItemsFromStorage = async () => {
+    setSelectedItemsAtom(new Set(selectedItemsArray));
+  }, [selectedItemsArray, setSelectedItemsAtom]);
+
+  const setSelectedItems = useCallback(
+    (value) => {
+      const arrayValue = R.cond([
+        [R.is(Set), (v) => Array.from(v)],
+        [R.is(Array), R.identity],
+        [R.T, R.always([])],
+      ])(value);
+      return mutateSelectedItems(arrayValue, { revalidate: false });
+    },
+    [mutateSelectedItems],
+  );
+
+  const { trigger: triggerToggle } = useSWRMutation(
+    `toggle-selection-${selectionType}`,
+    toggleSelectionMutation,
+  );
+
+  const { trigger: triggerRemove } = useSWRMutation(
+    `remove-selection-${selectionType}`,
+    removeFromSelectionMutation,
+  );
+
+  const toggleSelection = useCallback(
+    async (item) => {
+      const itemId = getItemId(item);
       try {
-        const selectedArray = await loadFromStorage(selectionStorageKey, []);
-        setSelectedItems(arrayToSet(selectedArray));
+        const result = await triggerToggle({ selectionType, itemId });
+        mutateSelectedItems(result, { revalidate: false });
       } catch (error) {
-        console.error("Failed to load selected items:", error);
+        console.error("Failed to toggle selection:", error);
       }
-    };
-    restoreSelectedItemsFromStorage();
-  }, [selectionStorageKey]);
+    },
+    [selectionType, getItemId, triggerToggle, mutateSelectedItems],
+  );
+
+  const isSelected = useCallback(
+    (item) => {
+      const itemId = getItemId(item);
+      return selectedItems.has(itemId);
+    },
+    [selectedItems, getItemId],
+  );
+
+  const removeFromSelection = useCallback(
+    async (item) => {
+      const itemId = getItemId(item);
+      try {
+        const result = await triggerRemove({ selectionType, itemId });
+        mutateSelectedItems(result, { revalidate: false });
+      } catch (error) {
+        console.error("Failed to remove from selection:", error);
+      }
+    },
+    [selectionType, getItemId, triggerRemove, mutateSelectedItems],
+  );
 
   return {
     items,
@@ -86,7 +121,6 @@ export function useCollection({
     setSelectedItems,
     toggleSelection,
     isSelected,
-    clearSelection,
     removeFromSelection,
   };
 }

@@ -1,25 +1,54 @@
 import * as R from "ramda";
-import { useEffect, useCallback } from "react";
+import { useCallback, useRef, useEffect } from "react";
+import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
-import { createEditorConfigHandler } from "../../utils/editorConfigParser";
+import { SWR_KEYS } from "../../lib/swr";
 import { useArrayPropertyOperations } from "./useArrayPropertyOperations";
+
+const fetchWidgetData = async (key) => {
+  const widgetPath = key[1];
+  if (R.isNil(widgetPath)) {
+    return null;
+  }
+  return invoke("load_widget_complete_data", { widgetPath });
+};
 
 export function useWidgetDataLoader(selectedWidget, externalState = {}) {
   const {
     dynamicProperties,
     setDynamicProperties,
-    lastLoadedWidgetId,
-    setLastLoadedWidgetId,
-    widgetDefinition,
-    setWidgetDefinition,
-    editorConfigHandler,
-    setEditorConfigHandler,
   } = externalState;
 
-  const resetWidgetState = useCallback(() => {
-    setWidgetDefinition(null);
-    setEditorConfigHandler(null);
-  }, [setWidgetDefinition, setEditorConfigHandler]);
+  const widgetId = R.prop("id", selectedWidget);
+  const widgetPath = R.prop("path", selectedWidget);
+
+  const initializedWidgetsRef = useRef(new Set());
+
+  const { data, isLoading, error } = useSWR(
+    R.isNil(widgetPath) ? null : SWR_KEYS.WIDGET_DATA(widgetId),
+    () => fetchWidgetData(["widget-data", widgetPath]),
+    {
+      revalidateOnFocus: false,
+      keepPreviousData: false,
+    },
+  );
+
+  useEffect(() => {
+    if (data && widgetId && !initializedWidgetsRef.current.has(String(widgetId))) {
+      setDynamicProperties(R.always(data.initial_values));
+      initializedWidgetsRef.current.add(String(widgetId));
+    }
+  }, [data, widgetId, setDynamicProperties]);
+
+  const widgetDefinition = R.prop("definition", data);
+  const editorConfigContent = R.pipe(
+    R.prop("editor_config"),
+    R.ifElse(
+      R.both(R.prop("found"), R.prop("content")),
+      R.prop("content"),
+      R.always(null),
+    ),
+  )(data || {});
 
   const updateProperty = useCallback(
     R.curry((propertyKey, value) =>
@@ -28,65 +57,15 @@ export function useWidgetDataLoader(selectedWidget, externalState = {}) {
     [setDynamicProperties]
   );
 
-  const arrayOperations = useArrayPropertyOperations(setDynamicProperties);
-
-  useEffect(() => {
-    if (R.isNil(selectedWidget)) {
-      resetWidgetState();
-      setLastLoadedWidgetId(null);
-      return;
-    }
-
-    const widgetId = R.prop("id", selectedWidget);
-    const widgetPath = R.prop("path", selectedWidget);
-
-    if (R.equals(widgetId, lastLoadedWidgetId)) {
-      return;
-    }
-
-    const hasCachedData = R.both(
-      R.complement(R.isEmpty),
-      R.always(R.complement(R.isNil)(widgetDefinition)),
-    )(dynamicProperties);
-    if (hasCachedData) {
-      setLastLoadedWidgetId(widgetId);
-      return;
-    }
-
-    const loadWidgetData = async () => {
-      try {
-        const { definition, initial_values, editor_config } = await invoke(
-          "load_widget_complete_data",
-          { widgetPath }
-        );
-
-        setWidgetDefinition(definition);
-        setDynamicProperties(R.always(initial_values));
-        setLastLoadedWidgetId(widgetId);
-
-        R.ifElse(
-          R.both(R.prop("found"), R.prop("content")),
-          R.pipe(
-            R.prop("content"),
-            createEditorConfigHandler,
-            setEditorConfigHandler
-          ),
-          R.always(setEditorConfigHandler(null))
-        )(editor_config);
-      } catch (error) {
-        console.error("Failed to load widget data:", error);
-        resetWidgetState();
-      }
-    };
-
-    loadWidgetData();
-  }, [selectedWidget, resetWidgetState, setDynamicProperties, lastLoadedWidgetId, setLastLoadedWidgetId, setWidgetDefinition, setEditorConfigHandler, dynamicProperties, widgetDefinition]);
+  const arrayOperations = useArrayPropertyOperations(dynamicProperties, setDynamicProperties);
 
   return {
     widgetDefinition,
     dynamicProperties,
-    editorConfigHandler,
+    editorConfigContent,
     updateProperty,
+    isLoading,
+    error,
     ...arrayOperations,
   };
 }

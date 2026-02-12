@@ -198,6 +198,7 @@
     --theme-gradient-success: linear-gradient(135deg, #2ecc71, #27ae60);
     --theme-overlay-bg: rgba(0, 0, 0, 0.7);
     --theme-modal-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    --theme-primary-contrast: #2d1515;
 }
 
 /* Catppuccin Latte Theme (Light) */
@@ -404,6 +405,7 @@
     --theme-gradient-success: linear-gradient(135deg, #2ecc71, #27ae60);
     --theme-overlay-bg: rgba(0, 0, 0, 0.7);
     --theme-modal-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    --theme-primary-contrast: #2d1515;
 }
 
 /* KiraIchi Light Theme (Strawberry) */
@@ -447,6 +449,7 @@
     --theme-gradient-success: linear-gradient(135deg, #20c997, #17a2b8);
     --theme-overlay-bg: rgba(214, 51, 132, 0.3);
     --theme-modal-shadow: 0 20px 40px rgba(214, 51, 132, 0.2);
+    --theme-primary-contrast: #fff5f8;
 }
 
 /* ============= Media Query Support ============= */

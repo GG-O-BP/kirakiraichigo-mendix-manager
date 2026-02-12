@@ -3,3 +3,7 @@ export { useVersionSelection } from "./useVersionSelection";
 export { useInstalledVersions } from "./useInstalledVersions";
 export { useDownloadableVersions } from "./useDownloadableVersions";
 export { useVersionOperations } from "./useVersionOperations";
+export { useVersionLoadingStates } from "./useVersionLoadingStates";
+export { useLaunchOperation } from "./useLaunchOperation";
+export { useUninstallOperation } from "./useUninstallOperation";
+export { useDownloadOperation } from "./useDownloadOperation";

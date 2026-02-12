@@ -13,7 +13,7 @@ export async function processAppsPipeline(
   return await invoke("process_apps_pipeline", {
     params: {
       apps,
-      search_term: searchTerm && searchTerm.trim() !== "" ? searchTerm : null,
+      search_term: searchTerm,
       target_version: targetVersion,
       selected_paths: selectedPaths,
       priority_version: priorityVersion,

@@ -1,182 +1,96 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
-KiraKira Ichigo ("KiraIchi") is a **Windows-only** Tauri-based desktop application for managing Mendix Studio Pro versions, local apps, and widget development. The project combines a Rust backend (via Tauri) with a React frontend using functional programming principles.
+KiraKira Ichigo ("KiraIchi") — **Windows-only** Tauri 데스크톱 앱. Mendix Studio Pro 버전 관리, 로컬 앱 관리, 위젯 개발을 지원한다. Rust 백엔드(Tauri) + React 프론트엔드(함수형 프로그래밍) 구조.
 
-## Build & Development Commands
+## Commands
 
-### Frontend (React + Vite)
-- `bun dev` - Start Vite dev server (port 21420)
-- `bun run build` - Build frontend for production
-- `bun run preview` - Preview production build
-- `bun test` - Run Vitest tests once
-- `bun test:watch` - Run Vitest in watch mode
-- `bun test <file>` - Run specific test file
+```bash
+# Frontend
+bun dev                          # Vite dev server (port 21420)
+bun run build                    # Production build
 
-### Tauri Application
-- `bun tauri dev` - Start Tauri app in development mode (auto-runs `bun dev`)
-- `bun tauri build` - Build production executable (auto-runs `bun run build`)
+# Tauri
+bun tauri dev                    # 개발 모드 (bun dev 자동 실행)
+bun tauri build                  # 프로덕션 빌드
 
-### Rust Backend
-- Tests: `cd src-tauri && cargo test`
-- Single test: `cd src-tauri && cargo test test_name`
-- Manual build: `cd src-tauri && cargo build`
-- Lint: `cd src-tauri && cargo clippy`
-
-## Architecture Overview
-
-### Frontend (React + Ramda + Context API)
-
-**Key Architectural Patterns**:
-- Functional programming with Ramda.js - **mandatory for all code**
-- React Context for state distribution (no prop drilling)
-- Hook composition pattern for complex state management
-- Self-documenting code - minimize comments through clear naming
-
-**Import Conventions**:
-- Import utilities from `src/utils` (e.g., `import { STORAGE_KEYS, wrapAsync } from "../utils"`)
-- Import data processing from specific modules: `import { filterMendixApps } from "../utils/data-processing/appFiltering"`
-- Import Ramda as namespace: `import * as R from "ramda"`
-
-**Data Flow**:
-1. `App.jsx` initializes hooks via `useAppInitialization()` and `useContextValues()`
-2. Context providers wrap the app in this order:
-   - Modal contexts (ModalProvider → StudioProModalProvider → AppModalProvider → WidgetModalProvider → BuildModalProvider)
-   - Data contexts (VersionsProvider → AppProvider → WidgetCollectionProvider → WidgetPreviewProvider → WidgetFormProvider → BuildDeployProvider)
-3. Components consume context via hooks like `useVersionsContext()`, `useAppContext()`
-4. Handlers invoke Rust backend via Tauri `invoke()`
-
-**Hook Composition Pattern**:
-```javascript
-// Composition hook combines sub-hooks
-export function useVersions() {
-  const filters = useVersionFilters();
-  const installed = useInstalledVersions(filters.searchTerm);
-  const operations = useVersionOperations({ onLoadVersions: installed.loadVersions });
-  return { ...filters, ...installed, ...operations };
-}
-```
-- Sub-hooks have single responsibility (pure state, data loading, or operations)
-- Use dependency injection via parameters for callbacks
-- Handler wrapping happens in `useAppInitialization`, not in context value creation
-
-### Backend (Rust + Tauri)
-
-**Module Structure** (`src-tauri/src/`):
-- `mendix/` - Studio Pro version/app management
-  - `models.rs` - MendixVersion, MendixApp structs
-  - `scanner.rs` - Directory scanning, version extraction
-  - `paths.rs` - Path constants and construction
-  - `execution.rs` - Process execution, Tauri commands
-- `web_scraper/` - Mendix versions download (chromiumoxide headless browser)
-  - `config.rs` - Constants, timeouts, URLs
-  - `browser.rs` - BrowserSession lifecycle management
-  - `parsing.rs` - HTML/datagrid parsing
-  - `download.rs` - File download, installer execution
-- `widget_parser/` - widget.xml parsing, property transformation
-- `widget_preview/` - Widget preview build operations
-  - `metadata.rs` - WidgetMetadata parsing, XML id extraction (uses quick_xml)
-  - `bundle.rs` - Widget bundle file reading
-  - `mod.rs` - Tauri command (build_widget_for_preview)
-- `build_deploy/` - Widget build and deployment (parallel via Rayon)
-  - `types.rs` - WidgetInput, AppInput, BuildDeployResult structs
-  - `transform.rs` - Widget/app transformation and extraction functions
-  - `mod.rs` - Tauri commands and orchestration
-- `package_manager/` - npm/pnpm/yarn/bun command execution
-  - `strategies/` - Execution strategies (direct_node, fnm_simple, powershell_fnm, etc.)
-  - `executor.rs` - Strategy execution
-  - `widget_operations.rs` - Widget install/build operations
-- `storage/` - Persistent state (Tauri fs plugin)
-- `data_processing/` - Filtering, pagination, sorting, generic utilities
-  - `widget.rs` - Widget struct and creation
-  - `extractors.rs` - MendixVersion/MendixApp field extractors
-  - `mendix_filters.rs` - Tauri filter commands
-  - `version_utils.rs` - Version comparison and filtering utilities
-- `validation/` - Input validation
-- `formatting/` - Date formatting, version status/badge text
-- `config/` - Package manager configuration types
-- `utils/` - Path utilities, widget copy operations
-
-**Tauri Commands**:
-```javascript
-import { invoke } from "@tauri-apps/api/core";
-const result = await invoke("command_name", { param: value });
-```
-All commands registered in `src-tauri/src/lib.rs` via `invoke_handler!`
-
-## Ramda.js Usage Guidelines
-
-**IMPORTANT**: Ramda.js must be used wherever applicable. Always prefer Ramda functions over native JavaScript methods.
-
-**Required Patterns**:
-- **Conditionals**: `R.ifElse`, `R.when`, `R.unless`, `R.cond` (not `if/else`)
-- **Null checks**: `R.isNil`, `R.complement(R.isNil)` (not `=== null`)
-- **Empty checks**: `R.isEmpty`, `R.complement(R.isEmpty)` (not `.length > 0`)
-- **Property access**: `R.prop`, `R.path`, `R.propOr`, `R.pathOr` (not dot notation)
-- **Array operations**: `R.map`, `R.filter`, `R.find`, `R.reduce`, `R.pluck` (not native methods)
-- **Comparisons**: `R.equals`, `R.propEq`, `R.gt`, `R.lt`, `R.gte`, `R.lte`
-- **Boolean logic**: `R.and`, `R.or`, `R.not`, `R.both`, `R.either`, `R.all`, `R.any`
-- **Function composition**: `R.pipe`, `R.compose`
-- **Side effects in pipes**: `R.tap`
-- **Currying**: `R.curry`
-- **Default values**: `R.defaultTo` (not `|| defaultValue`)
-- **Array manipulation**: `R.append`, `R.prepend`, `R.concat`, `R.remove`
-
-**Common Patterns**:
-```javascript
-// Import convention
-import * as R from "ramda";
-
-// Conditional rendering
-R.ifElse(R.isNil, R.always(null), R.prop("component"))(data)
-
-// Event handler with side effects
-R.pipe(R.path(["target", "value"]), R.tap(setValue), R.tap(doSomething))
-
-// Toggle selection
-R.ifElse(R.propEq(currentId, "id"), R.always(null), R.always(newValue))(prevSelected)
-
-// Safe property access with default
-R.propOr([], "items", data)
+# Rust
+cd src-tauri && cargo test       # 전체 테스트
+cd src-tauri && cargo test <name> # 단일 테스트
+cd src-tauri && cargo clippy     # Lint
 ```
 
-## Implementation Notes
+## Code Style — MUST Follow
+
+### Ramda.js (IMPORTANT)
+
+**모든 프론트엔드 코드에서 Ramda 사용이 필수.** 네이티브 JavaScript 메서드 대신 Ramda를 사용할 것.
+
+- `import * as R from "ramda"` 형태로 import
+- 조건문: `R.ifElse`, `R.when`, `R.cond` (not `if/else`)
+- Null/Empty 체크: `R.isNil`, `R.isEmpty` (not `=== null`, `.length > 0`)
+- 프로퍼티 접근: `R.prop`, `R.path`, `R.propOr`, `R.pathOr` (not dot notation)
+- 배열 연산: `R.map`, `R.filter`, `R.find`, `R.reduce` (not native methods)
+- 비교: `R.equals`, `R.propEq`, `R.gt`, `R.lt`
+- 함수 합성: `R.pipe`, `R.compose`
+- 기본값: `R.defaultTo` (not `|| default`)
+
+기존 코드의 Ramda 패턴을 참고: `src/hooks/`, `src/contexts/`
 
 ### Self-Documenting Code
-- **No JSDoc comments** - Function and parameter names should be descriptive enough
-- **No inline comments** - Code logic should be self-explanatory through clear naming
-- **Descriptive naming** - Use names like `processAppsPipeline`, `useVersionFilters`, `handleBuildDeploy`
-- **Exception**: Complex algorithms or non-obvious business logic may have brief explanations
 
-### State Persistence
-- Use `STORAGE_KEYS` constants for persistent state
-- `saveToStorage(key, value)` / `loadFromStorage(key)` for frontend
-- Backend uses serde_json for serialization
+- **JSDoc 금지**, **인라인 주석 금지** — 명확한 네이밍으로 대체
+- 예외: 복잡한 알고리즘이나 비직관적 비즈니스 로직에만 간략한 설명 허용
 
-### Rust Development
-- All commands: `async fn` returning `Result<T, String>`
-- Use `#[tauri::command]` and register in `lib.rs`
-- Use `rayon` for parallel operations
-- Use `quick_xml` for XML parsing (not string search)
-- Use `semver` crate for version comparisons
-- Prefer zip pattern over index-based iteration for safety
-- Tests are inline in modules using `#[cfg(test)]` (see `widget_parser/mod.rs`, `formatting/mod.rs`, etc.)
+## Architecture — Key Decisions
 
-### CSS Architecture
-- Uses **LightningCSS** (not PostCSS)
-- CSS in `src/styles/` with modular structure
-- Theme system uses Catppuccin palette with CSS variables
+### Frontend State Management (우선순위 순)
 
-## Common Gotchas
+1. **Jotai atoms** (`src/atoms/`) — 모달 상태, 단순 UI 상태
+2. **SWR** (`src/lib/swr.js`) — 서버 상태, 데이터 페칭 + 캐싱
+3. **React Context** — 복합 상태 (버전, 앱, 위젯)
+4. **nanostores** — i18n 로케일 전용
 
-- **Windows paths**: Rust uses `C:\\...` format. Use `\\` for path separators.
-- **Set operations**: Convert JavaScript `Set` to Array before sending to Rust.
-- **Async invoke**: Always `await` Tauri invoke calls; use `wrapAsync` helper for error handling.
-- **LightningCSS**: Don't use PostCSS plugins - Vite config uses lightningcss as CSS transformer.
-- **React 19**: Frontend uses React 19.x with concurrent features.
-- **Tauri plugins**: Import from `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@tauri-apps/plugin-shell`. Backend storage uses native Rust filesystem operations to `%APPDATA%/kirakiraichigo-mendix-manager/app_state.json`.
-- **Package Manager**: Development uses Bun; widget builds support npm, pnpm, yarn, bun (user-selectable).
-- **State Management**: Uses nanostores for i18n (`@nanostores/i18n`, `@nanostores/react`).
+SWR 키는 반드시 `SWR_KEYS` (`src/lib/swr.js`)를 사용할 것. 변이 후 `mutate(SWR_KEYS.KEY)`로 revalidation.
+
+### Frontend → Rust 마이그레이션 (진행 중)
+
+복잡한 비즈니스 로직을 React에서 Rust Tauri 커맨드로 이전하는 중. 프론트엔드는 UI 렌더링에 집중, Rust가 연산과 상태를 처리.
+
+- Collection 연산 → `js_runtime/`
+- Validation → `business_logic/validation/`
+- 상태 관리 → `state/` (Mutex 기반)
+- editorConfig 평가 → `editor_config_parser/` (Boa JS 엔진)
+
+### Hook Composition Pattern
+
+Sub-hook은 단일 책임(상태/데이터 로딩/오퍼레이션). 합성 hook이 이들을 조합. 참고: `src/hooks/useVersions.js`
+
+### i18n
+
+`@nanostores/i18n` 사용. 로케일 파일: `src/i18n/locales/` (en, ko, ja). `useStore(messages)`로 번역 접근.
+
+## Rust Development Rules
+
+- 모든 Tauri 커맨드: `async fn` → `Result<T, String>` 반환
+- `#[tauri::command]` 매크로 사용, `lib.rs`에 등록
+- XML 파싱: `quick_xml` (문자열 검색 금지)
+- 버전 비교: `semver` crate
+- JS 실행: `boa_engine` (editorConfig.ts 평가용)
+- 병렬 처리: `rayon`
+- 반복: zip 패턴 선호 (인덱스 기반 지양)
+- 테스트: 모듈 내 `#[cfg(test)]` 인라인
+
+## Gotchas
+
+- **Mendix 문서**: `https://docs.mendix.com` 대신 GitHub 소스를 사용할 것 — `https://github.com/mendix/docs/blob/development/content/en/docs`
+- **Windows 경로**: Rust에서 `\\` 구분자 사용 (`C:\\Users\\...`)
+- **Set → Array**: JavaScript `Set`을 Rust로 보내기 전 반드시 Array로 변환
+- **Tauri invoke**: 항상 `await`. 데이터 페칭은 `useSWR`, 변이는 `useSWRMutation`
+- **CSS**: LightningCSS 사용 (PostCSS 플러그인 사용 금지). Catppuccin 테마.
+- **React 19**: concurrent features 활성화 상태
+- **패키지 매니저**: 개발은 Bun. 위젯 빌드는 npm/pnpm/yarn/bun (사용자 선택)
+- **Tauri 플러그인**: `@tauri-apps/plugin-dialog`, `plugin-fs`, `plugin-opener`, `plugin-os`, `plugin-shell`
+- **스토리지**: 백엔드는 `%APPDATA%/kirakiraichigo-mendix-manager/app_state.json`에 네이티브 파일 I/O
+- **Drag & Drop**: `@formkit/drag-and-drop`

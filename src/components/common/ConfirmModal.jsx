@@ -115,8 +115,12 @@ const ModalContentComponent = ({
   );
 };
 
-const ConfirmModal = memo(
-  R.ifElse(isModalOpen, ModalContentComponent, R.always(null)),
+const ConfirmModal = memo((props) =>
+  R.ifElse(
+    isModalOpen,
+    (p) => <ModalContentComponent {...p} />,
+    R.always(null),
+  )(props),
 );
 
 ConfirmModal.displayName = "ConfirmModal";

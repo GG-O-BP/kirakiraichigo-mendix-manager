@@ -1,26 +1,33 @@
 import * as R from "ramda";
+import { invoke } from "@tauri-apps/api/core";
 
 const extractEventValue = R.path(["target", "value"]);
 const extractEventChecked = R.path(["target", "checked"]);
 
-const parseIntegerOrEmpty = (value) => (value === "" ? "" : parseInt(value, 10));
-const parseDecimalOrEmpty = (value) => (value === "" ? "" : parseFloat(value));
+const invokeParseIntegerOrEmpty = (value) =>
+  invoke("parse_integer_or_empty", { value: String(value) });
+
+const invokeParseDecimalOrEmpty = (value) =>
+  invoke("parse_decimal_or_empty", { value: String(value) });
+
+const parseValueByTypeAsync = async (event, rawValue, type) => {
+  if (R.equals("boolean", type)) {
+    return extractEventChecked(event);
+  }
+  if (R.equals("integer", type)) {
+    return await invokeParseIntegerOrEmpty(rawValue);
+  }
+  if (R.equals("decimal", type)) {
+    return await invokeParseDecimalOrEmpty(rawValue);
+  }
+  return rawValue;
+};
 
 export const createChangeHandler = R.curry((onChange, event) =>
   R.pipe(extractEventValue, onChange)(event),
 );
 
-const parseValueByType = R.curry((event, rawValue, type) =>
-  R.cond([
-    [R.equals("boolean"), R.always(extractEventChecked(event))],
-    [R.equals("integer"), R.always(parseIntegerOrEmpty(rawValue))],
-    [R.equals("decimal"), R.always(parseDecimalOrEmpty(rawValue))],
-    [R.T, R.always(rawValue)],
-  ])(type),
-);
-
 export const createTypedChangeHandler = R.curry((onChange, type, event) => {
   const rawValue = extractEventValue(event);
-  const parsedValue = parseValueByType(event, rawValue, type);
-  return onChange(parsedValue);
+  parseValueByTypeAsync(event, rawValue, type).then(onChange);
 });

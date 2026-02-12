@@ -1,37 +1,40 @@
 import * as R from "ramda";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { ConfirmModal } from "../../common";
 import WidgetModal from "../WidgetModal";
 import { useI18n } from "../../../i18n/useI18n";
+import { useWidgets, useWidgetForm } from "../../../hooks";
 import {
-  useWidgetModalContext,
-  useWidgetCollectionContext,
-  useWidgetFormContext,
-} from "../../../contexts";
+  showWidgetModalAtom,
+  showAddWidgetFormAtom,
+  showWidgetDeleteModalAtom,
+  widgetToDeleteAtom,
+  closeWidgetDeleteModalAtom,
+} from "../../../atoms";
 
 function WidgetModals() {
   const { t } = useI18n();
-  const {
-    showWidgetModal,
-    showAddWidgetForm,
-    setShowWidgetModal,
-    setShowAddWidgetForm,
-    showWidgetDeleteModal,
-    widgetToDelete,
-    closeWidgetDeleteModal,
-  } = useWidgetModalContext();
+
+  const [showWidgetModal, setShowWidgetModal] = useAtom(showWidgetModalAtom);
+  const [showAddWidgetForm, setShowAddWidgetForm] = useAtom(showAddWidgetFormAtom);
+  const showWidgetDeleteModal = useAtomValue(showWidgetDeleteModalAtom);
+  const widgetToDelete = useAtomValue(widgetToDeleteAtom);
+  const closeWidgetDeleteModal = useSetAtom(closeWidgetDeleteModalAtom);
 
   const {
     setWidgets,
     handleAddWidget,
     handleWidgetDelete,
-  } = useWidgetCollectionContext();
+  } = useWidgets();
 
   const {
     newWidgetCaption,
     setNewWidgetCaption,
     newWidgetPath,
     setNewWidgetPath,
-  } = useWidgetFormContext();
+    resetForm,
+    isValid: isFormValid,
+  } = useWidgetForm();
 
   const handleConfirmAddWidget = () => {
     handleAddWidget(() => {
@@ -73,6 +76,8 @@ function WidgetModals() {
         newWidgetPath={newWidgetPath}
         setNewWidgetPath={setNewWidgetPath}
         setWidgets={setWidgets}
+        resetForm={resetForm}
+        isFormValid={isFormValid}
       />
 
       <ConfirmModal

@@ -9,29 +9,20 @@ export const useWidgetProperties = (selectedWidget, baseProperties = {}, externa
   const {
     dynamicProperties,
     setDynamicProperties,
-    lastLoadedWidgetId,
-    setLastLoadedWidgetId,
-    widgetDefinition,
-    setWidgetDefinition,
-    editorConfigHandler,
-    setEditorConfigHandler,
   } = externalState;
+
   const loader = useWidgetDataLoader(selectedWidget, {
     dynamicProperties,
     setDynamicProperties,
-    lastLoadedWidgetId,
-    setLastLoadedWidgetId,
-    widgetDefinition,
-    setWidgetDefinition,
-    editorConfigHandler,
-    setEditorConfigHandler,
   });
+
   const visibility = usePropertyVisibility({
-    editorConfigHandler: loader.editorConfigHandler,
+    editorConfigContent: loader.editorConfigContent,
     widgetDefinition: loader.widgetDefinition,
     dynamicProperties: loader.dynamicProperties,
     baseProperties,
   });
+
   const groupUI = usePropertyGroupUI(loader.widgetDefinition);
 
   const combinedProperties = R.mergeRight(baseProperties, loader.dynamicProperties);

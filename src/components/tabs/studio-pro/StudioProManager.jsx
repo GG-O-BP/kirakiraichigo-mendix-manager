@@ -1,6 +1,11 @@
 import { memo } from "react";
-import { useVersionFiltering } from "../../../hooks";
-import { useVersionsContext, useModalContext, useAppContext } from "../../../contexts";
+import { useSetAtom } from "jotai";
+import { useVersionFiltering, useVersions, useApps } from "../../../hooks";
+import {
+  openDownloadModalAtom,
+  openAppDeleteModalAtom,
+  useUninstallModalActions,
+} from "../../../atoms";
 import DownloadableVersionsPanel from "./DownloadableVersionsPanel";
 import InstalledVersionsPanel from "./InstalledVersionsPanel";
 import AppsPanel from "./AppsPanel";
@@ -9,12 +14,14 @@ const StudioProManager = memo(() => {
   const {
     searchTerm,
     setSearchTerm,
+    appSearchTerm,
+    setAppSearchTerm,
     versions,
     selectedVersion,
     handleVersionClick,
     downloadableVersions,
     isLoadingDownloadableVersions,
-    versionLoadingStates,
+    getLoadingStateSync,
     handleLaunchStudioPro,
     fetchVersionsFromDatagrid,
     refreshDownloadableVersions,
@@ -26,10 +33,12 @@ const StudioProManager = memo(() => {
     setShowMTSOnly,
     showBetaOnly,
     setShowBetaOnly,
-  } = useVersionsContext();
+  } = useVersions();
 
-  const { openUninstallModal, openDownloadModal, openAppDeleteModal } = useModalContext();
-  const { apps } = useAppContext();
+  const openDownloadModal = useSetAtom(openDownloadModalAtom);
+  const openAppDeleteModal = useSetAtom(openAppDeleteModalAtom);
+  const { openUninstallModal } = useUninstallModalActions();
+  const { apps } = useApps();
 
   const {
     displayedDownloadableVersions,
@@ -41,6 +50,7 @@ const StudioProManager = memo(() => {
     installedVersions: versions,
     apps,
     searchTerm,
+    appSearchTerm,
     showLTSOnly,
     showMTSOnly,
     showBetaOnly,
@@ -56,7 +66,7 @@ const StudioProManager = memo(() => {
         setSearchTerm={setSearchTerm}
         displayedDownloadableVersions={displayedDownloadableVersions}
         installedVersions={versions}
-        versionLoadingStates={versionLoadingStates}
+        getLoadingStateSync={getLoadingStateSync}
         handleDownloadVersion={openDownloadModal}
         loadMoreHandler={loadMoreHandler}
         isLoadingDownloadableVersions={isLoadingDownloadableVersions}
@@ -75,15 +85,15 @@ const StudioProManager = memo(() => {
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         displayedInstalledVersions={displayedInstalledVersions}
-        versionLoadingStates={versionLoadingStates}
+        getLoadingStateSync={getLoadingStateSync}
         handleLaunchStudioPro={handleLaunchStudioPro}
         handleUninstallClick={openUninstallModal}
         handleVersionClick={handleVersionClick}
         selectedVersion={selectedVersion}
       />
       <AppsPanel
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
+        searchTerm={appSearchTerm}
+        setSearchTerm={setAppSearchTerm}
         displayedApps={displayedApps}
         selectedVersion={selectedVersion}
         onDeleteApp={openAppDeleteModal}

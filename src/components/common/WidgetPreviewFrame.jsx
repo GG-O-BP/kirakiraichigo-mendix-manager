@@ -41,31 +41,419 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Widget Preview - ${safeWidgetName}</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
           <style>
-            * {
+            /* ========================================
+               Mendix Atlas UI Base Styles
+               ======================================== */
+
+            /* CSS Variables - Mendix Atlas UI */
+            :root {
+              /* Brand Colors */
+              --brand-default: #DDDDDD;
+              --brand-primary: #0595DB;
+              --brand-inverse: #252C36;
+              --brand-info: #48B0F7;
+              --brand-success: #76CA02;
+              --brand-warning: #f99b1d;
+              --brand-danger: #ed1c24;
+
+              /* Gray Shades */
+              --gray-darker: #222;
+              --gray-dark: #333;
+              --gray: #555;
+              --gray-light: #888;
+              --gray-primary: #d7d7d7;
+              --gray-lighter: #eee;
+
+              /* Typography */
+              --font-family-base: 'Open Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              --font-size-default: 14px;
+              --font-color-default: #555;
+              --line-height-base: 1.428571429;
+
+              /* Spacing */
+              --spacing-small: 5px;
+              --spacing-medium: 15px;
+              --spacing-large: 30px;
+              --gutter-size: 15px;
+
+              /* Form */
+              --form-input-height: 34px;
+              --form-input-padding-x: 8px;
+              --form-input-padding-y: 6px;
+              --form-input-border-color: #CCC;
+              --form-input-border-radius: 4px;
+              --form-input-bg: #FFF;
+
+              /* Background */
+              --bg-color: #FFF;
+              --bg-color-secondary: #F5F8FD;
+            }
+
+            /* Normalize / Reset */
+            *, *::before, *::after {
               box-sizing: border-box;
             }
-            html, body, #widget-root {
+
+            html {
+              font-size: var(--font-size-default);
+              line-height: var(--line-height-base);
+              -webkit-text-size-adjust: 100%;
+              -webkit-tap-highlight-color: rgba(0,0,0,0);
+            }
+
+            body {
               margin: 0;
-              padding: 0;
+              font-family: var(--font-family-base);
+              font-size: var(--font-size-default);
+              font-weight: 400;
+              line-height: var(--line-height-base);
+              color: var(--font-color-default);
+              background-color: var(--bg-color);
+            }
+
+            html, body, #widget-root {
               width: 100%;
               height: 100%;
             }
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-              background: white;
+
+            /* Typography */
+            h1, h2, h3, h4, h5, h6 {
+              margin-top: 0;
+              margin-bottom: 10px;
+              font-weight: 500;
+              line-height: 1.2;
+              color: var(--gray-darker);
             }
+            h1 { font-size: 31px; }
+            h2 { font-size: 26px; }
+            h3 { font-size: 24px; }
+            h4 { font-size: 18px; }
+            h5 { font-size: 14px; }
+            h6 { font-size: 12px; }
+
+            p {
+              margin-top: 0;
+              margin-bottom: 10px;
+            }
+
+            a {
+              color: var(--brand-primary);
+              text-decoration: none;
+            }
+            a:hover, a:focus {
+              color: #0477ab;
+              text-decoration: underline;
+            }
+
+            /* Lists */
+            ul, ol {
+              margin-top: 0;
+              margin-bottom: 10px;
+              padding-left: 20px;
+            }
+
+            /* Tables */
+            table {
+              border-collapse: collapse;
+              border-spacing: 0;
+              width: 100%;
+              max-width: 100%;
+              margin-bottom: 20px;
+              background-color: transparent;
+            }
+            th, td {
+              padding: 8px;
+              line-height: var(--line-height-base);
+              vertical-align: top;
+              border-top: 1px solid #ddd;
+            }
+            th {
+              text-align: left;
+              font-weight: 600;
+              background-color: #f9f9f9;
+            }
+
+            /* Form Controls */
+            label {
+              display: inline-block;
+              max-width: 100%;
+              margin-bottom: 5px;
+              font-weight: 600;
+              color: var(--gray-dark);
+            }
+
+            input[type="text"],
+            input[type="password"],
+            input[type="email"],
+            input[type="number"],
+            input[type="search"],
+            input[type="tel"],
+            input[type="url"],
+            input[type="date"],
+            input[type="datetime-local"],
+            input[type="time"],
+            textarea,
+            select {
+              display: block;
+              width: 100%;
+              height: var(--form-input-height);
+              padding: var(--form-input-padding-y) var(--form-input-padding-x);
+              font-size: var(--font-size-default);
+              font-family: var(--font-family-base);
+              line-height: var(--line-height-base);
+              color: var(--gray-dark);
+              background-color: var(--form-input-bg);
+              background-image: none;
+              border: 1px solid var(--form-input-border-color);
+              border-radius: var(--form-input-border-radius);
+              transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            }
+
+            input:focus,
+            textarea:focus,
+            select:focus {
+              border-color: var(--brand-primary);
+              outline: 0;
+              box-shadow: 0 0 0 3px rgba(5, 149, 219, 0.25);
+            }
+
+            input::placeholder,
+            textarea::placeholder {
+              color: var(--gray-light);
+              opacity: 1;
+            }
+
+            input:disabled,
+            textarea:disabled,
+            select:disabled {
+              background-color: var(--gray-lighter);
+              opacity: 1;
+              cursor: not-allowed;
+            }
+
+            textarea {
+              height: auto;
+              min-height: 80px;
+              resize: vertical;
+            }
+
+            select {
+              cursor: pointer;
+            }
+
+            /* Checkboxes & Radios */
+            input[type="checkbox"],
+            input[type="radio"] {
+              width: 16px;
+              height: 16px;
+              margin: 0 8px 0 0;
+              cursor: pointer;
+              vertical-align: middle;
+            }
+
+            /* Buttons */
+            button,
+            input[type="button"],
+            input[type="submit"],
+            input[type="reset"],
+            .btn {
+              display: inline-block;
+              margin-bottom: 0;
+              font-family: var(--font-family-base);
+              font-size: var(--font-size-default);
+              font-weight: 400;
+              line-height: var(--line-height-base);
+              text-align: center;
+              white-space: nowrap;
+              vertical-align: middle;
+              touch-action: manipulation;
+              cursor: pointer;
+              user-select: none;
+              background-image: none;
+              border: 1px solid transparent;
+              border-radius: var(--form-input-border-radius);
+              padding: 6px 12px;
+              transition: all 0.15s ease-in-out;
+            }
+
+            /* Default button */
+            button,
+            .btn {
+              color: var(--gray-dark);
+              background-color: var(--brand-default);
+              border-color: #ccc;
+            }
+            button:hover,
+            .btn:hover {
+              background-color: #c4c4c4;
+              border-color: #adadad;
+            }
+            button:focus,
+            .btn:focus {
+              outline: 0;
+              box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+            }
+            button:active,
+            .btn:active {
+              background-color: #b8b8b8;
+            }
+            button:disabled,
+            .btn:disabled {
+              cursor: not-allowed;
+              opacity: 0.65;
+            }
+
+            /* Primary button */
+            .btn-primary,
+            button.btn-primary {
+              color: #fff;
+              background-color: var(--brand-primary);
+              border-color: var(--brand-primary);
+            }
+            .btn-primary:hover {
+              background-color: #0477ab;
+              border-color: #046a9a;
+            }
+
+            /* Success button */
+            .btn-success,
+            button.btn-success {
+              color: #fff;
+              background-color: var(--brand-success);
+              border-color: var(--brand-success);
+            }
+            .btn-success:hover {
+              background-color: #5fa002;
+              border-color: #548e02;
+            }
+
+            /* Danger button */
+            .btn-danger,
+            button.btn-danger {
+              color: #fff;
+              background-color: var(--brand-danger);
+              border-color: var(--brand-danger);
+            }
+            .btn-danger:hover {
+              background-color: #c9151c;
+              border-color: #b81319;
+            }
+
+            /* Warning button */
+            .btn-warning,
+            button.btn-warning {
+              color: #fff;
+              background-color: var(--brand-warning);
+              border-color: var(--brand-warning);
+            }
+            .btn-warning:hover {
+              background-color: #e08a0b;
+              border-color: #ce7f0a;
+            }
+
+            /* Info button */
+            .btn-info,
+            button.btn-info {
+              color: #fff;
+              background-color: var(--brand-info);
+              border-color: var(--brand-info);
+            }
+            .btn-info:hover {
+              background-color: #1a9ff4;
+              border-color: #0d96ed;
+            }
+
+            /* Inverse button */
+            .btn-inverse,
+            button.btn-inverse {
+              color: #fff;
+              background-color: var(--brand-inverse);
+              border-color: var(--brand-inverse);
+            }
+            .btn-inverse:hover {
+              background-color: #161a1e;
+              border-color: #0d0f11;
+            }
+
+            /* Alerts */
+            .alert {
+              padding: 15px;
+              margin-bottom: 20px;
+              border: 1px solid transparent;
+              border-radius: var(--form-input-border-radius);
+            }
+            .alert-success {
+              color: #3c763d;
+              background-color: #dff0d8;
+              border-color: #d6e9c6;
+            }
+            .alert-info {
+              color: #31708f;
+              background-color: #d9edf7;
+              border-color: #bce8f1;
+            }
+            .alert-warning {
+              color: #8a6d3b;
+              background-color: #fcf8e3;
+              border-color: #faebcc;
+            }
+            .alert-danger {
+              color: #a94442;
+              background-color: #f2dede;
+              border-color: #ebccd1;
+            }
+
+            /* Utility Classes */
+            .text-left { text-align: left; }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .text-muted { color: var(--gray-light); }
+            .text-primary { color: var(--brand-primary); }
+            .text-success { color: var(--brand-success); }
+            .text-info { color: var(--brand-info); }
+            .text-warning { color: var(--brand-warning); }
+            .text-danger { color: var(--brand-danger); }
+
+            .pull-left { float: left; }
+            .pull-right { float: right; }
+            .clearfix::after {
+              display: block;
+              clear: both;
+              content: "";
+            }
+
+            .hidden { display: none !important; }
+            .visible { display: block !important; }
+
+            /* Spacing utilities */
+            .m-0 { margin: 0; }
+            .mt-1 { margin-top: var(--spacing-small); }
+            .mt-2 { margin-top: var(--spacing-medium); }
+            .mt-3 { margin-top: var(--spacing-large); }
+            .mb-1 { margin-bottom: var(--spacing-small); }
+            .mb-2 { margin-bottom: var(--spacing-medium); }
+            .mb-3 { margin-bottom: var(--spacing-large); }
+            .p-0 { padding: 0; }
+            .p-1 { padding: var(--spacing-small); }
+            .p-2 { padding: var(--spacing-medium); }
+            .p-3 { padding: var(--spacing-large); }
+
+            /* Preview States */
             .preview-error {
-              color: #d32f2f;
+              color: var(--brand-danger);
               padding: 16px;
               background: #ffebee;
-              border-radius: 4px;
-              border-left: 4px solid #d32f2f;
+              border-radius: var(--form-input-border-radius);
+              border-left: 4px solid var(--brand-danger);
             }
             .preview-loading {
               text-align: center;
               padding: 32px;
-              color: #666;
+              color: var(--gray-light);
             }
           </style>
           <style>
@@ -73,6 +461,21 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
           </style>
         </head>
         <body>
+          <!-- Hidden elements for SpreadJS to read CSS styles via getComputedStyle -->
+          <div style="position:absolute;left:-9999px;top:-9999px;visibility:hidden;">
+            <div class="gc-colHeaderFill"></div>
+            <div class="gc-rowHeaderFill"></div>
+            <div class="gc-selection"></div>
+            <div class="gc-gridlineColor"></div>
+            <div class="gc-corner-normal"></div>
+            <div class="gc-grayArea"></div>
+            <div class="gc-columnHeader-normal"></div>
+            <div class="gc-columnHeader-hover"></div>
+            <div class="gc-columnHeader-selected"></div>
+            <div class="gc-rowHeader-normal"></div>
+            <div class="gc-rowHeader-hover"></div>
+            <div class="gc-rowHeader-selected"></div>
+          </div>
           <div id="widget-root">
             <div class="preview-loading">Loading widget...</div>
           </div>
@@ -180,9 +583,10 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                 };
                 window.define.amd = true;
 
-                ${safeBundle}
+                const executeBundle = () => {
+                  ${safeBundle}
 
-                window.define = originalDefine;
+                  window.define = originalDefine;
 
                 const container = document.getElementById('widget-root');
                 if (!container) {
@@ -622,6 +1026,10 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                       mappedItem[itemKey] = createMockTextTemplate(itemValue);
                     } else if (itemPropType === 'expression') {
                       mappedItem[itemKey] = createMockExpression(itemValue);
+                    } else if (itemPropType === 'integer') {
+                      mappedItem[itemKey] = parseInt(itemValue, 10) || 0;
+                    } else if (itemPropType === 'decimal') {
+                      mappedItem[itemKey] = parseFloat(itemValue) || 0;
                     } else {
                       mappedItem[itemKey] = itemValue;
                     }
@@ -660,6 +1068,10 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                       } else {
                         widgetProps[key] = value;
                       }
+                    } else if (propType === 'integer') {
+                      widgetProps[key] = parseInt(value, 10) || 0;
+                    } else if (propType === 'decimal') {
+                      widgetProps[key] = parseFloat(value) || 0;
                     } else {
                       widgetProps[key] = value;
                     }
@@ -718,7 +1130,9 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
 
                 const initialProps = ${safeProperties};
                 const initialDefinition = ${safeWidgetDefinition};
+
                 const widgetProps = mapPropsToWidgetFormat(initialProps, initialDefinition);
+
                 root.render(React.createElement(Widget, widgetProps));
 
                 window.addEventListener('message', (event) => {
@@ -736,6 +1150,21 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
                 });
 
                 window.parent.postMessage({ type: 'IFRAME_READY' }, '*');
+                };
+
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    try {
+                      executeBundle();
+                    } catch (error) {
+                      console.error('[Widget Preview] Bundle execution error:', error);
+                      const container = document.getElementById('widget-root');
+                      if (container) {
+                        container.innerHTML = '<div class="preview-error"><strong>Preview Error</strong><br/>' + error.message + '</div>';
+                      }
+                    }
+                  });
+                });
 
               } catch (error) {
                 console.error('[Widget Preview] Error:', error);

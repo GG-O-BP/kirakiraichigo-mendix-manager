@@ -1,24 +1,20 @@
 import { memo } from "react";
-import {
-  useAppContext,
-  useWidgetCollectionContext,
-  useWidgetFormContext,
-  useBuildDeployContext,
-  useModalContext,
-  useVersionsContext,
-} from "../../../contexts";
+import { useAtom, useSetAtom } from "jotai";
+import { useVersions, useApps, useWidgets, useBuildDeploy } from "../../../hooks";
+import { useWidgetForm } from "../../../hooks/useWidgetForm";
 import { useDistExistsCheck } from "../../../hooks/build-deploy";
+import {
+  showWidgetModalAtom,
+  showAddWidgetFormAtom,
+  openWidgetDeleteModalAtom,
+  openAppDeleteModalAtom,
+} from "../../../atoms";
 import AppsSelectionPanel from "./AppsSelectionPanel";
 import WidgetsSelectionPanel from "./WidgetsSelectionPanel";
 import BuildDeploySection from "./BuildDeploySection";
 
 const WidgetManager = memo(() => {
-  const appContext = useAppContext();
-  const widgetCollectionContext = useWidgetCollectionContext();
-  const widgetFormContext = useWidgetFormContext();
-  const buildDeployContext = useBuildDeployContext();
-  const modalContext = useModalContext();
-  const { versions } = useVersionsContext();
+  const { versions } = useVersions();
 
   const {
     filteredApps,
@@ -28,7 +24,8 @@ const WidgetManager = memo(() => {
     versionFilter,
     setVersionFilter,
     handleAppClick,
-  } = appContext;
+    isAppSelected,
+  } = useApps();
 
   const {
     widgets,
@@ -38,9 +35,11 @@ const WidgetManager = memo(() => {
     setSelectedWidgets,
     widgetSearchTerm,
     setWidgetSearchTerm,
-  } = widgetCollectionContext;
+    toggleWidgetSelection,
+    isWidgetSelected,
+  } = useWidgets();
 
-  const { setNewWidgetCaption, setNewWidgetPath } = widgetFormContext;
+  const { setNewWidgetCaption, setNewWidgetPath } = useWidgetForm();
 
   const {
     packageManager,
@@ -54,16 +53,14 @@ const WidgetManager = memo(() => {
     inlineResults,
     setInlineResults,
     lastOperationType,
-  } = buildDeployContext;
+  } = useBuildDeploy();
 
   const { allDistExist } = useDistExistsCheck({ selectedWidgets, widgets });
 
-  const {
-    setShowWidgetModal,
-    setShowAddWidgetForm,
-    handleWidgetDeleteClick,
-    openAppDeleteModal,
-  } = modalContext;
+  const [, setShowWidgetModal] = useAtom(showWidgetModalAtom);
+  const [, setShowAddWidgetForm] = useAtom(showAddWidgetFormAtom);
+  const handleWidgetDeleteClick = useSetAtom(openWidgetDeleteModalAtom);
+  const openAppDeleteModal = useSetAtom(openAppDeleteModalAtom);
 
   const modalHandlers = {
     setShowWidgetModal,
@@ -84,17 +81,19 @@ const WidgetManager = memo(() => {
         setVersionFilter={setVersionFilter}
         handleAppClick={handleAppClick}
         onDeleteApp={openAppDeleteModal}
+        isAppSelected={isAppSelected}
       />
       <WidgetsSelectionPanel
         widgets={widgets}
         setWidgets={setWidgets}
         filteredWidgets={filteredWidgets}
         selectedWidgets={selectedWidgets}
-        setSelectedWidgets={setSelectedWidgets}
         widgetSearchTerm={widgetSearchTerm}
         setWidgetSearchTerm={setWidgetSearchTerm}
         handleWidgetDeleteClick={handleWidgetDeleteClick}
         modalHandlers={modalHandlers}
+        toggleWidgetSelection={toggleWidgetSelection}
+        isWidgetSelected={isWidgetSelected}
       />
       <BuildDeploySection
         packageManager={packageManager}

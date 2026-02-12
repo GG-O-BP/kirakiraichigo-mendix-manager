@@ -7,7 +7,7 @@ export async function processWidgetsPipeline(
   return await invoke("process_widgets_pipeline", {
     params: {
       widgets,
-      search_term: searchTerm && searchTerm.trim() !== "" ? searchTerm : null,
+      search_term: searchTerm,
       selected_ids: selectedIds,
       order,
     },

@@ -20,18 +20,6 @@ const invokeCreateVersionOptions = async (versions) =>
 const invokeFormatDate = async (dateStr) =>
   invoke("format_date", { dateStr });
 
-const isAppSelected = R.curry((selectedApps, app) =>
-  selectedApps.has(R.prop("path", app)),
-);
-
-const getAppClassName = R.curry((selectedApps, app) =>
-  R.join(" ", [
-    "version-list-item",
-    "widget-item-clickable",
-    isAppSelected(selectedApps, app) ? "selected" : "",
-  ]),
-);
-
 const createAppClickHandler = R.curry((handleAppClick, app, e) =>
   R.pipe(
     R.tap(() => e.preventDefault()),
@@ -49,9 +37,12 @@ const executeWithStoppedPropagation = R.curry((onClick, e) =>
   )(e),
 );
 
-const renderAppIcon = R.curry((selectedApps, app) =>
-  isAppSelected(selectedApps, app) ? "☑️" : "📁",
-);
+const getAppClassName = (isSelected) =>
+  R.join(" ", [
+    "version-list-item",
+    "widget-item-clickable",
+    isSelected ? "selected" : "",
+  ]);
 
 const renderVersionBadge = R.ifElse(
   R.prop("version"),
@@ -72,7 +63,7 @@ const renderAppDeleteButton = R.curry((onDelete, app, t) => (
   </button>
 ));
 
-const AppListItem = memo(({ app, selectedApps, handleAppClick, onDelete, t }) => {
+const AppListItem = memo(({ app, isSelected, handleAppClick, onDelete, t }) => {
   const [formattedDate, setFormattedDate] = useState(R.pathOr("Loading...", ["common", "loading"], t));
 
   useEffect(() => {
@@ -81,13 +72,15 @@ const AppListItem = memo(({ app, selectedApps, handleAppClick, onDelete, t }) =>
       .catch(() => setFormattedDate(R.pathOr("Date unknown", ["common", "dateUnknown"], t)));
   }, [app.last_modified, t]);
 
+  const icon = isSelected ? "☑️" : "📁";
+
   return (
     <div
-      className={getAppClassName(selectedApps, app)}
+      className={getAppClassName(isSelected)}
       onClick={createAppClickHandler(handleAppClick, app)}
     >
       <div className="version-info">
-        <span className="version-icon">{renderAppIcon(selectedApps, app)}</span>
+        <span className="version-icon">{icon}</span>
         <div className="version-details">
           <span className="version-number">{R.prop("name", app)}</span>
           <span className="version-date">
@@ -107,7 +100,7 @@ const AppListItem = memo(({ app, selectedApps, handleAppClick, onDelete, t }) =>
 
 AppListItem.displayName = "AppListItem";
 
-const renderAppsList = R.curry((selectedApps, handleAppClick, onDelete, apps, t) =>
+const renderAppsList = R.curry((isAppSelected, handleAppClick, onDelete, apps, t) =>
   R.ifElse(
     R.isEmpty,
     () => renderLoadingIndicator("🍓", R.pathOr("No Mendix apps found", ["apps", "noAppsFound"], t)),
@@ -116,7 +109,7 @@ const renderAppsList = R.curry((selectedApps, handleAppClick, onDelete, apps, t)
         <AppListItem
           key={R.prop("path", app)}
           app={app}
-          selectedApps={selectedApps}
+          isSelected={isAppSelected(app)}
           handleAppClick={handleAppClick}
           onDelete={onDelete}
           t={t}
@@ -130,13 +123,13 @@ const renderAppsList = R.curry((selectedApps, handleAppClick, onDelete, apps, t)
 const AppsSelectionPanel = memo(({
   versions,
   filteredApps,
-  selectedApps,
   appSearchTerm,
   setAppSearchTerm,
   versionFilter,
   setVersionFilter,
   handleAppClick,
   onDeleteApp,
+  isAppSelected,
 }) => {
   const { t } = useI18n();
   const defaultVersionFilter = {
@@ -174,7 +167,7 @@ const AppsSelectionPanel = memo(({
     key: "apps",
     className: "list-container",
     searchControls,
-    content: renderAppsList(selectedApps, handleAppClick, onDeleteApp, filteredApps, t),
+    content: renderAppsList(isAppSelected, handleAppClick, onDeleteApp, filteredApps, t),
   });
 });
 

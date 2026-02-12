@@ -1,31 +1,34 @@
 import * as R from "ramda";
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect } from "react";
+import { useAtom } from "jotai";
+import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
-import { STORAGE_KEYS, wrapAsync } from "../utils";
+import { SWR_KEYS } from "../lib/swr";
 import { processAppsPipeline } from "../utils/data-processing/appFiltering";
 import { useCollection } from "./useCollection";
+import { appVersionFilterAtom, targetVersionAtom } from "../atoms/apps";
+
+const fetchInstalledApps = () => invoke("get_installed_mendix_apps");
 
 export function useApps() {
   const collection = useCollection({
-    selectionStorageKey: STORAGE_KEYS.SELECTED_APPS,
+    selectionType: "apps",
     getItemId: R.prop("path"),
   });
 
-  const [versionFilter, setVersionFilter] = useState("all");
+  const [versionFilter, setVersionFilter] = useAtom(appVersionFilterAtom);
+  const [targetVersion] = useAtom(targetVersionAtom);
 
-  const loadApps = useCallback(
-    wrapAsync(
-      (error) => console.error("Failed to load apps:", error),
-      R.pipeWith(R.andThen, [
-        () => invoke("get_installed_mendix_apps"),
-        collection.setItems,
-      ]),
-    ),
-    [collection.setItems],
-  );
+  const {
+    data: apps = [],
+    isLoading,
+    mutate,
+  } = useSWR(SWR_KEYS.APPS, fetchInstalledApps, {
+    onSuccess: collection.setItems,
+  });
 
   const handleAppClick = useCallback(
-    R.pipe(collection.toggleSelection),
+    collection.toggleSelection,
     [collection.toggleSelection],
   );
 
@@ -33,34 +36,28 @@ export function useApps() {
     async (appPath) => {
       try {
         await invoke("delete_mendix_app", { appPath });
-        await loadApps();
-
+        await mutate();
         collection.removeFromSelection({ path: appPath });
         return true;
-      } catch (error) {
-        console.error("Failed to delete app:", error);
-        throw error;
+      } catch (err) {
+        console.error("Failed to delete app:", err);
+        throw err;
       }
     },
-    [loadApps, collection.removeFromSelection],
+    [mutate, collection.removeFromSelection],
   );
 
   useEffect(() => {
     const processApps = async () => {
       try {
-        const targetVersion = R.ifElse(
-          R.equals("all"),
-          R.always(null),
-          R.identity,
-        )(versionFilter);
         const filtered = await processAppsPipeline(collection.items, {
           searchTerm: collection.searchTerm,
           targetVersion,
           onlyValid: true,
         });
         collection.setFilteredItems(filtered);
-      } catch (error) {
-        console.error("Failed to filter apps:", error);
+      } catch (err) {
+        console.error("Failed to filter apps:", err);
         collection.setFilteredItems(collection.items);
       }
     };
@@ -70,13 +67,13 @@ export function useApps() {
       processApps,
       () => collection.setFilteredItems([]),
     )(collection.items);
-  }, [collection.items, versionFilter, collection.searchTerm]);
+  }, [collection.items, targetVersion, collection.searchTerm]);
 
   return {
     apps: collection.items,
     setApps: collection.setItems,
     filteredApps: collection.filteredItems,
-    loadApps,
+    loadApps: mutate,
     appSearchTerm: collection.searchTerm,
     setAppSearchTerm: collection.setSearchTerm,
     versionFilter,
@@ -85,5 +82,7 @@ export function useApps() {
     setSelectedApps: collection.setSelectedItems,
     handleAppClick,
     handleDeleteApp,
+    isAppSelected: collection.isSelected,
+    isLoading,
   };
 }

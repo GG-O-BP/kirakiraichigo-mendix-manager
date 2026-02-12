@@ -1,4 +1,3 @@
-import * as R from "ramda";
 import {
   useVersionFilters,
   useVersionSelection,
@@ -12,7 +11,7 @@ export function useVersions() {
   const installed = useInstalledVersions(filters.searchTerm);
   const downloadable = useDownloadableVersions();
   const selection = useVersionSelection();
-  const operations = useVersionOperations({ onLoadVersions: installed.loadVersions });
+  const operations = useVersionOperations();
 
   return {
     versions: installed.versions,
@@ -24,6 +23,8 @@ export function useVersions() {
     refreshDownloadableVersions: downloadable.refreshVersions,
     searchTerm: filters.searchTerm,
     setSearchTerm: filters.setSearchTerm,
+    appSearchTerm: filters.appSearchTerm,
+    setAppSearchTerm: filters.setAppSearchTerm,
     showOnlyDownloadableVersions: filters.showOnlyDownloadableVersions,
     setShowOnlyDownloadableVersions: filters.setShowOnlyDownloadableVersions,
     showLTSOnly: filters.showLTSOnly,
@@ -34,10 +35,12 @@ export function useVersions() {
     setShowBetaOnly: filters.setShowBetaOnly,
     selectedVersion: selection.selectedVersion,
     handleVersionClick: selection.handleVersionClick,
-    versionLoadingStates: operations.versionLoadingStates,
-    setVersionLoadingStates: operations.setVersionLoadingStates,
+    getLoadingStateSync: operations.getLoadingStateSync,
     handleLaunchStudioPro: operations.handleLaunchStudioPro,
     handleUninstallStudioPro: operations.handleUninstallStudioPro,
     handleModalDownload: operations.handleModalDownload,
+    isDownloading: operations.isDownloading,
+    isUninstalling: operations.isUninstalling,
+    isLaunching: operations.isLaunching,
   };
 }

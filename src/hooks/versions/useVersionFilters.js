@@ -1,15 +1,26 @@
-import { useState } from "react";
+import { useAtom } from "jotai";
+import {
+  versionSearchTermAtom,
+  appSearchTermAtom,
+  showOnlyDownloadableVersionsAtom,
+  showLTSOnlyAtom,
+  showMTSOnlyAtom,
+  showBetaOnlyAtom,
+} from "../../atoms";
 
 export function useVersionFilters() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showOnlyDownloadableVersions, setShowOnlyDownloadableVersions] = useState(false);
-  const [showLTSOnly, setShowLTSOnly] = useState(false);
-  const [showMTSOnly, setShowMTSOnly] = useState(false);
-  const [showBetaOnly, setShowBetaOnly] = useState(false);
+  const [searchTerm, setSearchTerm] = useAtom(versionSearchTermAtom);
+  const [appSearchTerm, setAppSearchTerm] = useAtom(appSearchTermAtom);
+  const [showOnlyDownloadableVersions, setShowOnlyDownloadableVersions] = useAtom(showOnlyDownloadableVersionsAtom);
+  const [showLTSOnly, setShowLTSOnly] = useAtom(showLTSOnlyAtom);
+  const [showMTSOnly, setShowMTSOnly] = useAtom(showMTSOnlyAtom);
+  const [showBetaOnly, setShowBetaOnly] = useAtom(showBetaOnlyAtom);
 
   return {
     searchTerm,
     setSearchTerm,
+    appSearchTerm,
+    setAppSearchTerm,
     showOnlyDownloadableVersions,
     setShowOnlyDownloadableVersions,
     showLTSOnly,

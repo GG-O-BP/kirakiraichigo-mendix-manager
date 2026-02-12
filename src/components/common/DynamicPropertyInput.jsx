@@ -1,51 +1,13 @@
 import * as R from "ramda";
 import { memo, useEffect, useMemo } from "react";
 import { createTypedChangeHandler } from "../../utils";
+import { validatePropertyValue, validateJson } from "../../schemas";
 import Dropdown from "./Dropdown";
 import ObjectListPropertyInput from "./ObjectListPropertyInput";
 
 const DECIMAL_STEP = 0.01;
 const INTEGER_STEP = 1;
 const DECIMAL_PRECISION_MULTIPLIER = 100;
-
-const validateInput = R.curry((property, value) => {
-  const type = R.prop("type", property);
-
-  return R.cond([
-    [
-      R.equals("integer"),
-      () => {
-        if (value === "" || R.isNil(value))
-          return { isValid: true, error: null };
-        const num = parseInt(value, 10);
-        return isNaN(num)
-          ? { isValid: false, error: "Must be a valid integer" }
-          : { isValid: true, error: null };
-      },
-    ],
-    [
-      R.equals("decimal"),
-      () => {
-        if (value === "" || R.isNil(value))
-          return { isValid: true, error: null };
-        const num = parseFloat(value);
-        return isNaN(num)
-          ? { isValid: false, error: "Must be a valid decimal number" }
-          : { isValid: true, error: null };
-      },
-    ],
-    [
-      R.equals("enumeration"),
-      () => {
-        const options = R.prop("options", property);
-        return value === "" || R.isNil(value) || R.includes(value, options)
-          ? { isValid: true, error: null }
-          : { isValid: false, error: "Must be one of the available options" };
-      },
-    ],
-    [R.T, R.always({ isValid: true, error: null })],
-  ])(type);
-});
 
 const renderTextInput = R.curry((property, value, onChange, disabled) => (
   <div className="text-input-container">
@@ -201,16 +163,7 @@ const DatasourceTextarea = ({ value, onChange, disabled }) => {
     onChange(newValue);
   };
 
-  const isValidJson = R.tryCatch(
-    R.pipe(JSON.parse, R.always(true)),
-    R.always(false),
-  );
-
-  const jsonValid = R.ifElse(
-    R.either(R.isNil, R.isEmpty),
-    R.always(true),
-    isValidJson,
-  )(value);
+  const jsonValid = validateJson(value);
 
   return (
     <div className="datasource-textarea-container">
@@ -381,7 +334,7 @@ const DynamicPropertyInput = memo(
     const isObjectList = R.and(R.equals("object", type), isList);
 
     const validation = showValidation
-      ? validateInput(property, value)
+      ? validatePropertyValue(property, value)
       : { isValid: true, error: null };
 
     const inputElement = useMemo(() => {

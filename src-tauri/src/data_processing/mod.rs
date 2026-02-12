@@ -23,30 +23,6 @@ pub struct FilterOptions {
     pub version: Option<VersionFilter>,
 }
 
-fn normalize_text(text: &str, case_sensitive: bool) -> String {
-    if case_sensitive {
-        text.to_string()
-    } else {
-        text.to_lowercase()
-    }
-}
-
-fn text_contains(haystack: &str, needle: &str, case_sensitive: bool) -> bool {
-    let normalized_haystack = normalize_text(haystack, case_sensitive);
-    let normalized_needle = normalize_text(needle, case_sensitive);
-    normalized_haystack.contains(&normalized_needle)
-}
-
-fn extract_searchable_fields<F>(item: &F, extractors: &[fn(&F) -> Option<String>]) -> Vec<String>
-where
-    F: Clone,
-{
-    extractors
-        .iter()
-        .filter_map(|extractor| extractor(item))
-        .collect()
-}
-
 fn matches_search_term<F>(
     item: &F,
     search_term: &str,
@@ -60,11 +36,20 @@ where
         return true;
     }
 
-    let searchable_fields = extract_searchable_fields(item, extractors);
+    let normalized_needle = if case_sensitive {
+        search_term.to_string()
+    } else {
+        search_term.to_lowercase()
+    };
 
-    searchable_fields
-        .iter()
-        .any(|field| text_contains(field, search_term, case_sensitive))
+    extractors.iter().filter_map(|extractor| extractor(item)).any(|field| {
+        let normalized_field = if case_sensitive {
+            field
+        } else {
+            field.to_lowercase()
+        };
+        normalized_field.contains(&normalized_needle)
+    })
 }
 
 pub fn filter_by_search<F>(
@@ -106,7 +91,6 @@ fn parse_version(version_string: &str) -> Option<SemanticVersion> {
     let major = parts[0].parse::<u32>().ok()?;
     let minor = parts[1].parse::<u32>().ok()?;
 
-    // Handle patch version with possible extra (e.g., "0-beta")
     let patch_parts: Vec<&str> = parts[2].split('-').collect();
     let patch = patch_parts[0].parse::<u32>().ok()?;
     let extra = if patch_parts.len() > 1 {
@@ -125,7 +109,7 @@ fn parse_version(version_string: &str) -> Option<SemanticVersion> {
 
 fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
     match (parse_version(a), parse_version(b)) {
-        (Some(va), Some(vb)) => vb.cmp(&va), // Descending order
+        (Some(va), Some(vb)) => vb.cmp(&va),
         (Some(_), None) => std::cmp::Ordering::Less,
         (None, Some(_)) => std::cmp::Ordering::Greater,
         (None, None) => b.cmp(a),
@@ -148,7 +132,6 @@ where
         let version_cmp = compare_versions(&version_a, &version_b);
 
         if version_cmp == std::cmp::Ordering::Equal {
-            // If versions are equal, sort by date
             match (date_extractor(a), date_extractor(b)) {
                 (Some(date_a), Some(date_b)) => date_b.cmp(&date_a),
                 (Some(_), None) => std::cmp::Ordering::Less,
@@ -187,7 +170,6 @@ where
     items.into_iter().filter(is_valid_extractor).collect()
 }
 
-/// Filter items by a set of keys using a key extractor function
 pub fn filter_by_key_set<T, K>(
     items: &[T],
     keys: &[K],
@@ -219,7 +201,6 @@ where
 {
     let mut result = items;
 
-    // Apply version filter first
     if let Some(version_filter) = &filter_options.version {
         if version_filter.only_valid {
             result = filter_valid_items(result, is_valid_extractor);
@@ -230,12 +211,10 @@ where
         }
     }
 
-    // Apply search filter
     if let Some(search_filter) = &filter_options.search {
         result = filter_by_search(result, search_filter, search_extractors);
     }
 
-    // Sort by version with date fallback
     sort_by_version_with_date_fallback(result, version_extractor, date_extractor)
 }
 
@@ -260,17 +239,23 @@ mod tests {
 
         assert_eq!(
             compare_versions("10.4.0", "10.3.0"),
-            Ordering::Less // 10.4.0 is greater, but descending
+            Ordering::Less
         );
         assert_eq!(compare_versions("10.3.0", "10.4.0"), Ordering::Greater);
         assert_eq!(compare_versions("10.4.0", "10.4.0"), Ordering::Equal);
     }
 
     #[test]
-    fn test_text_contains() {
-        assert!(text_contains("Hello World", "world", false));
-        assert!(!text_contains("Hello World", "world", true));
-        assert!(text_contains("Hello World", "World", true));
+    fn test_matches_search_term() {
+        #[allow(clippy::ptr_arg)]
+        fn name_extractor(s: &String) -> Option<String> {
+            Some(s.clone())
+        }
+
+        let item = "Hello World".to_string();
+        assert!(matches_search_term(&item, "world", false, &[name_extractor]));
+        assert!(!matches_search_term(&item, "world", true, &[name_extractor]));
+        assert!(matches_search_term(&item, "World", true, &[name_extractor]));
     }
 
     #[derive(Debug, Clone)]

@@ -1,29 +1,26 @@
 import * as R from "ramda";
 import { memo, useEffect } from "react";
-import {
-  useWidgetCollectionContext,
-  useWidgetPreviewContext,
-  useWidgetFormContext,
-  useModalContext,
-} from "../../../contexts";
+import { useAtom, useSetAtom } from "jotai";
+import { useWidgets, useWidgetPreview } from "../../../hooks";
+import { useWidgetForm } from "../../../hooks/useWidgetForm";
 import { useWidgetProperties } from "../../../hooks";
+import {
+  showWidgetModalAtom,
+  showAddWidgetFormAtom,
+  openWidgetDeleteModalAtom,
+} from "../../../atoms";
 import WidgetSelectionPanel from "./WidgetSelectionPanel";
 import PropertiesPanel from "./PropertiesPanel";
 import PreviewPanel from "./PreviewPanel";
 
 const WidgetPreview = memo(() => {
-  const widgetCollectionContext = useWidgetCollectionContext();
-  const widgetPreviewContext = useWidgetPreviewContext();
-  const widgetFormContext = useWidgetFormContext();
-  const modalContext = useModalContext();
-
   const {
     widgets,
     setWidgets,
     filteredWidgets,
     widgetSearchTerm,
     setWidgetSearchTerm,
-  } = widgetCollectionContext;
+  } = useWidgets();
 
   const {
     selectedWidgetForPreview,
@@ -31,12 +28,6 @@ const WidgetPreview = memo(() => {
     properties,
     dynamicProperties,
     setDynamicProperties,
-    lastLoadedWidgetId,
-    setLastLoadedWidgetId,
-    widgetDefinition: contextWidgetDefinition,
-    setWidgetDefinition,
-    editorConfigHandler: contextEditorConfigHandler,
-    setEditorConfigHandler,
     previewData,
     isBuilding,
     buildError,
@@ -46,15 +37,13 @@ const WidgetPreview = memo(() => {
     checkDistExists,
     handleBuildAndRun,
     handleRunOnly,
-  } = widgetPreviewContext;
+  } = useWidgetPreview();
 
-  const { setNewWidgetCaption, setNewWidgetPath } = widgetFormContext;
+  const { setNewWidgetCaption, setNewWidgetPath } = useWidgetForm();
 
-  const {
-    setShowWidgetModal,
-    setShowAddWidgetForm,
-    handleWidgetDeleteClick,
-  } = modalContext;
+  const [, setShowWidgetModal] = useAtom(showWidgetModalAtom);
+  const [, setShowAddWidgetForm] = useAtom(showAddWidgetFormAtom);
+  const handleWidgetDeleteClick = useSetAtom(openWidgetDeleteModalAtom);
 
   const selectedWidget = R.pipe(
     R.find(R.propEq(String(selectedWidgetForPreview), "id")),
@@ -73,16 +62,10 @@ const WidgetPreview = memo(() => {
   } = useWidgetProperties(selectedWidget, properties, {
     dynamicProperties,
     setDynamicProperties,
-    lastLoadedWidgetId,
-    setLastLoadedWidgetId,
-    widgetDefinition: contextWidgetDefinition,
-    setWidgetDefinition,
-    editorConfigHandler: contextEditorConfigHandler,
-    setEditorConfigHandler,
   });
 
   useEffect(() => {
-    checkDistExists(R.prop("path", selectedWidget));
+    checkDistExists();
   }, [selectedWidget, checkDistExists]);
 
   const modalHandlers = {

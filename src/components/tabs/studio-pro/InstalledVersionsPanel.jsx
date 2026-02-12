@@ -4,7 +4,6 @@ import { invoke } from "@tauri-apps/api/core";
 import SearchBox from "../../common/SearchBox";
 import { renderPanel } from "../../common/Panel";
 import { MendixVersionListItem } from "../../common/ListItems";
-import { getVersionLoadingState } from "../../../utils";
 import { useI18n } from "../../../i18n/useI18n";
 
 export const invokeCheckVersionSelected = async (selectedVersion, version) =>
@@ -28,14 +27,14 @@ const renderEmptyListMessage = (message) => (
 
 const InstalledVersionItem = memo(({
   version,
-  versionLoadingStates,
+  getLoadingStateSync,
   handleLaunch,
   handleUninstall,
   handleVersionClick,
   selectedVersion,
 }) => {
   const [isSelected, setIsSelected] = useState(false);
-  const loadingState = getVersionLoadingState(versionLoadingStates, version.version);
+  const loadingState = getLoadingStateSync(version.version);
 
   useEffect(() => {
     if (selectedVersion) {
@@ -66,7 +65,7 @@ const InstalledVersionsPanel = memo(({
   searchTerm,
   setSearchTerm,
   displayedInstalledVersions,
-  versionLoadingStates,
+  getLoadingStateSync,
   handleLaunchStudioPro,
   handleUninstallClick,
   handleVersionClick,
@@ -85,7 +84,7 @@ const InstalledVersionsPanel = memo(({
       <InstalledVersionItem
         key={`installed-${version.version}`}
         version={version}
-        versionLoadingStates={versionLoadingStates}
+        getLoadingStateSync={getLoadingStateSync}
         handleLaunch={handleLaunchStudioPro}
         handleUninstall={handleUninstallClick}
         handleVersionClick={handleVersionClick}

@@ -1,34 +1,38 @@
 import * as R from "ramda";
+import { useAtomValue, useSetAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
 import { ConfirmModal } from "../../common";
 import DownloadModal from "../DownloadModal";
-import { getVersionLoadingState } from "../../../utils";
 import { useI18n } from "../../../i18n/useI18n";
+import { useVersions, useApps } from "../../../hooks";
 import {
-  useStudioProModalContext,
-  useVersionsContext,
-  useAppContext,
-} from "../../../contexts";
+  showUninstallModalAtom,
+  versionToUninstallAtom,
+  relatedAppsAtom,
+  closeUninstallModalAtom,
+  showDownloadModalAtom,
+  versionToDownloadAtom,
+  closeDownloadModalAtom,
+} from "../../../atoms";
 
 function StudioProModals() {
   const { t } = useI18n();
-  const {
-    showUninstallModal,
-    versionToUninstall,
-    relatedApps,
-    closeUninstallModal,
-    showDownloadModal,
-    versionToDownload,
-    closeDownloadModal,
-  } = useStudioProModalContext();
+
+  const showUninstallModal = useAtomValue(showUninstallModalAtom);
+  const versionToUninstall = useAtomValue(versionToUninstallAtom);
+  const relatedApps = useAtomValue(relatedAppsAtom);
+  const closeUninstallModal = useSetAtom(closeUninstallModalAtom);
+  const showDownloadModal = useAtomValue(showDownloadModalAtom);
+  const versionToDownload = useAtomValue(versionToDownloadAtom);
+  const closeDownloadModal = useSetAtom(closeDownloadModalAtom);
 
   const {
-    versionLoadingStates,
+    getLoadingStateSync,
     handleUninstallStudioPro,
     handleModalDownload,
-  } = useVersionsContext();
+  } = useVersions();
 
-  const { loadApps } = useAppContext();
+  const { loadApps } = useApps();
 
   const handleConfirmUninstall = async (deleteApps = false) => {
     if (versionToUninstall) {
@@ -80,10 +84,7 @@ function StudioProModals() {
         onCancel={closeUninstallModal}
         isLoading={
           versionToUninstall
-            ? getVersionLoadingState(
-                versionLoadingStates,
-                versionToUninstall.version,
-              ).isUninstalling
+            ? getLoadingStateSync(versionToUninstall.version).isUninstalling
             : false
         }
         relatedApps={relatedApps}
@@ -97,10 +98,7 @@ function StudioProModals() {
         onCancel={closeDownloadModal}
         isLoading={
           versionToDownload
-            ? getVersionLoadingState(
-                versionLoadingStates,
-                versionToDownload.version,
-              ).isDownloading
+            ? getLoadingStateSync(versionToDownload.version).isDownloading
             : false
         }
       />

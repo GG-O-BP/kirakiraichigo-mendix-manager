@@ -1,12 +1,15 @@
 mod build_deploy;
+mod business_logic;
 mod config;
 mod data_processing;
+mod editor_config_parser;
 mod formatting;
+mod js_runtime;
 mod mendix;
 mod package_manager;
+mod state;
 mod storage;
 mod utils;
-mod validation;
 mod web_scraper;
 mod widget_parser;
 mod widget_preview;
@@ -24,38 +27,49 @@ pub use web_scraper::{
     DownloadProgress, DownloadableVersion,
 };
 
-pub use build_deploy::{build_and_deploy_from_selections, check_multiple_dist_exists, create_catastrophic_error_result, validate_and_build_deploy, validate_and_deploy_only};
+pub use build_deploy::{check_multiple_dist_exists, create_catastrophic_error_result, validate_and_build_deploy, validate_and_deploy_only};
 pub use storage::{
     add_widget_and_save, clear_downloadable_versions_cache, delete_widget_and_save,
     load_downloadable_versions_cache, load_from_storage, load_widgets_ordered,
-    merge_and_save_downloadable_versions, save_downloadable_versions_cache, save_to_storage,
+    merge_and_save_downloadable_versions, save_to_storage,
 };
-pub use widget_parser::{
-    count_all_spec_groups_visible_properties, initialize_property_values,
-    load_widget_complete_data, parse_widget_properties_as_spec, read_editor_config,
-    transform_properties_to_spec, validate_mendix_widget,
-};
+pub use widget_parser::{load_widget_complete_data, validate_mendix_widget};
 pub use widget_preview::{build_and_run_preview, check_dist_exists, run_widget_preview_only};
 
 pub use data_processing::version_utils::{
-    calculate_next_page_number, compare_versions, create_version_options, exclude_installed_versions,
-    filter_by_version_support_type, filter_downloadable_versions, is_app_version_mismatch,
-    is_version_currently_selected, is_version_in_installed_list,
+    calculate_next_page_number, compare_versions, create_version_options,
+    filter_downloadable_versions,
 };
 
-pub use formatting::{
-    format_apps_batch, format_date, format_date_with_fallback, format_versions_batch,
-    get_version_status_text, get_version_validity_badge,
-};
+pub use formatting::{format_date, format_date_with_fallback, get_version_status_text};
 
-pub use validation::{has_build_failures, validate_build_deploy_selections};
 
 pub use data_processing::{
     mendix_filters::{
         create_widget, filter_mendix_versions, process_apps_pipeline, process_widgets_pipeline,
-        remove_widget_by_id, Widget,
+        Widget,
     },
     FilterOptions, SearchFilter, VersionFilter,
+};
+
+pub use editor_config_parser::get_property_visibility_with_counts;
+
+pub use state::{
+    clear_selection, clear_selection_with_save, get_all_version_operations, get_selection,
+    get_version_loading_state, has_selection, init_selection_from_storage, is_selected,
+    is_version_busy, remove_from_selection, remove_from_selection_with_save, set_selection,
+    set_version_operation, toggle_selection, toggle_selection_with_save, AppState,
+};
+
+pub use business_logic::{
+    build_initial_expanded_state, get_available_themes, get_theme_metadata,
+    manipulate_array_property, toggle_group_expansion, validate_selection_not_empty,
+    validate_widget_for_delete, validate_widget_input,
+};
+
+pub use js_runtime::{
+    collection_contains, collection_count, collection_has_items, extract_selected_widget_paths,
+    parse_decimal_or_empty, parse_integer_or_empty, parse_value_by_type,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -64,6 +78,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os::init())
+        .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             // ================================================================
             // Mendix version management
@@ -79,9 +94,6 @@ pub fn run() {
             // ================================================================
             batch_install_widgets,
             validate_mendix_widget,
-            read_editor_config,
-            initialize_property_values,
-            remove_widget_by_id,
             create_widget,
             // ================================================================
             // Web scraper
@@ -94,7 +106,6 @@ pub fn run() {
             build_and_run_preview,
             run_widget_preview_only,
             check_dist_exists,
-            build_and_deploy_from_selections,
             // ================================================================
             // Storage
             // ================================================================
@@ -104,59 +115,94 @@ pub fn run() {
             delete_widget_and_save,
             add_widget_and_save,
             load_downloadable_versions_cache,
-            save_downloadable_versions_cache,
             merge_and_save_downloadable_versions,
             clear_downloadable_versions_cache,
             // ================================================================
             // Version utilities
             // ================================================================
             filter_mendix_versions,
-            exclude_installed_versions,
-            filter_by_version_support_type,
             filter_downloadable_versions,
-            is_version_in_installed_list,
-            is_app_version_mismatch,
-            is_version_currently_selected,
             calculate_next_page_number,
             create_version_options,
+            compare_versions,
             // ================================================================
             // Formatting
             // ================================================================
             format_date_with_fallback,
             format_date,
-            get_version_validity_badge,
             get_version_status_text,
-            format_versions_batch,
-            format_apps_batch,
             // ================================================================
             // Path utilities
             // ================================================================
             extract_folder_name_from_path,
             // ================================================================
-            // Validation
-            // ================================================================
-            validate_build_deploy_selections,
-            has_build_failures,
-            // ================================================================
-            // Property transformation
-            // ================================================================
-            transform_properties_to_spec,
-            parse_widget_properties_as_spec,
-            count_all_spec_groups_visible_properties,
-            // ================================================================
-            // Consolidated commands (preferred)
+            // Widget data
             // ================================================================
             load_widget_complete_data,
+            // ================================================================
+            // Build & Deploy
+            // ================================================================
             validate_and_build_deploy,
             validate_and_deploy_only,
             check_multiple_dist_exists,
-            compare_versions,
+            create_catastrophic_error_result,
+            // ================================================================
+            // Data processing pipelines
+            // ================================================================
             process_widgets_pipeline,
             process_apps_pipeline,
             // ================================================================
-            // Error handling
+            // Editor config parser
             // ================================================================
-            create_catastrophic_error_result
+            get_property_visibility_with_counts,
+            // ================================================================
+            // State management
+            // ================================================================
+            toggle_selection,
+            get_selection,
+            clear_selection,
+            is_selected,
+            has_selection,
+            set_selection,
+            remove_from_selection,
+            init_selection_from_storage,
+            toggle_selection_with_save,
+            remove_from_selection_with_save,
+            clear_selection_with_save,
+            set_version_operation,
+            get_version_loading_state,
+            is_version_busy,
+            get_all_version_operations,
+            // ================================================================
+            // Business logic - validation
+            // ================================================================
+            validate_widget_input,
+            validate_widget_for_delete,
+            validate_selection_not_empty,
+            // ================================================================
+            // Business logic - array operations
+            // ================================================================
+            manipulate_array_property,
+            // ================================================================
+            // Business logic - property groups
+            // ================================================================
+            build_initial_expanded_state,
+            toggle_group_expansion,
+            // ================================================================
+            // Business logic - theme
+            // ================================================================
+            get_theme_metadata,
+            get_available_themes,
+            // ================================================================
+            // JS runtime helpers
+            // ================================================================
+            parse_value_by_type,
+            parse_integer_or_empty,
+            parse_decimal_or_empty,
+            collection_has_items,
+            collection_count,
+            collection_contains,
+            extract_selected_widget_paths,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,37 +1,49 @@
 import * as R from "ramda";
-import { useState, useCallback, useEffect } from "react";
-
-const buildInitialExpandedState = (widgetDefinition) => {
-  const propertyGroups = R.propOr([], "propertyGroups", widgetDefinition);
-  const firstGroupCaption = R.pipe(R.head, R.propOr(null, "caption"))(propertyGroups);
-
-  return R.ifElse(
-    R.isNil,
-    R.always({}),
-    (caption) => R.pipe(
-      R.map((group) => [R.prop("caption", group), false]),
-      R.fromPairs,
-      R.assoc(caption, true),
-    )(propertyGroups),
-  )(firstGroupCaption);
-};
+import { useEffect, useCallback } from "react";
+import { useAtom, useSetAtom } from "jotai";
+import { invoke } from "@tauri-apps/api/core";
+import {
+  expandedGroupsAtomFamily,
+  toggleGroupAtomFamily,
+  initializeExpandedGroupsAtomFamily,
+} from "../../atoms/widgetPreview";
 
 export function usePropertyGroupUI(widgetDefinition) {
-  const [expandedGroups, setExpandedGroups] = useState({});
+  const widgetId = R.propOr("unknown", "id", widgetDefinition);
+
+  const [expandedGroups] = useAtom(expandedGroupsAtomFamily(widgetId));
+  const toggleGroupAction = useSetAtom(toggleGroupAtomFamily(widgetId));
+  const initializeAction = useSetAtom(initializeExpandedGroupsAtomFamily(widgetId));
 
   useEffect(() => {
-    R.when(
-      R.complement(R.isNil),
-      R.pipe(buildInitialExpandedState, setExpandedGroups),
-    )(widgetDefinition);
-  }, [widgetDefinition]);
+    const initializeExpandedGroups = async () => {
+      R.when(
+        R.complement(R.isNil),
+        async (definition) => {
+          try {
+            const propertyGroups = R.propOr([], "propertyGroups", definition);
+            const initialState = await invoke("build_initial_expanded_state", {
+              propertyGroups: R.map(
+                (group) => ({ caption: R.prop("caption", group) }),
+                propertyGroups,
+              ),
+            });
+            initializeAction(initialState);
+          } catch (error) {
+            console.error("Failed to build initial expanded state:", error);
+          }
+        },
+      )(widgetDefinition);
+    };
+    initializeExpandedGroups();
+  }, [widgetDefinition, initializeAction]);
 
-  const toggleGroup = useCallback((category) => {
-    setExpandedGroups((prev) => ({
-      ...prev,
-      [category]: !R.propOr(true, category, prev),
-    }));
-  }, []);
+  const toggleGroup = useCallback(
+    (category) => {
+      toggleGroupAction(category);
+    },
+    [toggleGroupAction],
+  );
 
   return {
     expandedGroups,

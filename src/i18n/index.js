@@ -1,12 +1,12 @@
 import * as R from "ramda";
 import { atom, onMount } from "nanostores";
-import { createI18n, localeFrom, browser, formatter } from "@nanostores/i18n";
+import { createI18n, localeFrom, browser } from "@nanostores/i18n";
 import { locale as getOsLocale } from "@tauri-apps/plugin-os";
 import { STORAGE_KEYS } from "../utils/constants";
 import { saveToStorage, loadFromStorage } from "../utils/storage";
 
 export const SUPPORTED_LOCALES = ["en", "ko", "ja"];
-export const DEFAULT_LOCALE = "en";
+const DEFAULT_LOCALE = "en";
 
 const storedLocale = atom(undefined);
 
@@ -55,13 +55,11 @@ export const initializeLocale = async () => {
   return finalLocale;
 };
 
-export const i18n = createI18n(locale, {
+const i18n = createI18n(locale, {
   get(code) {
     return import(`./locales/${code}.json`).then((module) => module.default);
   },
 });
-
-export const format = formatter(locale);
 
 export const messages = i18n("app", {
   tabs: {

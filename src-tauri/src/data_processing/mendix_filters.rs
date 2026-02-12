@@ -1,5 +1,6 @@
 use super::*;
 use crate::mendix::{MendixApp, MendixVersion};
+use crate::storage::sort_widgets_by_order;
 use serde::Deserialize;
 use std::collections::HashSet;
 
@@ -38,14 +39,6 @@ pub fn filter_mendix_versions(
 }
 
 #[tauri::command]
-pub fn remove_widget_by_id(
-    widgets: Vec<Widget>,
-    widget_id: String,
-) -> Result<Vec<Widget>, String> {
-    Ok(widgets.into_iter().filter(|w| w.id != widget_id).collect())
-}
-
-#[tauri::command]
 pub fn create_widget(caption: String, path: String) -> Result<Widget, String> {
     super::widget::create_widget(caption, path)
 }
@@ -81,19 +74,7 @@ pub fn process_widgets_pipeline(params: ProcessWidgetsParams) -> Result<Vec<Widg
 
     if let Some(order) = &params.order {
         if !order.is_empty() {
-            let order_map: std::collections::HashMap<&String, usize> = order
-                .iter()
-                .enumerate()
-                .map(|(i, id)| (id, i))
-                .collect();
-
-            let (mut ordered, unordered): (Vec<_>, Vec<_>) = result
-                .into_iter()
-                .partition(|w| order_map.contains_key(&w.id));
-
-            ordered.sort_by_key(|w| order_map.get(&w.id).copied().unwrap_or(usize::MAX));
-            ordered.extend(unordered);
-            result = ordered;
+            result = sort_widgets_by_order(result, order);
         }
     }
 
@@ -205,33 +186,6 @@ mod tests {
             caption: caption.to_string(),
             path: format!("C:\\widgets\\{}", id),
         }
-    }
-
-    #[test]
-    fn test_remove_widget_by_id() {
-        let widgets = vec![
-            create_test_widget("1", "Widget A"),
-            create_test_widget("2", "Widget B"),
-            create_test_widget("3", "Widget C"),
-        ];
-
-        let result = remove_widget_by_id(widgets, "2".to_string()).unwrap();
-
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0].id, "1");
-        assert_eq!(result[1].id, "3");
-    }
-
-    #[test]
-    fn test_remove_widget_by_id_not_found() {
-        let widgets = vec![
-            create_test_widget("1", "Widget A"),
-            create_test_widget("2", "Widget B"),
-        ];
-
-        let result = remove_widget_by_id(widgets, "99".to_string()).unwrap();
-
-        assert_eq!(result.len(), 2);
     }
 
     #[test]

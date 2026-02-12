@@ -1,27 +1,31 @@
 import * as R from "ramda";
-import { memo } from "react";
+import { memo, useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import PackageManagerSelector from "../../common/PackageManagerSelector";
 import InlineResults from "./InlineResults";
 import { useI18n } from "../../../i18n/useI18n";
 
-const isInstallButtonDisabled = R.curry((isInstalling, selectedWidgets) =>
-  R.or(isInstalling, R.equals(0, selectedWidgets.size)),
+const invokeCollectionCount = async (items) =>
+  invoke("collection_count", { items });
+
+const isInstallButtonDisabled = R.curry((isInstalling, widgetCount) =>
+  R.or(isInstalling, R.equals(0, widgetCount)),
 );
 
 const isBuildDeployButtonDisabled = R.curry(
-  (isBuilding, isDeploying, selectedWidgets, selectedApps) =>
+  (isBuilding, isDeploying, widgetCount, appCount) =>
     R.or(
-      R.or(R.or(isBuilding, isDeploying), R.equals(0, selectedWidgets.size)),
-      R.equals(0, selectedApps.size),
+      R.or(R.or(isBuilding, isDeploying), R.equals(0, widgetCount)),
+      R.equals(0, appCount),
     ),
 );
 
 const isDeployOnlyButtonDisabled = R.curry(
-  (isBuilding, isDeploying, selectedWidgets, selectedApps, allDistExist) =>
+  (isBuilding, isDeploying, widgetCount, appCount, allDistExist) =>
     R.or(
       R.or(
-        R.or(R.or(isBuilding, isDeploying), R.equals(0, selectedWidgets.size)),
-        R.equals(0, selectedApps.size),
+        R.or(R.or(isBuilding, isDeploying), R.equals(0, widgetCount)),
+        R.equals(0, appCount),
       ),
       R.not(allDistExist),
     ),
@@ -44,21 +48,37 @@ const BuildDeploySection = memo(({
   lastOperationType,
 }) => {
   const { t } = useI18n();
+  const [widgetCount, setWidgetCount] = useState(0);
+  const [appCount, setAppCount] = useState(0);
+
+  useEffect(() => {
+    const updateCounts = async () => {
+      const widgetItems = Array.from(selectedWidgets);
+      const appItems = Array.from(selectedApps);
+      const [wCount, aCount] = await Promise.all([
+        invokeCollectionCount(widgetItems),
+        invokeCollectionCount(appItems),
+      ]);
+      setWidgetCount(wCount);
+      setAppCount(aCount);
+    };
+    updateCounts();
+  }, [selectedWidgets, selectedApps]);
 
   const getInstallText = () =>
     isInstalling
       ? R.pathOr("Installing...", ["widgets", "installing"], t)
-      : R.pathOr(`Install (${selectedWidgets.size} widgets)`, ["widgets", "install"], t)
-          .replace("{count}", selectedWidgets.size);
+      : R.pathOr(`Install (${widgetCount} widgets)`, ["widgets", "install"], t)
+          .replace("{count}", widgetCount);
 
   const getBuildDeployText = () =>
     R.cond([
       [R.always(isBuilding), R.always(R.pathOr("Building & Deploying...", ["widgets", "buildingAndDeploying"], t))],
       [R.always(isDeploying), R.always(R.pathOr("Deploying...", ["widgets", "deploying"], t))],
       [R.T, R.always(
-        R.pathOr(`Build + Deploy (${selectedWidgets.size} widgets → ${selectedApps.size} apps)`, ["widgets", "buildDeploy"], t)
-          .replace("{widgetCount}", selectedWidgets.size)
-          .replace("{appCount}", selectedApps.size)
+        R.pathOr(`Build + Deploy (${widgetCount} widgets → ${appCount} apps)`, ["widgets", "buildDeploy"], t)
+          .replace("{widgetCount}", widgetCount)
+          .replace("{appCount}", appCount)
       )],
     ])();
 
@@ -67,9 +87,9 @@ const BuildDeploySection = memo(({
       [R.always(isBuilding), R.always(R.pathOr("Building & Deploying...", ["widgets", "buildingAndDeploying"], t))],
       [R.always(isDeploying), R.always(R.pathOr("Deploying...", ["widgets", "deploying"], t))],
       [R.T, R.always(
-        R.pathOr(`Deploy Only (${selectedWidgets.size} widgets → ${selectedApps.size} apps)`, ["widgets", "deployOnly"], t)
-          .replace("{widgetCount}", selectedWidgets.size)
-          .replace("{appCount}", selectedApps.size)
+        R.pathOr(`Deploy Only (${widgetCount} widgets → ${appCount} apps)`, ["widgets", "deployOnly"], t)
+          .replace("{widgetCount}", widgetCount)
+          .replace("{appCount}", appCount)
       )],
     ])();
 
@@ -82,9 +102,9 @@ const BuildDeploySection = memo(({
 
       <button
         onClick={handleInstall}
-        disabled={isInstallButtonDisabled(isInstalling, selectedWidgets)}
+        disabled={isInstallButtonDisabled(isInstalling, widgetCount)}
         className={`install-button install-button-full ${
-          selectedWidgets.size > 0 ? "button-enabled" : "button-disabled"
+          R.gt(widgetCount, 0) ? "button-enabled" : "button-disabled"
         }`}
       >
         <span className="button-icon">{isInstalling ? "⏳" : "📦"}</span>
@@ -96,11 +116,11 @@ const BuildDeploySection = memo(({
         disabled={isBuildDeployButtonDisabled(
           isBuilding,
           isDeploying,
-          selectedWidgets,
-          selectedApps,
+          widgetCount,
+          appCount,
         )}
         className={`install-button build-deploy-button ${
-          R.and(R.gt(selectedWidgets.size, 0), R.gt(selectedApps.size, 0))
+          R.and(R.gt(widgetCount, 0), R.gt(appCount, 0))
             ? "button-enabled"
             : "button-disabled"
         }`}
@@ -114,13 +134,13 @@ const BuildDeploySection = memo(({
         disabled={isDeployOnlyButtonDisabled(
           isBuilding,
           isDeploying,
-          selectedWidgets,
-          selectedApps,
+          widgetCount,
+          appCount,
           allDistExist,
         )}
         className={`install-button deploy-only-button ${
           R.and(
-            R.and(R.gt(selectedWidgets.size, 0), R.gt(selectedApps.size, 0)),
+            R.and(R.gt(widgetCount, 0), R.gt(appCount, 0)),
             allDistExist,
           )
             ? "button-enabled"

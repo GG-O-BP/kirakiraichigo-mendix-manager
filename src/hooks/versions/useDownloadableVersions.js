@@ -1,98 +1,91 @@
 import * as R from "ramda";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
+import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
+import { SWR_KEYS } from "../../lib/swr";
+
+const fetchCachedVersions = () => invoke("load_downloadable_versions_cache");
+
+let hasLoadedInitialVersions = false;
 
 export function useDownloadableVersions() {
-  const [downloadableVersions, setDownloadableVersions] = useState([]);
-  const [isLoadingDownloadableVersions, setIsLoadingDownloadableVersions] =
-    useState(false);
-  const [isCacheLoaded, setIsCacheLoaded] = useState(false);
-
-  const hasLoadedInitialVersions = useRef(false);
-
-  const loadCachedVersions = useCallback(async () => {
-    try {
-      const cached = await invoke("load_downloadable_versions_cache");
+  const {
+    data: downloadableVersions = [],
+    error,
+    isLoading: isLoadingDownloadableVersions,
+    mutate,
+  } = useSWR(SWR_KEYS.DOWNLOADABLE_VERSIONS, fetchCachedVersions, {
+    onSuccess: (cached) => {
       R.when(
-        R.complement(R.isEmpty),
-        R.tap(setDownloadableVersions),
+        R.both(
+          R.complement(R.isEmpty),
+          () => !hasLoadedInitialVersions,
+        ),
+        async () => {
+          hasLoadedInitialVersions = true;
+          await fetchVersionsFromDatagrid(1);
+        },
       )(cached);
-      return cached;
-    } catch (error) {
-      console.error("Failed to load cached versions:", error);
-      return [];
-    }
-  }, []);
 
-  const fetchVersionsFromDatagrid = useCallback(async (page = 1) => {
-    try {
-      const processedPage = R.pipe(R.defaultTo(1), R.max(1))(page);
+      R.when(
+        R.both(
+          R.isEmpty,
+          () => !hasLoadedInitialVersions,
+        ),
+        async () => {
+          hasLoadedInitialVersions = true;
+          await fetchVersionsFromDatagrid(1);
+        },
+      )(cached);
+    },
+  });
 
-      setIsLoadingDownloadableVersions(true);
+  const fetchVersionsFromDatagrid = useCallback(
+    async (page = 1) => {
+      try {
+        const processedPage = R.pipe(R.defaultTo(1), R.max(1))(page);
 
-      const versions = await invoke("get_downloadable_versions_from_datagrid", {
-        page: processedPage,
-      });
+        const versions = await invoke("get_downloadable_versions_from_datagrid", {
+          page: processedPage,
+        });
 
-      const merged = await invoke("merge_and_save_downloadable_versions", {
-        fresh: versions,
-      });
+        const merged = await invoke("merge_and_save_downloadable_versions", {
+          fresh: versions,
+        });
 
-      setDownloadableVersions(merged);
-      setIsLoadingDownloadableVersions(false);
-      return versions;
-    } catch (error) {
-      console.error("Failed to fetch versions from datagrid:", error);
-      setIsLoadingDownloadableVersions(false);
-      return [];
-    }
-  }, []);
+        mutate(merged, false);
+        return versions;
+      } catch (err) {
+        console.error("Failed to fetch versions from datagrid:", err);
+        return [];
+      }
+    },
+    [mutate],
+  );
 
   const clearCache = useCallback(async () => {
     try {
       await invoke("clear_downloadable_versions_cache");
-      setDownloadableVersions([]);
-      hasLoadedInitialVersions.current = false;
+      mutate([], false);
+      hasLoadedInitialVersions = false;
       return true;
-    } catch (error) {
-      console.error("Failed to clear cache:", error);
+    } catch (err) {
+      console.error("Failed to clear cache:", err);
       return false;
     }
-  }, []);
+  }, [mutate]);
 
   const refreshVersions = useCallback(async () => {
     await clearCache();
     return fetchVersionsFromDatagrid(1);
   }, [clearCache, fetchVersionsFromDatagrid]);
 
-  useEffect(() => {
-    if (hasLoadedInitialVersions.current) {
-      return;
-    }
-
-    const loadInitialDownloadableVersions = async () => {
-      try {
-        hasLoadedInitialVersions.current = true;
-
-        const cached = await loadCachedVersions();
-        setIsCacheLoaded(true);
-
-        await fetchVersionsFromDatagrid(1);
-      } catch (error) {
-        console.error("Failed to load initial downloadable versions:", error);
-        hasLoadedInitialVersions.current = false;
-      }
-    };
-
-    loadInitialDownloadableVersions();
-  }, [fetchVersionsFromDatagrid, loadCachedVersions]);
-
   return {
     downloadableVersions,
     isLoadingDownloadableVersions,
-    isCacheLoaded,
     fetchVersionsFromDatagrid,
     clearCache,
     refreshVersions,
+    error,
   };
 }
