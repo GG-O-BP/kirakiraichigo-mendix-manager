@@ -1015,7 +1015,7 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
 
                 const mapObjectItem = (item, objectPropertyDefs, datasourceItems) => {
                   const mappedItem = {};
-                  Object.keys(item).forEach(itemKey => {
+                  Object.keys(item).filter(itemKey => !itemKey.startsWith('__')).forEach(itemKey => {
                     const itemValue = item[itemKey];
                     const itemPropDef = objectPropertyDefs.find(p => p.key === itemKey);
                     const itemPropType = itemPropDef ? itemPropDef.type : null;
