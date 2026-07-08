@@ -196,18 +196,25 @@ pub fn toggle_selection_with_save(
     selection_type: SelectionType,
     item_id: String,
 ) -> Result<Vec<String>, String> {
-    let result = {
-        let mut selection = state
-            .selection
-            .lock()
-            .map_err(|e| format!("Failed to lock selection state: {}", e))?;
-        selection.toggle(selection_type, item_id)
-    };
+    let mut selection = state
+        .selection
+        .lock()
+        .map_err(|e| format!("Failed to lock selection state: {}", e))?;
+
+    let previous = selection.get(selection_type);
+    let result = selection.toggle(selection_type, item_id);
 
     let storage_key = selection_type.storage_key().to_string();
-    let value = serde_json::to_value(&result)
-        .map_err(|e| format!("Failed to serialize selection: {}", e))?;
-    save_to_storage(storage_key, value)?;
+    let persist = || -> Result<(), String> {
+        let value = serde_json::to_value(&result)
+            .map_err(|e| format!("Failed to serialize selection: {}", e))?;
+        save_to_storage(storage_key, value).map(|_| ())
+    };
+
+    if let Err(e) = persist() {
+        selection.set(selection_type, previous);
+        return Err(e);
+    }
 
     Ok(result)
 }
@@ -218,18 +225,25 @@ pub fn remove_from_selection_with_save(
     selection_type: SelectionType,
     item_id: String,
 ) -> Result<Vec<String>, String> {
-    let result = {
-        let mut selection = state
-            .selection
-            .lock()
-            .map_err(|e| format!("Failed to lock selection state: {}", e))?;
-        selection.remove(selection_type, &item_id)
-    };
+    let mut selection = state
+        .selection
+        .lock()
+        .map_err(|e| format!("Failed to lock selection state: {}", e))?;
+
+    let previous = selection.get(selection_type);
+    let result = selection.remove(selection_type, &item_id);
 
     let storage_key = selection_type.storage_key().to_string();
-    let value = serde_json::to_value(&result)
-        .map_err(|e| format!("Failed to serialize selection: {}", e))?;
-    save_to_storage(storage_key, value)?;
+    let persist = || -> Result<(), String> {
+        let value = serde_json::to_value(&result)
+            .map_err(|e| format!("Failed to serialize selection: {}", e))?;
+        save_to_storage(storage_key, value).map(|_| ())
+    };
+
+    if let Err(e) = persist() {
+        selection.set(selection_type, previous);
+        return Err(e);
+    }
 
     Ok(result)
 }
@@ -239,16 +253,19 @@ pub fn clear_selection_with_save(
     state: State<'_, AppState>,
     selection_type: SelectionType,
 ) -> Result<(), String> {
-    {
-        let mut selection = state
-            .selection
-            .lock()
-            .map_err(|e| format!("Failed to lock selection state: {}", e))?;
-        selection.clear(selection_type);
-    }
+    let mut selection = state
+        .selection
+        .lock()
+        .map_err(|e| format!("Failed to lock selection state: {}", e))?;
+
+    let previous = selection.get(selection_type);
+    selection.clear(selection_type);
 
     let storage_key = selection_type.storage_key().to_string();
-    save_to_storage(storage_key, Value::Array(vec![]))?;
+    if let Err(e) = save_to_storage(storage_key, Value::Array(vec![])) {
+        selection.set(selection_type, previous);
+        return Err(e);
+    }
 
     Ok(())
 }
@@ -339,6 +356,26 @@ mod tests {
         );
         let result = state.remove(SelectionType::Apps, "a1");
         assert_eq!(result, vec!["a2"]);
+    }
+
+    #[test]
+    fn snapshot_restores_state_on_rollback() {
+        let mut state = SelectionState::default();
+        state.set(
+            SelectionType::Widgets,
+            vec!["w1".to_string(), "w2".to_string()],
+        );
+
+        // Simulates the persist-failure rollback path in *_with_save:
+        // capture snapshot, mutate, then restore.
+        let previous = state.get(SelectionType::Widgets);
+        state.toggle(SelectionType::Widgets, "w3".to_string());
+        assert!(state.is_selected(SelectionType::Widgets, "w3"));
+
+        state.set(SelectionType::Widgets, previous);
+        assert!(!state.is_selected(SelectionType::Widgets, "w3"));
+        assert!(state.is_selected(SelectionType::Widgets, "w1"));
+        assert!(state.is_selected(SelectionType::Widgets, "w2"));
     }
 
     #[test]
