@@ -172,7 +172,11 @@ fn save_state_to_file(state: &AppState) -> Result<(), String> {
 
     let json = serde_json::to_string_pretty(state)
         .map_err(|e| format!("Failed to serialize data: {}", e))?;
-    fs::write(&path, json).map_err(|e| format!("Failed to write to file: {}", e))
+
+    let tmp_path = path.with_extension("json.tmp");
+    fs::write(&tmp_path, json)
+        .map_err(|e| format!("Failed to write to temp file: {}", e))?;
+    fs::rename(&tmp_path, &path).map_err(|e| format!("Failed to replace state file: {}", e))
 }
 
 fn load_state_from_file() -> Result<AppState, String> {

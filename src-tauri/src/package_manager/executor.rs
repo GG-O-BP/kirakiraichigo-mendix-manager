@@ -3,6 +3,24 @@ use crate::package_manager::strategies::all_strategies;
 use crate::package_manager::strategy::ExecutionStrategy;
 use std::path::Path;
 
+/// Package managers permitted to be passed through to the shell.
+///
+/// The value flows into generated PowerShell scripts (`& npm install`, etc.),
+/// so it must be validated against this allowlist before any strategy runs.
+const ALLOWED_PACKAGE_MANAGERS: [&str; 4] = ["npm", "yarn", "pnpm", "bun"];
+
+fn validate_package_manager(package_manager: &str) -> Result<(), String> {
+    if ALLOWED_PACKAGE_MANAGERS.contains(&package_manager) {
+        Ok(())
+    } else {
+        Err(format!(
+            "Unsupported package manager: '{}'. Allowed: {}",
+            package_manager,
+            ALLOWED_PACKAGE_MANAGERS.join(", ")
+        ))
+    }
+}
+
 /// StrategyExecutor manages the execution of package manager commands
 /// using a fallback strategy pattern.
 ///
@@ -91,8 +109,9 @@ impl StrategyExecutor {
         command: &str,
         working_directory: &str,
     ) -> Result<String, String> {
-        let mut config =
-            PackageManagerConfig::load().unwrap_or_else(|_| PackageManagerConfig::new());
+        validate_package_manager(package_manager)?;
+
+        let config = PackageManagerConfig::load().unwrap_or_else(|_| PackageManagerConfig::new());
 
         println!(
             "[Package Manager] Executing {} {} in {}",
@@ -119,9 +138,11 @@ impl StrategyExecutor {
 
             match strategy.execute(package_manager, command, working_directory) {
                 Ok(output) => {
-                    // Save successful method for future use
-                    config = config.with_method(package_manager, strategy.name().to_string());
-                    let _ = config.save();
+                    // Save successful method for future use (atomic read-modify-write)
+                    let _ = PackageManagerConfig::update_method(
+                        package_manager,
+                        strategy.name().to_string(),
+                    );
                     return Ok(output);
                 }
                 Err(err) => {
@@ -167,4 +188,23 @@ pub fn execute_package_manager_command(
     working_directory: &str,
 ) -> Result<String, String> {
     executor().execute(package_manager, command, working_directory)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_package_manager;
+
+    #[test]
+    fn accepts_known_package_managers() {
+        for pm in ["npm", "yarn", "pnpm", "bun"] {
+            assert!(validate_package_manager(pm).is_ok(), "{pm} should be valid");
+        }
+    }
+
+    #[test]
+    fn rejects_injection_and_unknown_values() {
+        for pm in ["npm; Remove-Item", "", "NPM", "deno", "npm "] {
+            assert!(validate_package_manager(pm).is_err(), "{pm:?} should be rejected");
+        }
+    }
 }
