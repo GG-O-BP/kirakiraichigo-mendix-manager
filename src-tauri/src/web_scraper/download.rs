@@ -52,8 +52,27 @@ pub async fn download_file_to_path(url: &str, file_path: &str) -> Result<(), Str
     Ok(())
 }
 
-/// Execute the installer executable
-pub fn execute_installer(installer_path: &str) -> Result<(), String> {
+/// Execute the installer executable.
+///
+/// The silent install runs for minutes, so this does not wait for completion.
+/// It does briefly poll after spawning to surface installers that fail
+/// immediately (missing/corrupt exe, denied elevation) instead of falsely
+/// reporting that installation started.
+pub async fn execute_installer(installer_path: &str) -> Result<(), String> {
+    let mut child = spawn_installer(installer_path)?;
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+    match child.try_wait() {
+        Ok(Some(status)) if !status.success() => {
+            Err(format!("Installer exited immediately with status: {}", status))
+        }
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Failed to check installer status: {}", e)),
+    }
+}
+
+fn spawn_installer(installer_path: &str) -> Result<std::process::Child, String> {
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
@@ -63,15 +82,13 @@ pub fn execute_installer(installer_path: &str) -> Result<(), String> {
             .arg("/SILENT")
             .creation_flags(CREATE_NO_WINDOW)
             .spawn()
-            .map_err(|e| format!("Failed to execute installer: {}", e))?;
+            .map_err(|e| format!("Failed to execute installer: {}", e))
     }
 
     #[cfg(not(target_os = "windows"))]
     {
         Command::new(installer_path)
             .spawn()
-            .map_err(|e| format!("Failed to execute installer: {}", e))?;
+            .map_err(|e| format!("Failed to execute installer: {}", e))
     }
-
-    Ok(())
 }
