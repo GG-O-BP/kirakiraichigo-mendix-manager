@@ -71,16 +71,17 @@ const ObjectListPropertyInput = memo(
     const toggleExpanded = useCallback(() => setIsExpanded(R.not), []);
 
     const toggleItemExpanded = useCallback(
-      (index) =>
+      (itemId) =>
         setExpandedItems(
-          R.over(R.lensProp(index), R.pipe(R.defaultTo(true), R.not))
+          R.over(R.lensProp(itemId), R.pipe(R.defaultTo(true), R.not))
         ),
       []
     );
 
     const handleAddItem = useCallback(() => {
       const defaultItem = createDefaultItemFromNestedGroups(nestedPropertyGroups);
-      onAddItem(defaultItem);
+      const itemWithId = R.assoc("__itemId", crypto.randomUUID(), defaultItem);
+      onAddItem(itemWithId);
     }, [nestedPropertyGroups, onAddItem]);
 
     const renderDatasourceConnection = () =>
@@ -139,22 +140,25 @@ const ObjectListPropertyInput = memo(
 
     const renderItems = () =>
       R.addIndex(R.map)(
-        (item, index) => (
-          <ObjectListItem
-            key={index}
-            index={index}
-            item={item}
-            nestedPropertyGroups={nestedPropertyGroups}
-            isExpanded={R.propOr(true, index, expandedItems)}
-            onToggleExpanded={() => toggleItemExpanded(index)}
-            onRemove={() => onRemoveItem(index)}
-            onUpdateProperty={(nestedKey, value) =>
-              onUpdateItemProperty(index, nestedKey, value)
-            }
-            disabled={disabled}
-            parentProperties={parentProperties}
-          />
-        ),
+        (item, index) => {
+          const itemId = R.propOr(index, "__itemId", item);
+          return (
+            <ObjectListItem
+              key={itemId}
+              index={index}
+              item={item}
+              nestedPropertyGroups={nestedPropertyGroups}
+              isExpanded={R.propOr(true, itemId, expandedItems)}
+              onToggleExpanded={() => toggleItemExpanded(itemId)}
+              onRemove={() => onRemoveItem(index)}
+              onUpdateProperty={(nestedKey, value) =>
+                onUpdateItemProperty(index, nestedKey, value)
+              }
+              disabled={disabled}
+              parentProperties={parentProperties}
+            />
+          );
+        },
         R.defaultTo([], items)
       );
 

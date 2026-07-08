@@ -81,7 +81,7 @@ const ObjectListItem = memo(
       const groupCaption = R.prop("caption", group);
       const properties = R.propOr([], "properties", group);
       const nestedGroups = R.propOr([], "propertyGroups", group);
-      const groupId = `${index}-${groupIndex}`;
+      const groupId = String(groupIndex);
       const groupExpanded = isGroupExpanded(groupId);
       const hasCaption = R.complement(R.isEmpty)(groupCaption);
 
