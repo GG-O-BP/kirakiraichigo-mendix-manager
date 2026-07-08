@@ -21,7 +21,7 @@ export function useDownloadOperation({ updateLoadingState }) {
   const { mutate } = useSWRConfig();
 
   const { trigger, isMutating, error } = useSWRMutation(
-    "download-version",
+    SWR_KEYS.DOWNLOAD_VERSION,
     downloadVersion,
   );
 

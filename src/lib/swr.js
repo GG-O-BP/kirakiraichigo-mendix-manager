@@ -14,6 +14,15 @@ export const SWR_KEYS = {
   FILTERED_INSTALLED: (deps) => ["filtered-installed", JSON.stringify(deps)],
   FILTERED_APPS: (deps) => ["filtered-apps", JSON.stringify(deps)],
   PROPERTY_VISIBILITY: (widgetId, inputHash) => ["property-visibility", widgetId, inputHash],
+  UNINSTALL_STUDIO_PRO: "uninstall-studio-pro",
+  DOWNLOAD_VERSION: "download-version",
+  LAUNCH_STUDIO_PRO: "launch-studio-pro",
+  WIDGET_PREVIEW_BUILD: "widget-preview-build",
+  WIDGET_PREVIEW_RUN: "widget-preview-run",
+  PACKAGE_MANAGER: "package-manager",
+  UNINSTALL_MODAL_APPS: "uninstall-modal-apps",
+  TOGGLE_SELECTION: (selectionType) => `toggle-selection-${selectionType}`,
+  REMOVE_SELECTION: (selectionType) => `remove-selection-${selectionType}`,
 };
 
 export const swrConfig = {

@@ -4,6 +4,7 @@ import { useAtom, useSetAtom } from "jotai";
 import { useCallback } from "react";
 import useSWRMutation from "swr/mutation";
 import { invoke } from "@tauri-apps/api/core";
+import { SWR_KEYS } from "../lib/swr";
 
 // ===== State Atoms =====
 
@@ -109,7 +110,7 @@ export function useUninstallModalActions() {
   const [, setRelatedApps] = useAtom(relatedAppsAtom);
   const closeModal = useSetAtom(closeUninstallModalAtom);
 
-  const { trigger } = useSWRMutation("uninstall-modal-apps", fetchRelatedApps);
+  const { trigger } = useSWRMutation(SWR_KEYS.UNINSTALL_MODAL_APPS, fetchRelatedApps);
 
   const openUninstallModal = useCallback(
     async (version) => {

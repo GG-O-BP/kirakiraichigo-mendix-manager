@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useAtom } from "jotai";
 import useSWR from "swr";
+import { SWR_KEYS } from "../../lib/swr";
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from "../../utils";
 import { packageManagerAtom } from "../../atoms";
 
@@ -9,7 +10,7 @@ const fetchPackageManager = () => loadFromStorage(STORAGE_KEYS.PACKAGE_MANAGER, 
 export function usePackageManagerPersistence() {
   const [packageManager, setPackageManagerAtom] = useAtom(packageManagerAtom);
 
-  useSWR("package-manager", fetchPackageManager, {
+  useSWR(SWR_KEYS.PACKAGE_MANAGER, fetchPackageManager, {
     onSuccess: setPackageManagerAtom,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,

@@ -1,6 +1,7 @@
 import * as R from "ramda";
 import useSWRMutation from "swr/mutation";
 import { invoke } from "@tauri-apps/api/core";
+import { SWR_KEYS } from "../../lib/swr";
 
 const LAUNCH_LOADING_RESET_DELAY_MS = 60000;
 
@@ -30,7 +31,7 @@ const launchStudioPro = async (_, { arg }) => {
 
 export function useLaunchOperation({ updateLoadingState, isVersionBusy }) {
   const { trigger, isMutating, error } = useSWRMutation(
-    "launch-studio-pro",
+    SWR_KEYS.LAUNCH_STUDIO_PRO,
     launchStudioPro,
   );
 
