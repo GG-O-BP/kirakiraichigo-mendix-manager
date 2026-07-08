@@ -69,9 +69,9 @@ impl ExecutionStrategy for PowershellFnmStrategy {
                         if ($fnmEnv) {{
                             # Execute each line separately to ensure proper environment setup
                             $fnmEnv -split "`n" | ForEach-Object {{
-                                if ($_ -match '^\$env:') {{
-                                    Write-Host "[fnm] Executing: $_"
-                                    Invoke-Expression $_
+                                if ($_ -match '^\$env:(\w+)\s*=\s*"([^"]*)"') {{
+                                    Write-Host "[fnm] Setting $($matches[1])"
+                                    Set-Item -Path "env:$($matches[1])" -Value $matches[2]
                                 }}
                             }}
                             Write-Host "[fnm] Environment initialized"
@@ -86,8 +86,8 @@ impl ExecutionStrategy for PowershellFnmStrategy {
                             # Re-run env to get updated paths after version switch
                             $fnmEnv2 = & $fnmPath env --use-on-cd --shell powershell 2>&1
                             $fnmEnv2 -split "`n" | ForEach-Object {{
-                                if ($_ -match '^\$env:') {{
-                                    Invoke-Expression $_
+                                if ($_ -match '^\$env:(\w+)\s*=\s*"([^"]*)"') {{
+                                    Set-Item -Path "env:$($matches[1])" -Value $matches[2]
                                 }}
                             }}
                         }}
