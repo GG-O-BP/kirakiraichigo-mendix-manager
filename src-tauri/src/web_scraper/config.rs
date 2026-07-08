@@ -1,7 +1,35 @@
 use serde::{Deserialize, Serialize};
 
-/// Chrome executable path on Windows
-pub const CHROME_EXECUTABLE_PATH: &str = "C:/Program Files/Google/Chrome/Application/chrome.exe";
+/// System-wide Chrome executable candidates on Windows, tried in order.
+const DEFAULT_CHROME_PATHS: [&str; 2] = [
+    "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+];
+
+/// Resolve the Chrome executable: honor KIRAICHI_CHROME_PATH, then the per-user
+/// install under LOCALAPPDATA, then the system-wide candidates. Returns None if
+/// no existing executable is found.
+pub fn chrome_executable_path() -> Option<String> {
+    use std::path::Path;
+
+    if let Ok(custom) = std::env::var("KIRAICHI_CHROME_PATH") {
+        if Path::new(&custom).exists() {
+            return Some(custom);
+        }
+    }
+
+    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+        let user_path = format!("{}/Google/Chrome/Application/chrome.exe", local_app_data);
+        if Path::new(&user_path).exists() {
+            return Some(user_path);
+        }
+    }
+
+    DEFAULT_CHROME_PATHS
+        .iter()
+        .find(|path| Path::new(path).exists())
+        .map(|path| path.to_string())
+}
 
 /// Default timeout for navigation in seconds
 pub const NAVIGATION_TIMEOUT_SECS: u64 = 60;

@@ -12,7 +12,7 @@ pub use super::extractors::{
 pub use super::widget::{searchable_fields_widget, Widget};
 
 #[tauri::command]
-pub fn filter_mendix_versions(
+pub async fn filter_mendix_versions(
     versions: Vec<MendixVersion>,
     search_term: Option<String>,
     only_valid: bool,
@@ -39,7 +39,7 @@ pub fn filter_mendix_versions(
 }
 
 #[tauri::command]
-pub fn create_widget(caption: String, path: String) -> Result<Widget, String> {
+pub async fn create_widget(caption: String, path: String) -> Result<Widget, String> {
     super::widget::create_widget(caption, path)
 }
 
@@ -52,7 +52,7 @@ pub struct ProcessWidgetsParams {
 }
 
 #[tauri::command]
-pub fn process_widgets_pipeline(params: ProcessWidgetsParams) -> Result<Vec<Widget>, String> {
+pub async fn process_widgets_pipeline(params: ProcessWidgetsParams) -> Result<Vec<Widget>, String> {
     let mut result = params.widgets;
 
     if let Some(term) = &params.search_term {
@@ -92,7 +92,7 @@ pub struct ProcessAppsParams {
 }
 
 #[tauri::command]
-pub fn process_apps_pipeline(params: ProcessAppsParams) -> Result<Vec<MendixApp>, String> {
+pub async fn process_apps_pipeline(params: ProcessAppsParams) -> Result<Vec<MendixApp>, String> {
     let mut result = params.apps;
     let only_valid = params.only_valid.unwrap_or(true);
 
@@ -167,15 +167,17 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_filter_mendix_versions() {
+    #[tokio::test]
+    async fn test_filter_mendix_versions() {
         let versions = vec![
             create_test_version("10.4.0", true),
             create_test_version("10.3.0", true),
             create_test_version("9.24.0", false),
         ];
 
-        let result = filter_mendix_versions(versions, None, true).unwrap();
+        let result = filter_mendix_versions(versions, None, true)
+            .await
+            .unwrap();
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].version, "10.4.0");
     }
@@ -188,8 +190,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_process_widgets_pipeline_search_only() {
+    #[tokio::test]
+    async fn test_process_widgets_pipeline_search_only() {
         let widgets = vec![
             create_test_widget("1", "Alpha Dropdown"),
             create_test_widget("2", "Beta Dropdown"),
@@ -203,13 +205,13 @@ mod tests {
             order: None,
         };
 
-        let result = process_widgets_pipeline(params).unwrap();
+        let result = process_widgets_pipeline(params).await.unwrap();
         assert_eq!(result.len(), 2);
         assert!(result.iter().all(|w| w.caption.contains("Dropdown")));
     }
 
-    #[test]
-    fn test_process_widgets_pipeline_select_and_order() {
+    #[tokio::test]
+    async fn test_process_widgets_pipeline_select_and_order() {
         let widgets = vec![
             create_test_widget("1", "Widget A"),
             create_test_widget("2", "Widget B"),
@@ -224,15 +226,15 @@ mod tests {
             order: Some(vec!["4".to_string(), "1".to_string(), "3".to_string()]),
         };
 
-        let result = process_widgets_pipeline(params).unwrap();
+        let result = process_widgets_pipeline(params).await.unwrap();
         assert_eq!(result.len(), 3);
         assert_eq!(result[0].id, "4");
         assert_eq!(result[1].id, "1");
         assert_eq!(result[2].id, "3");
     }
 
-    #[test]
-    fn test_process_widgets_pipeline_full() {
+    #[tokio::test]
+    async fn test_process_widgets_pipeline_full() {
         let widgets = vec![
             create_test_widget("1", "Widget Alpha"),
             create_test_widget("2", "Widget Beta"),
@@ -247,15 +249,15 @@ mod tests {
             order: Some(vec!["4".to_string(), "2".to_string(), "1".to_string()]),
         };
 
-        let result = process_widgets_pipeline(params).unwrap();
+        let result = process_widgets_pipeline(params).await.unwrap();
         assert_eq!(result.len(), 3);
         assert_eq!(result[0].id, "4");
         assert_eq!(result[1].id, "2");
         assert_eq!(result[2].id, "1");
     }
 
-    #[test]
-    fn test_process_apps_pipeline_search_and_version() {
+    #[tokio::test]
+    async fn test_process_apps_pipeline_search_and_version() {
         let apps = vec![
             create_test_app("MyApp1", Some("10.4.0"), true),
             create_test_app("MyApp2", Some("10.3.0"), true),
@@ -272,13 +274,13 @@ mod tests {
             only_valid: Some(true),
         };
 
-        let result = process_apps_pipeline(params).unwrap();
+        let result = process_apps_pipeline(params).await.unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].name, "MyApp1");
     }
 
-    #[test]
-    fn test_process_apps_pipeline_with_priority() {
+    #[tokio::test]
+    async fn test_process_apps_pipeline_with_priority() {
         let apps = vec![
             create_test_app("App1", Some("10.4.0"), true),
             create_test_app("App2", Some("10.3.0"), true),
@@ -295,15 +297,15 @@ mod tests {
             only_valid: Some(true),
         };
 
-        let result = process_apps_pipeline(params).unwrap();
+        let result = process_apps_pipeline(params).await.unwrap();
         assert_eq!(result.len(), 4);
         // 10.3.0 apps should be first due to priority
         assert_eq!(result[0].version.as_ref().unwrap(), "10.3.0");
         assert_eq!(result[1].version.as_ref().unwrap(), "10.3.0");
     }
 
-    #[test]
-    fn test_process_apps_pipeline_selected_paths() {
+    #[tokio::test]
+    async fn test_process_apps_pipeline_selected_paths() {
         let apps = vec![
             create_test_app("App1", Some("10.4.0"), true),
             create_test_app("App2", Some("10.3.0"), true),
@@ -321,7 +323,7 @@ mod tests {
             only_valid: Some(true),
         };
 
-        let result = process_apps_pipeline(params).unwrap();
+        let result = process_apps_pipeline(params).await.unwrap();
         assert_eq!(result.len(), 2);
         // Sorted by version descending: 10.5.0 first, then 10.4.0
         assert_eq!(result[0].name, "App3");

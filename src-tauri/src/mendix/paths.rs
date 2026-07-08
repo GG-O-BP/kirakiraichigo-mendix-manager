@@ -1,10 +1,23 @@
 use super::scanner::{extract_version_from_directory_name, scan_mendix_directory};
 
 /// Default Mendix installation directory
-pub const MENDIX_INSTALL_DIR: &str = "C:\\Program Files\\Mendix";
+const DEFAULT_MENDIX_INSTALL_DIR: &str = "C:\\Program Files\\Mendix";
 
 /// Default Mendix data directory (for uninstallers)
-pub const MENDIX_DATA_DIR: &str = "C:\\ProgramData\\Mendix";
+const DEFAULT_MENDIX_DATA_DIR: &str = "C:\\ProgramData\\Mendix";
+
+/// Mendix installation directory, overridable via the KIRAICHI_MENDIX_INSTALL_DIR
+/// environment variable for non-default installs.
+pub fn mendix_install_dir() -> String {
+    std::env::var("KIRAICHI_MENDIX_INSTALL_DIR")
+        .unwrap_or_else(|_| DEFAULT_MENDIX_INSTALL_DIR.to_string())
+}
+
+/// Mendix data directory (uninstallers), overridable via KIRAICHI_MENDIX_DATA_DIR.
+pub fn mendix_data_dir() -> String {
+    std::env::var("KIRAICHI_MENDIX_DATA_DIR")
+        .unwrap_or_else(|_| DEFAULT_MENDIX_DATA_DIR.to_string())
+}
 
 /// Get user home directory from environment
 pub fn get_home_directory() -> Result<String, String> {

@@ -73,37 +73,16 @@ where
         .collect()
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SemanticVersion {
-    pub major: u32,
-    pub minor: u32,
-    pub patch: u32,
-    pub extra: String,
-}
-
-fn parse_version(version_string: &str) -> Option<SemanticVersion> {
-    let parts: Vec<&str> = version_string.split('.').collect();
-
-    if parts.len() < 3 {
-        return None;
-    }
-
-    let major = parts[0].parse::<u32>().ok()?;
-    let minor = parts[1].parse::<u32>().ok()?;
-
-    let patch_parts: Vec<&str> = parts[2].split('-').collect();
-    let patch = patch_parts[0].parse::<u32>().ok()?;
-    let extra = if patch_parts.len() > 1 {
-        patch_parts[1..].join("-")
-    } else {
-        String::new()
-    };
-
-    Some(SemanticVersion {
-        major,
-        minor,
-        patch,
-        extra,
+fn parse_version(version_string: &str) -> Option<semver::Version> {
+    semver::Version::parse(version_string).ok().or_else(|| {
+        // Mendix directory versions like "10.4.0.1234" carry a 4th build segment
+        // that is not valid semver; fall back to the leading major.minor.patch.
+        let normalized = version_string
+            .split('.')
+            .take(3)
+            .collect::<Vec<_>>()
+            .join(".");
+        semver::Version::parse(&normalized).ok()
     })
 }
 
@@ -230,7 +209,11 @@ mod tests {
         assert_eq!(v.patch, 0);
 
         let v_beta = parse_version("10.4.0-beta").unwrap();
-        assert_eq!(v_beta.extra, "beta");
+        assert_eq!(v_beta.pre.as_str(), "beta");
+
+        // 4-part Mendix build versions fall back to the leading 3 segments
+        let v_build = parse_version("10.4.0.1234").unwrap();
+        assert_eq!((v_build.major, v_build.minor, v_build.patch), (10, 4, 0));
     }
 
     #[test]

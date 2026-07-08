@@ -5,6 +5,14 @@ use scraper::{Html, Selector};
 use super::browser::{extract_element_html, wait_for_element_with_timeout};
 use super::config::{DownloadableVersion, ScrapingConfig, VersionFlags};
 
+// CSS selectors for the Mendix marketplace datagrid. Centralized here so a
+// marketplace HTML change only needs edits in one place.
+const ROW_SELECTOR: &str = "div.tr[role=row]";
+const VERSION_LINK_SELECTOR: &str = "div[role=gridcell] > div > div > a";
+const FLAG_SPAN_SELECTOR: &str = "div[role=gridcell] > div > div > span";
+const DATAGRID_CONTENT_SELECTOR: &str = "div.widget-datagrid-content";
+const BUILD_NUMBER_SELECTOR: &str = "span.mx-text.pds-heading--sm.pds-mb-0";
+
 /// Extract build number from text like "Build 12345"
 pub fn extract_build_number_from_text(text: &str) -> Option<String> {
     Regex::new(r"Build\s+(\d{5})")
@@ -16,8 +24,8 @@ pub fn extract_build_number_from_text(text: &str) -> Option<String> {
 
 /// Parse a single row from the datagrid
 fn parse_datagrid_row(row: &scraper::ElementRef) -> Option<DownloadableVersion> {
-    let version_selector = Selector::parse("div[role=gridcell] > div > div > a").ok()?;
-    let span_selector = Selector::parse("div[role=gridcell] > div > div > span").ok()?;
+    let version_selector = Selector::parse(VERSION_LINK_SELECTOR).ok()?;
+    let span_selector = Selector::parse(FLAG_SPAN_SELECTOR).ok()?;
 
     let version_text = row
         .select(&version_selector)
@@ -54,7 +62,7 @@ fn parse_datagrid_row(row: &scraper::ElementRef) -> Option<DownloadableVersion> 
 /// Parse datagrid HTML content into downloadable versions
 pub fn parse_datagrid_html(html_content: &str) -> Result<Vec<DownloadableVersion>, String> {
     let document = Html::parse_document(html_content);
-    let row_selector = Selector::parse("div.tr[role=row]")
+    let row_selector = Selector::parse(ROW_SELECTOR)
         .map_err(|e| format!("Failed to parse row selector: {}", e))?;
 
     let versions = document
@@ -70,9 +78,12 @@ pub async fn extract_datagrid_content(
     page: &Page,
     config: &ScrapingConfig,
 ) -> Result<String, String> {
-    let selector = "div.widget-datagrid-content";
-    let elements =
-        wait_for_element_with_timeout(page, selector, config.wait_for_element_seconds).await?;
+    let elements = wait_for_element_with_timeout(
+        page,
+        DATAGRID_CONTENT_SELECTOR,
+        config.wait_for_element_seconds,
+    )
+    .await?;
 
     if let Some(element) = elements.into_iter().next() {
         extract_element_html(&element).await
@@ -93,10 +104,8 @@ pub async fn extract_build_number_from_marketplace(
     ))
     .await;
 
-    let selector = "span.mx-text.pds-heading--sm.pds-mb-0";
-
     let elements = page
-        .find_elements(selector)
+        .find_elements(BUILD_NUMBER_SELECTOR)
         .await
         .map_err(|e| format!("Failed to find elements: {}", e))?;
 

@@ -4,8 +4,8 @@ use std::process::Command;
 
 use super::models::{MendixApp, MendixVersion, UninstallResult};
 use super::paths::{
-    construct_exe_path, construct_uninstall_path, get_mendix_apps_directory, MENDIX_DATA_DIR,
-    MENDIX_INSTALL_DIR,
+    construct_exe_path, construct_uninstall_path, get_mendix_apps_directory, mendix_data_dir,
+    mendix_install_dir,
 };
 use super::scanner::{
     filter_apps_by_version, filter_valid_apps, filter_valid_versions, process_mendix_apps,
@@ -50,7 +50,7 @@ fn remove_directory(path: &str) -> Result<(), String> {
 
 /// Start the uninstaller for a Mendix version
 fn uninstall_studio_pro(version: &str) -> Result<(), String> {
-    construct_uninstall_path(MENDIX_DATA_DIR, version)
+    construct_uninstall_path(&mendix_data_dir(), version)
         .filter(|path| Path::new(path).exists())
         .ok_or_else(|| format!("Uninstaller not found for version {}", version))
         .and_then(|uninstall_path| execute_command(&uninstall_path, &["/SILENT"]))
@@ -58,7 +58,7 @@ fn uninstall_studio_pro(version: &str) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_installed_mendix_versions() -> Result<Vec<MendixVersion>, String> {
-    scan_mendix_directory(MENDIX_INSTALL_DIR)
+    scan_mendix_directory(&mendix_install_dir())
         .map(process_mendix_versions)
         .map(filter_valid_versions)
         .map(sort_versions_by_descending)
@@ -86,7 +86,7 @@ pub fn get_apps_by_version(version: String) -> Result<Vec<MendixApp>, String> {
 
 #[tauri::command]
 pub fn launch_studio_pro(version: String) -> Result<(), String> {
-    construct_exe_path(MENDIX_INSTALL_DIR, &version)
+    construct_exe_path(&mendix_install_dir(), &version)
         .filter(|path| Path::new(path).exists())
         .ok_or_else(|| format!("Studio Pro executable not found for version {}", version))
         .and_then(|exe_path| execute_command(&exe_path, &[]))
@@ -111,7 +111,7 @@ pub async fn uninstall_studio_pro_and_wait(
     let timeout_duration = std::time::Duration::from_secs(timeout);
 
     loop {
-        let folder_exists = scan_mendix_directory(MENDIX_INSTALL_DIR)
+        let folder_exists = scan_mendix_directory(&mendix_install_dir())
             .map(|entries| {
                 entries
                     .into_iter()
