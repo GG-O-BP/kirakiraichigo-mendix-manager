@@ -172,7 +172,11 @@ fn save_state_to_file(state: &AppState) -> Result<(), String> {
 
     let json = serde_json::to_string_pretty(state)
         .map_err(|e| format!("Failed to serialize data: {}", e))?;
-    fs::write(&path, json).map_err(|e| format!("Failed to write to file: {}", e))
+
+    let tmp_path = path.with_extension("json.tmp");
+    fs::write(&tmp_path, json)
+        .map_err(|e| format!("Failed to write to temp file: {}", e))?;
+    fs::rename(&tmp_path, &path).map_err(|e| format!("Failed to replace state file: {}", e))
 }
 
 fn load_state_from_file() -> Result<AppState, String> {
@@ -198,6 +202,10 @@ fn save_specific_state_typed(key: StorageKey, value: Value) -> Result<(), String
 }
 
 fn load_specific_state_typed(key: StorageKey, default_value: Value) -> Result<Value, String> {
+    let _lock = storage_mutex()
+        .lock()
+        .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
+
     let state = load_state_from_file().unwrap_or_default();
     Ok(state.get(key).unwrap_or(default_value))
 }
@@ -238,6 +246,10 @@ pub fn load_from_storage(key: String, default_value: Value) -> Result<Value, Str
 
 #[tauri::command]
 pub fn load_widgets_ordered() -> Result<Vec<Widget>, String> {
+    let _lock = storage_mutex()
+        .lock()
+        .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
+
     let state = load_state_from_file().unwrap_or_default();
 
     let widgets: Vec<Widget> = match state.get(StorageKey::KirakiraWidgets) {
@@ -396,6 +408,10 @@ fn parse_cache_from_value(value: &Value) -> Result<Vec<DownloadableVersion>, Str
 
 #[tauri::command]
 pub fn load_downloadable_versions_cache() -> Result<Vec<DownloadableVersion>, String> {
+    let _lock = storage_mutex()
+        .lock()
+        .map_err(|e| format!("Failed to acquire storage lock: {}", e))?;
+
     let state = load_state_from_file().unwrap_or_default();
 
     match state.get(StorageKey::DownloadableVersionsCache) {

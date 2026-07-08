@@ -101,7 +101,7 @@ pub async fn download_and_install_mendix_version(version: String) -> Result<Stri
     download_file_to_path(&download_url, installer_path_str).await?;
 
     println!("🚀 Launching installer...");
-    execute_installer(installer_path_str)?;
+    execute_installer(installer_path_str).await?;
     println!("✅ Installer launched successfully");
 
     Ok(format!(

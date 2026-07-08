@@ -1,5 +1,5 @@
 use crate::package_manager::strategy::ExecutionStrategy;
-use crate::package_manager::powershell::execute_powershell_script;
+use crate::package_manager::powershell::{escape_ps_single_quoted, execute_powershell_script};
 
 /// Strategy 1: Direct Node.js search
 ///
@@ -20,6 +20,7 @@ impl ExecutionStrategy for DirectNodeStrategy {
     ) -> Result<String, String> {
         println!("[Package Manager] Trying direct Node.js search method");
 
+        let working_directory = escape_ps_single_quoted(working_directory);
         let ps_script = format!(
             r#"
             # Change to working directory

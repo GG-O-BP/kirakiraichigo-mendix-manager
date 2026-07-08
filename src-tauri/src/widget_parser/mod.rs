@@ -630,7 +630,7 @@ fn process_text_event(state: ParseState, text: &str) -> ParseState {
 
 fn parse_xml_events<F>(xml_content: &str, mut event_processor: F) -> Result<ParseState, ParseError>
 where
-    F: FnMut(ParseState, Event) -> ParseState,
+    F: FnMut(ParseState, Event) -> Result<ParseState, ParseError>,
 {
     let mut reader = Reader::from_str(xml_content);
     reader.config_mut().trim_text(true);
@@ -647,7 +647,7 @@ where
             }
             Ok(Event::Eof) => break,
             Ok(event) => {
-                state = event_processor(state, event);
+                state = event_processor(state, event)?;
             }
         }
         buf.clear();
@@ -670,32 +670,46 @@ fn process_empty_event(
     }
 }
 
-fn process_xml_event(state: ParseState, event: Event) -> ParseState {
+fn process_xml_event(state: ParseState, event: Event) -> Result<ParseState, ParseError> {
     match event {
         Event::Start(e) => {
             let attributes: Result<Vec<_>, _> = e.attributes().collect();
             match attributes {
-                Ok(attrs) => process_start_event(state, e.name().as_ref(), attrs),
-                Err(_) => state,
+                Ok(attrs) => Ok(process_start_event(state, e.name().as_ref(), attrs)),
+                Err(err) => Err(ParseError::XmlParseError(format!(
+                    "Failed to parse attributes of <{}>: {}",
+                    String::from_utf8_lossy(e.name().as_ref()),
+                    err
+                ))),
             }
         }
         Event::Empty(e) => {
             let attributes: Result<Vec<_>, _> = e.attributes().collect();
             match attributes {
-                Ok(attrs) => process_empty_event(state, e.name().as_ref(), attrs),
-                Err(_) => state,
+                Ok(attrs) => Ok(process_empty_event(state, e.name().as_ref(), attrs)),
+                Err(err) => Err(ParseError::XmlParseError(format!(
+                    "Failed to parse attributes of empty <{}>: {}",
+                    String::from_utf8_lossy(e.name().as_ref()),
+                    err
+                ))),
             }
         }
-        Event::End(e) => process_end_event(state, e.name().as_ref()),
+        Event::End(e) => Ok(process_end_event(state, e.name().as_ref())),
         Event::Text(e) => match e.decode() {
-            Ok(text) => process_text_event(state, &text),
-            Err(_) => state,
+            Ok(text) => Ok(process_text_event(state, &text)),
+            Err(err) => Err(ParseError::XmlParseError(format!(
+                "Failed to decode text content: {}",
+                err
+            ))),
         },
         Event::CData(e) => match std::str::from_utf8(e.as_ref()) {
-            Ok(text) => process_text_event(state, text),
-            Err(_) => state,
+            Ok(text) => Ok(process_text_event(state, text)),
+            Err(err) => Err(ParseError::XmlParseError(format!(
+                "Failed to decode CDATA content: {}",
+                err
+            ))),
         },
-        _ => state,
+        _ => Ok(state),
     }
 }
 
@@ -1138,6 +1152,26 @@ mod tests {
         let alignment_prop = &result.properties[2];
         assert_eq!(alignment_prop.options.len(), 3);
         assert!(alignment_prop.options.contains(&"left".to_string()));
+    }
+
+    #[test]
+    fn duplicate_attribute_propagates_parse_error() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<widget id="com.example.MyWidget" xmlns="http://www.mendix.com/widget/1.0/">
+    <name>My Widget</name>
+    <description>dup</description>
+    <properties>
+        <property key="caption" key="dup" type="string">
+            <caption>Caption</caption>
+        </property>
+    </properties>
+</widget>"#;
+
+        let result = parse_xml_content(xml);
+        assert!(
+            result.is_err(),
+            "attribute parse failure should propagate as ParseError instead of being silently ignored"
+        );
     }
 
     #[test]
