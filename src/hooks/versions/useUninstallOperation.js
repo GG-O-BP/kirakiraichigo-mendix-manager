@@ -44,7 +44,7 @@ export function useUninstallOperation({ updateLoadingState }) {
   const { mutate } = useSWRConfig();
 
   const { trigger, isMutating, error } = useSWRMutation(
-    "uninstall-studio-pro",
+    SWR_KEYS.UNINSTALL_STUDIO_PRO,
     uninstallStudioPro,
   );
 

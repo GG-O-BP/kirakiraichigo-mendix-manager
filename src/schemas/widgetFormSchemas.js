@@ -26,7 +26,7 @@ export const validateAddWidgetForm = (data) => {
       R.reduce(
         (acc, issue) =>
           R.assocPath(
-            ["errors", R.path(["path", 0, "key"], issue)],
+            ["errors", R.pathOr("_form", ["path", 0, "key"], issue)],
             R.prop("message", issue),
             acc,
           ),

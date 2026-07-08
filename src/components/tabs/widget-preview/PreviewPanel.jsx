@@ -42,14 +42,15 @@ const PreviewPanel = memo(({ previewData, properties, widgetDefinition, isBuildi
             <div className="empty-state">
               <span className="empty-state-icon">🍓</span>
               <p className="empty-state-message">
-                {R.pathOr("Pick a widget, click Run Preview~\nand watch the magic happen! Hehe", ["preview", "emptyState"], t)
-                  .split("\n")
-                  .map((line, i) => (
+                {R.pipe(
+                  R.split("\n"),
+                  R.addIndex(R.map)((line, i) => (
                     <span key={i}>
                       {line}
                       {i === 0 && <br />}
                     </span>
-                  ))}
+                  )),
+                )(R.pathOr("Pick a widget, click Run Preview~\nand watch the magic happen! Hehe", ["preview", "emptyState"], t))}
               </p>
             </div>
           ),

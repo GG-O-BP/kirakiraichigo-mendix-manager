@@ -67,12 +67,12 @@ export function useCollection({ selectionType, getItemId }) {
   );
 
   const { trigger: triggerToggle } = useSWRMutation(
-    `toggle-selection-${selectionType}`,
+    SWR_KEYS.TOGGLE_SELECTION(selectionType),
     toggleSelectionMutation,
   );
 
   const { trigger: triggerRemove } = useSWRMutation(
-    `remove-selection-${selectionType}`,
+    SWR_KEYS.REMOVE_SELECTION(selectionType),
     removeFromSelectionMutation,
   );
 

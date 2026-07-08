@@ -7,7 +7,7 @@ use std::time::Duration;
 use tokio::time::timeout;
 
 use super::config::{
-    CHROME_EXECUTABLE_PATH, CLICK_DEBOUNCE_MS, CLICK_NAVIGATION_DELAY_MS, NAVIGATION_TIMEOUT_SECS,
+    chrome_executable_path, CLICK_DEBOUNCE_MS, CLICK_NAVIGATION_DELAY_MS, NAVIGATION_TIMEOUT_SECS,
     PAGE_CHANGE_POLL_MS,
 };
 
@@ -53,8 +53,12 @@ async fn create_browser_instance() -> Result<(Browser, chromiumoxide::handler::H
     let temp_dir = std::env::temp_dir().join(format!("kiraichi-chrome-{}", std::process::id()));
     let user_data_dir = temp_dir.to_string_lossy().to_string();
 
+    let chrome_path = chrome_executable_path().ok_or_else(|| {
+        "Chrome executable not found. Install Google Chrome or set KIRAICHI_CHROME_PATH.".to_string()
+    })?;
+
     let config = BrowserConfig::builder()
-        .chrome_executable(CHROME_EXECUTABLE_PATH)
+        .chrome_executable(&chrome_path)
         .user_data_dir(&user_data_dir)
         .args(vec![
             "--no-sandbox",

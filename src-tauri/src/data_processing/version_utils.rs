@@ -153,7 +153,7 @@ fn build_version_options(versions: &[MendixVersion]) -> Vec<VersionOption> {
 }
 
 #[tauri::command]
-pub fn filter_downloadable_versions(
+pub async fn filter_downloadable_versions(
     versions: Vec<DownloadableVersion>,
     installed_versions: Vec<MendixVersion>,
     show_only_downloadable: bool,
@@ -174,7 +174,7 @@ pub fn filter_downloadable_versions(
 }
 
 #[tauri::command]
-pub fn compare_versions(
+pub async fn compare_versions(
     comparison_type: String,
     value1: Option<String>,
     value2: Option<String>,
@@ -196,12 +196,17 @@ pub fn compare_versions(
 }
 
 #[tauri::command]
-pub fn calculate_next_page_number(total_items: usize, items_per_page: usize) -> Result<usize, String> {
+pub async fn calculate_next_page_number(
+    total_items: usize,
+    items_per_page: usize,
+) -> Result<usize, String> {
     Ok(compute_next_page(total_items, items_per_page))
 }
 
 #[tauri::command]
-pub fn create_version_options(versions: Vec<MendixVersion>) -> Result<Vec<VersionOption>, String> {
+pub async fn create_version_options(
+    versions: Vec<MendixVersion>,
+) -> Result<Vec<VersionOption>, String> {
     Ok(build_version_options(&versions))
 }
 
@@ -432,14 +437,15 @@ mod tests {
         assert_eq!(result.len(), 2);
     }
 
-    #[test]
-    fn test_compare_versions_selected() {
+    #[tokio::test]
+    async fn test_compare_versions_selected() {
         let result = compare_versions(
             "selected".to_string(),
             Some("10.4.0".to_string()),
             Some("10.4.0".to_string()),
             None,
-        );
+        )
+        .await;
         assert!(result.is_ok());
         assert!(result.unwrap());
 
@@ -448,13 +454,14 @@ mod tests {
             Some("10.4.0".to_string()),
             Some("10.3.0".to_string()),
             None,
-        );
+        )
+        .await;
         assert!(result.is_ok());
         assert!(!result.unwrap());
     }
 
-    #[test]
-    fn test_compare_versions_installed() {
+    #[tokio::test]
+    async fn test_compare_versions_installed() {
         let installed = vec![
             create_test_installed_version("10.4.0"),
             create_test_installed_version("10.3.0"),
@@ -465,7 +472,8 @@ mod tests {
             Some("10.4.0".to_string()),
             None,
             Some(installed.clone()),
-        );
+        )
+        .await;
         assert!(result.is_ok());
         assert!(result.unwrap());
 
@@ -474,19 +482,21 @@ mod tests {
             Some("10.5.0".to_string()),
             None,
             Some(installed),
-        );
+        )
+        .await;
         assert!(result.is_ok());
         assert!(!result.unwrap());
     }
 
-    #[test]
-    fn test_compare_versions_mismatch() {
+    #[tokio::test]
+    async fn test_compare_versions_mismatch() {
         let result = compare_versions(
             "mismatch".to_string(),
             Some("10.4.0".to_string()),
             Some("10.3.0".to_string()),
             None,
-        );
+        )
+        .await;
         assert!(result.is_ok());
         assert!(result.unwrap());
 
@@ -495,19 +505,21 @@ mod tests {
             Some("10.4.0".to_string()),
             Some("10.4.0".to_string()),
             None,
-        );
+        )
+        .await;
         assert!(result.is_ok());
         assert!(!result.unwrap());
     }
 
-    #[test]
-    fn test_compare_versions_invalid_type() {
+    #[tokio::test]
+    async fn test_compare_versions_invalid_type() {
         let result = compare_versions(
             "invalid".to_string(),
             Some("10.4.0".to_string()),
             Some("10.4.0".to_string()),
             None,
-        );
+        )
+        .await;
         assert!(result.is_err());
     }
 }

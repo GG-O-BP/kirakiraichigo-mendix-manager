@@ -2,6 +2,7 @@ import * as R from "ramda";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import useSWRMutation from "swr/mutation";
 import { invoke } from "@tauri-apps/api/core";
+import { SWR_KEYS } from "../../lib/swr";
 import {
   previewDataCacheAtom,
   buildErrorAtom,
@@ -25,12 +26,12 @@ export function useWidgetPreviewBuild({ selectedWidgetForPreview, packageManager
   const [buildError, setBuildError] = useAtom(buildErrorAtom);
 
   const { trigger: triggerBuild, isMutating: isBuildingPreview } = useSWRMutation(
-    "widget-preview-build",
+    SWR_KEYS.WIDGET_PREVIEW_BUILD,
     buildAndRunPreview,
   );
 
   const { trigger: triggerRun, isMutating: isRunningPreview } = useSWRMutation(
-    "widget-preview-run",
+    SWR_KEYS.WIDGET_PREVIEW_RUN,
     runPreviewOnly,
   );
 
