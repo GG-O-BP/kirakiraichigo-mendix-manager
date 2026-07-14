@@ -1,5 +1,6 @@
 use quick_xml::events::Event;
 use quick_xml::Reader;
+use quick_xml::XmlVersion;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -118,7 +119,8 @@ fn extract_string_attribute(
     attributes
         .iter()
         .find(|attr| attr.key.as_ref() == key)
-        .map(|attr| String::from_utf8_lossy(&attr.value).to_string())
+        .and_then(|attr| attr.normalized_value(XmlVersion::Implicit1_0).ok())
+        .map(|value| value.into_owned())
 }
 
 fn extract_bool_attribute(

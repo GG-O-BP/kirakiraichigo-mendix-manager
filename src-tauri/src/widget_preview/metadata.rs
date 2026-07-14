@@ -1,5 +1,6 @@
 use quick_xml::events::Event;
 use quick_xml::Reader;
+use quick_xml::XmlVersion;
 use std::path::Path;
 
 #[derive(Debug)]
@@ -63,7 +64,10 @@ pub fn extract_widget_id_from_xml(xml_path: &Path) -> Option<String> {
                 if e.name().as_ref() == b"widget" {
                     for attr in e.attributes().flatten() {
                         if attr.key.as_ref() == b"id" {
-                            return attr.unescape_value().ok().map(|v| v.into_owned());
+                            return attr
+                                .normalized_value(XmlVersion::Implicit1_0)
+                                .ok()
+                                .map(|v| v.into_owned());
                         }
                     }
                 }

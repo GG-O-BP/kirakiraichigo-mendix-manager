@@ -45,7 +45,17 @@
       "Bash(ls \"C:\\\\Users\\\\dohye\\\\workspace\\\\kirakiraichigo-mendix-manager\\\\src\\\\hooks\\\\app-initialization\"\" 2>/dev/null || echo \"empty or deleted \")",
       "Bash(cargo tree:*)",
       "WebFetch(domain:www.mozilla.org)",
-      "WebFetch(domain:spdx.org)"
+      "WebFetch(domain:spdx.org)",
+      "Bash(git *)",
+      "Bash(bun run *)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:vite.dev)",
+      "WebFetch(domain:vitest.dev)",
+      "WebFetch(domain:rolldown.rs)",
+      "Bash(tasklist //FI \"IMAGENAME eq cargo.exe\")",
+      "Bash(gh api *)",
+      "Bash(gh release *)",
+      "WebFetch(domain:v7.vite.dev)"
     ]
   }
 }

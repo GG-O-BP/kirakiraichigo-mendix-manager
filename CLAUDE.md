@@ -69,13 +69,13 @@ Sub-hook은 단일 책임(상태/데이터 로딩/오퍼레이션). 합성 hook�
 
 ### i18n
 
-`@nanostores/i18n` 사용. 로케일 파일: `src/i18n/locales/` (en, ko, ja). `useStore(messages)`로 번역 접근.
+`@nanostores/i18n` 사용. 로케일 파일: `src/i18n/locales/` (en, ko, ja). `useStore(messages)`로 번역 접근. 새 로케일 추가 시 `src/i18n/index.js`의 `SUPPORTED_LOCALES`와 `localeLoaders`에 모두 등록할 것.
 
 ## Rust Development Rules
 
 - 모든 Tauri 커맨드: `async fn` → `Result<T, String>` 반환
 - `#[tauri::command]` 매크로 사용, `lib.rs`에 등록
-- XML 파싱: `quick_xml` (문자열 검색 금지)
+- XML 파싱: `quick_xml` (문자열 검색 금지). 속성 값은 `normalized_value(XmlVersion::Implicit1_0)` 사용 — `unescape_value()`는 0.40부터 deprecated
 - 버전 비교: `semver` crate
 - JS 실행: `boa_engine` (editorConfig.ts 평가용)
 - 병렬 처리: `rayon`
@@ -89,6 +89,7 @@ Sub-hook은 단일 책임(상태/데이터 로딩/오퍼레이션). 합성 hook�
 - **Set → Array**: JavaScript `Set`을 Rust로 보내기 전 반드시 Array로 변환
 - **Tauri invoke**: 항상 `await`. 데이터 페칭은 `useSWR`, 변이는 `useSWRMutation`
 - **CSS**: LightningCSS 사용 (PostCSS 플러그인 사용 금지). Catppuccin 테마.
+- **Vite 8 (Rolldown 기반)**: 번들러 옵션은 `build.rolldownOptions` 사용 (`rollupOptions`는 deprecated alias)
 - **React 19**: concurrent features 활성화 상태
 - **패키지 매니저**: 개발은 Bun. 위젯 빌드는 npm/pnpm/yarn/bun (사용자 선택)
 - **Tauri 플러그인**: `@tauri-apps/plugin-dialog`, `plugin-fs`, `plugin-opener`, `plugin-os`, `plugin-shell`

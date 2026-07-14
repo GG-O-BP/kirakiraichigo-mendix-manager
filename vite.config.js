@@ -24,6 +24,14 @@ export default defineConfig(async () => ({
     },
   },
 
+  build: {
+    rolldownOptions: {
+      checks: {
+        pluginTimings: false,
+      },
+    },
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent vite from obscuring rust errors
@@ -33,6 +41,8 @@ export default defineConfig(async () => ({
     port: 21420,
     strictPort: true,
     host: host || false,
+    // forward Tauri webview console output to the terminal during `bun tauri dev`
+    forwardConsole: true,
     hmr: host
       ? {
           protocol: "ws",

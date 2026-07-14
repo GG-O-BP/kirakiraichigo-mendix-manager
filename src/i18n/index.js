@@ -56,10 +56,16 @@ export const initializeLocale = async () => {
   return finalLocale;
 };
 
+const localeLoaders = {
+  ko: () => import("./locales/ko.json"),
+  ja: () => import("./locales/ja.json"),
+};
+
+const fallbackLoader = R.always(Promise.resolve({ default: enMessages }));
+
 const i18n = createI18n(locale, {
-  get(code) {
-    return import(`./locales/${code}.json`).then((module) => module.default);
-  },
+  get: (code) =>
+    R.propOr(fallbackLoader, code, localeLoaders)().then(R.prop("default")),
 });
 
 export const messages = i18n("app", enMessages.app);

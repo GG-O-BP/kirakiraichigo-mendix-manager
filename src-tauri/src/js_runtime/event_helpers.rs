@@ -97,8 +97,8 @@ mod tests {
 
     #[test]
     fn test_parse_decimal_or_empty_valid() {
-        let result = parse_decimal_or_empty("3.14".to_string());
-        assert_eq!(result, json!(3.14));
+        let result = parse_decimal_or_empty("2.75".to_string());
+        assert_eq!(result, json!(2.75));
     }
 
     #[test]
@@ -121,8 +121,8 @@ mod tests {
 
     #[test]
     fn test_parse_value_by_type_decimal() {
-        let result = parse_value_by_type(json!("3.14"), ValueType::Decimal);
-        assert_eq!(result, json!(3.14));
+        let result = parse_value_by_type(json!("2.75"), ValueType::Decimal);
+        assert_eq!(result, json!(2.75));
     }
 
     #[test]
