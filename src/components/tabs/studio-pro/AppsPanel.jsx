@@ -29,14 +29,17 @@ const AppItem = memo(({ app, selectedVersion, handleClick, onDelete }) => {
   const [isDisabled, setIsDisabled] = useState(false);
 
   useEffect(() => {
-    if (selectedVersion) {
-      invokeCheckAppVersionMismatch(selectedVersion.version, app.version)
-        .then(setIsDisabled)
-        .catch(() => setIsDisabled(false));
-    } else {
-      setIsDisabled(false);
-    }
-  }, [selectedVersion, app.version]);
+    R.ifElse(
+      R.isNotNil,
+      (version) =>
+        R.pipe(
+          () => invokeCheckAppVersionMismatch(R.prop("version", version), R.prop("version", app)),
+          R.andThen(setIsDisabled),
+          R.otherwise(() => setIsDisabled(false)),
+        )(),
+      () => setIsDisabled(false),
+    )(selectedVersion);
+  }, [selectedVersion, R.prop("version", app)]);
 
   return (
     <MendixAppListItem
@@ -60,23 +63,23 @@ const AppsPanel = memo(({
 }) => {
   const { t } = useI18n();
 
-  const renderAppsList = () => {
-    if (displayedApps.length === 0) {
-      return renderEmptyListMessage(
-        R.pathOr("No apps found", ["apps", "noAppsFound"], t),
-      );
-    }
-
-    return displayedApps.map((app) => (
-      <AppItem
-        key={`app-${app.name}`}
-        app={app}
-        selectedVersion={selectedVersion}
-        handleClick={handleItemClick}
-        onDelete={onDeleteApp}
-      />
-    ));
-  };
+  const renderAppsList = () =>
+    R.ifElse(
+      R.isEmpty,
+      () =>
+        renderEmptyListMessage(
+          R.pathOr("No apps found", ["apps", "noAppsFound"], t),
+        ),
+      R.map((app) => (
+        <AppItem
+          key={`app-${R.prop("name", app)}`}
+          app={app}
+          selectedVersion={selectedVersion}
+          handleClick={handleItemClick}
+          onDelete={onDeleteApp}
+        />
+      )),
+    )(displayedApps);
 
   const searchControls = (
     <div className="search-controls">

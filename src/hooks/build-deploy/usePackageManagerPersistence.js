@@ -1,3 +1,4 @@
+import * as R from "ramda";
 import { useCallback } from "react";
 import { useAtom } from "jotai";
 import useSWR from "swr";
@@ -17,13 +18,12 @@ export function usePackageManagerPersistence() {
   });
 
   const setPackageManager = useCallback(
-    async (value) => {
+    (value) => {
       setPackageManagerAtom(value);
-      try {
-        await saveToStorage(STORAGE_KEYS.PACKAGE_MANAGER, value);
-      } catch (error) {
-        console.error("Failed to save package manager:", error);
-      }
+      return R.pipe(
+        () => saveToStorage(STORAGE_KEYS.PACKAGE_MANAGER, value),
+        R.otherwise((error) => console.error("Failed to save package manager:", error)),
+      )();
     },
     [setPackageManagerAtom],
   );

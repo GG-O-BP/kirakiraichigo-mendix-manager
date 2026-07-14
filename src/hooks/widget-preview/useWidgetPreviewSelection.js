@@ -24,7 +24,11 @@ export function useWidgetPreviewSelection() {
       (widgetId) => {
         setDynamicPropertiesCache((cache) => {
           const currentValue = R.propOr({}, String(widgetId), cache);
-          const newValue = R.is(Function, updater) ? updater(currentValue) : updater;
+          const newValue = R.ifElse(
+            R.is(Function),
+            (updaterFn) => updaterFn(currentValue),
+            R.identity,
+          )(updater);
           return R.assoc(String(widgetId), newValue, cache);
         });
       },

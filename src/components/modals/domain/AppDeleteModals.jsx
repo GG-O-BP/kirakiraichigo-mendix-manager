@@ -19,26 +19,41 @@ function AppDeleteModals() {
   const { handleDeleteApp } = useApps();
   const { isUninstalling, setIsUninstalling } = useBuildDeploy();
 
-  const handleConfirmAppDelete = async () => {
-    if (appToDelete) {
-      setIsUninstalling(true);
-      try {
-        await handleDeleteApp(appToDelete.path);
-        setIsUninstalling(false);
-        closeAppDeleteModal();
-      } catch (error) {
-        alert(
-          R.pathOr(
-            `Failed to delete app: ${error}`,
-            ["modals", "appDelete", "deleteFailed"],
-            t,
-          ).replace("{error}", error),
-        );
-        setIsUninstalling(false);
-        closeAppDeleteModal();
-      }
-    }
-  };
+  const handleConfirmAppDelete = () =>
+    R.when(
+      R.isNotNil,
+      (app) => {
+        setIsUninstalling(true);
+        return R.pipe(
+          () => handleDeleteApp(R.prop("path", app)),
+          R.andThen(
+            R.pipe(
+              R.tap(() => setIsUninstalling(false)),
+              R.tap(() => closeAppDeleteModal()),
+            ),
+          ),
+          R.otherwise(
+            R.pipe(
+              R.tap((error) =>
+                alert(
+                  R.replace(
+                    "{error}",
+                    error,
+                    R.pathOr(
+                      `Failed to delete app: ${error}`,
+                      ["modals", "appDelete", "deleteFailed"],
+                      t,
+                    ),
+                  ),
+                ),
+              ),
+              R.tap(() => setIsUninstalling(false)),
+              R.tap(() => closeAppDeleteModal()),
+            ),
+          ),
+        )();
+      },
+    )(appToDelete);
 
   const deleteTitle = R.pathOr(
     "Delete This App?",
@@ -46,13 +61,20 @@ function AppDeleteModals() {
     t,
   );
 
-  const deleteMessage = appToDelete
-    ? R.pathOr(
-        `Do you really want to delete ${appToDelete.name}?\n\nI can't undo this once it's done! Are you absolutely sure?`,
-        ["modals", "appDelete", "message"],
-        t,
-      ).replace("{name}", appToDelete.name)
-    : "";
+  const deleteMessage = R.ifElse(
+    R.isNil,
+    R.always(""),
+    (app) =>
+      R.replace(
+        "{name}",
+        R.prop("name", app),
+        R.pathOr(
+          `Do you really want to delete ${R.prop("name", app)}?\n\nI can't undo this once it's done! Are you absolutely sure?`,
+          ["modals", "appDelete", "message"],
+          t,
+        ),
+      ),
+  )(appToDelete);
 
   return (
     <ConfirmModal

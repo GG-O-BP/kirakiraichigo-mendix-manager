@@ -75,7 +75,7 @@ function AppHeader({
                 type="radio"
                 name="theme"
                 value="kiraichi"
-                checked={currentTheme === "kiraichi"}
+                checked={R.equals("kiraichi", currentTheme)}
                 onChange={handleThemeChange}
               />
               <span>{R.pathOr("KiraIchi Dark", ["themes", "kiraIchiDark"], t)}</span>
@@ -85,7 +85,7 @@ function AppHeader({
                 type="radio"
                 name="theme"
                 value="kiraichi-light"
-                checked={currentTheme === "kiraichi-light"}
+                checked={R.equals("kiraichi-light", currentTheme)}
                 onChange={handleThemeChange}
               />
               <span>{R.pathOr("KiraIchi Light", ["themes", "kiraIchiLight"], t)}</span>
@@ -95,7 +95,7 @@ function AppHeader({
                 type="radio"
                 name="theme"
                 value="latte"
-                checked={currentTheme === "latte"}
+                checked={R.equals("latte", currentTheme)}
                 onChange={handleThemeChange}
               />
               <span>{R.pathOr("Latte", ["themes", "latte"], t)}</span>
@@ -105,7 +105,7 @@ function AppHeader({
                 type="radio"
                 name="theme"
                 value="frappe"
-                checked={currentTheme === "frappe"}
+                checked={R.equals("frappe", currentTheme)}
                 onChange={handleThemeChange}
               />
               <span>{R.pathOr("Frappe", ["themes", "frappe"], t)}</span>
@@ -115,7 +115,7 @@ function AppHeader({
                 type="radio"
                 name="theme"
                 value="macchiato"
-                checked={currentTheme === "macchiato"}
+                checked={R.equals("macchiato", currentTheme)}
                 onChange={handleThemeChange}
               />
               <span>{R.pathOr("Macchiato", ["themes", "macchiato"], t)}</span>
@@ -125,7 +125,7 @@ function AppHeader({
                 type="radio"
                 name="theme"
                 value="mocha"
-                checked={currentTheme === "mocha"}
+                checked={R.equals("mocha", currentTheme)}
                 onChange={handleThemeChange}
               />
               <span>{R.pathOr("Mocha", ["themes", "mocha"], t)}</span>

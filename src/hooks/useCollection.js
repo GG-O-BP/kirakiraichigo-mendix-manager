@@ -8,7 +8,7 @@ import { SWR_KEYS } from "../lib/swr";
 import { itemsAtomFamily, searchTermAtomFamily, filteredItemsAtomFamily, selectedItemsAtomFamily } from "../atoms/collection";
 
 const fetchSelection = async (key) => {
-  const selectionType = key[1];
+  const selectionType = R.nth(1, key);
   const storedItems = await invoke("init_selection_from_storage", {
     selectionType,
   });
@@ -77,15 +77,12 @@ export function useCollection({ selectionType, getItemId }) {
   );
 
   const toggleSelection = useCallback(
-    async (item) => {
-      const itemId = getItemId(item);
-      try {
-        const result = await triggerToggle({ selectionType, itemId });
-        mutateSelectedItems(result, { revalidate: false });
-      } catch (error) {
-        console.error("Failed to toggle selection:", error);
-      }
-    },
+    (item) =>
+      R.pipe(
+        () => triggerToggle({ selectionType, itemId: getItemId(item) }),
+        R.andThen((result) => mutateSelectedItems(result, { revalidate: false })),
+        R.otherwise((error) => console.error("Failed to toggle selection:", error)),
+      )(),
     [selectionType, getItemId, triggerToggle, mutateSelectedItems],
   );
 
@@ -98,15 +95,12 @@ export function useCollection({ selectionType, getItemId }) {
   );
 
   const removeFromSelection = useCallback(
-    async (item) => {
-      const itemId = getItemId(item);
-      try {
-        const result = await triggerRemove({ selectionType, itemId });
-        mutateSelectedItems(result, { revalidate: false });
-      } catch (error) {
-        console.error("Failed to remove from selection:", error);
-      }
-    },
+    (item) =>
+      R.pipe(
+        () => triggerRemove({ selectionType, itemId: getItemId(item) }),
+        R.andThen((result) => mutateSelectedItems(result, { revalidate: false })),
+        R.otherwise((error) => console.error("Failed to remove from selection:", error)),
+      )(),
     [selectionType, getItemId, triggerRemove, mutateSelectedItems],
   );
 

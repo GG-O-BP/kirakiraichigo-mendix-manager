@@ -27,28 +27,30 @@ const renderNoWidgetSelectedState = (t) => (
 );
 
 const RootPropertyGroup = memo(({ properties, updateProperty, arrayHandlers, visibleKeys, rootProps, t }) => {
-  if (R.isEmpty(rootProps)) return null;
+  const filteredProps = R.ifElse(
+    R.isNil,
+    R.always(rootProps),
+    (keys) => R.filter((prop) => R.includes(R.prop("key", prop), keys), rootProps),
+  )(visibleKeys);
 
-  const filteredProps = visibleKeys
-    ? R.filter((prop) => R.includes(R.prop("key", prop), visibleKeys), rootProps)
-    : rootProps;
-
-  if (R.isEmpty(filteredProps)) return null;
-
-  return (
-    <div className="property-group depth-0 expanded root-properties">
-      <div className="property-group-header-static">
-        <span className="property-group-title">{R.pathOr("General", ["preview", "general"], t)}</span>
-        <span className="property-group-count">{R.length(filteredProps)}</span>
+  return R.ifElse(
+    R.isEmpty,
+    R.always(null),
+    (visibleProps) => (
+      <div className="property-group depth-0 expanded root-properties">
+        <div className="property-group-header-static">
+          <span className="property-group-title">{R.pathOr("General", ["preview", "general"], t)}</span>
+          <span className="property-group-count">{R.length(visibleProps)}</span>
+        </div>
+        <div className="property-group-content">
+          {R.map(
+            (prop) => renderPropertyInputField(properties, updateProperty, arrayHandlers, prop),
+            visibleProps,
+          )}
+        </div>
       </div>
-      <div className="property-group-content">
-        {R.map(
-          (prop) => renderPropertyInputField(properties, updateProperty, arrayHandlers, prop),
-          filteredProps,
-        )}
-      </div>
-    </div>
-  );
+    ),
+  )(filteredProps);
 });
 
 RootPropertyGroup.displayName = "RootPropertyGroup";
@@ -67,52 +69,54 @@ const WidgetPropertyGroups = memo(({
   const rootProperties = R.propOr([], "properties", definition);
   const propertyGroups = R.propOr([], "propertyGroups", definition);
 
-  const visibleRootProps = visibleKeys
-    ? R.filter((prop) => R.includes(R.prop("key", prop), visibleKeys), rootProperties)
-    : rootProperties;
+  const visibleRootProps = R.ifElse(
+    R.isNil,
+    R.always(rootProperties),
+    (keys) => R.filter((prop) => R.includes(R.prop("key", prop), keys), rootProperties),
+  )(visibleKeys);
 
   const visibleGroupsCount = R.pipe(R.values, R.sum)(groupCounts);
-  const totalVisibleCount = R.length(visibleRootProps) + visibleGroupsCount;
+  const totalVisibleCount = R.add(R.length(visibleRootProps), visibleGroupsCount);
 
-  if (totalVisibleCount === 0) {
-    return renderNoConfigurableProperties(t);
-  }
-
-  const visibleGroups = R.filter((group) => {
-    const caption = R.prop("caption", group);
-    return R.propOr(0, caption, groupCounts) > 0;
-  }, propertyGroups);
-
-  return (
-    <>
-      <RootPropertyGroup
-        properties={properties}
-        updateProperty={updateProperty}
-        arrayHandlers={arrayHandlers}
-        visibleKeys={visibleKeys}
-        rootProps={rootProperties}
-        t={t}
-      />
-      {R.map(
-        (group) => (
-          <PropertyGroupAccordion
-            key={R.prop("caption", group)}
-            group={group}
-            groupPath=""
-            depth={0}
-            properties={properties}
-            updateProperty={updateProperty}
-            arrayHandlers={arrayHandlers}
-            expandedGroups={expandedGroups}
-            toggleGroup={toggleGroup}
-            visibleKeys={visibleKeys}
-            groupCounts={groupCounts}
-          />
-        ),
-        visibleGroups,
-      )}
-    </>
+  const visibleGroups = R.filter(
+    (group) => R.gt(R.propOr(0, R.prop("caption", group), groupCounts), 0),
+    propertyGroups,
   );
+
+  return R.ifElse(
+    R.equals(0),
+    () => renderNoConfigurableProperties(t),
+    () => (
+      <>
+        <RootPropertyGroup
+          properties={properties}
+          updateProperty={updateProperty}
+          arrayHandlers={arrayHandlers}
+          visibleKeys={visibleKeys}
+          rootProps={rootProperties}
+          t={t}
+        />
+        {R.map(
+          (group) => (
+            <PropertyGroupAccordion
+              key={R.prop("caption", group)}
+              group={group}
+              groupPath=""
+              depth={0}
+              properties={properties}
+              updateProperty={updateProperty}
+              arrayHandlers={arrayHandlers}
+              expandedGroups={expandedGroups}
+              toggleGroup={toggleGroup}
+              visibleKeys={visibleKeys}
+              groupCounts={groupCounts}
+            />
+          ),
+          visibleGroups,
+        )}
+      </>
+    ),
+  )(totalVisibleCount);
 });
 
 WidgetPropertyGroups.displayName = "WidgetPropertyGroups";
@@ -153,25 +157,26 @@ const PropertiesPanel = memo(({
         />
       </div>
       <div className="property-section">
-        {selectedWidget ? (
-          widgetDefinition ? (
-            <WidgetPropertyGroups
-              properties={properties}
-              updateProperty={updateProperty}
-              arrayHandlers={arrayHandlers}
-              expandedGroups={expandedGroups}
-              toggleGroup={toggleGroup}
-              visibleKeys={visibleKeys}
-              groupCounts={groupCounts}
-              definition={widgetDefinition}
-              t={t}
-            />
-          ) : (
-            renderPropertiesLoadingState(t)
-          )
-        ) : (
-          renderNoWidgetSelectedState(t)
-        )}
+        {R.cond([
+          [() => R.isNil(selectedWidget), () => renderNoWidgetSelectedState(t)],
+          [() => R.isNil(widgetDefinition), () => renderPropertiesLoadingState(t)],
+          [
+            R.T,
+            () => (
+              <WidgetPropertyGroups
+                properties={properties}
+                updateProperty={updateProperty}
+                arrayHandlers={arrayHandlers}
+                expandedGroups={expandedGroups}
+                toggleGroup={toggleGroup}
+                visibleKeys={visibleKeys}
+                groupCounts={groupCounts}
+                definition={widgetDefinition}
+                t={t}
+              />
+            ),
+          ],
+        ])()}
       </div>
     </div>
   );

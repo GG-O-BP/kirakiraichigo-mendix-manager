@@ -11,7 +11,19 @@ import { appVersionFilterAtom, targetVersionAtom } from "../atoms/apps";
 const fetchInstalledApps = () => invoke("get_installed_mendix_apps");
 
 export function useApps() {
-  const collection = useCollection({
+  const {
+    items,
+    setItems,
+    filteredItems,
+    setFilteredItems,
+    searchTerm,
+    setSearchTerm,
+    selectedItems,
+    setSelectedItems,
+    toggleSelection,
+    isSelected,
+    removeFromSelection,
+  } = useCollection({
     selectionType: "apps",
     getItemId: R.prop("path"),
   });
@@ -19,70 +31,70 @@ export function useApps() {
   const [versionFilter, setVersionFilter] = useAtom(appVersionFilterAtom);
   const [targetVersion] = useAtom(targetVersionAtom);
 
-  const {
-    data: apps = [],
-    isLoading,
-    mutate,
-  } = useSWR(SWR_KEYS.APPS, fetchInstalledApps, {
-    onSuccess: collection.setItems,
+  const { isLoading, mutate } = useSWR(SWR_KEYS.APPS, fetchInstalledApps, {
+    onSuccess: setItems,
   });
 
-  const handleAppClick = useCallback(
-    collection.toggleSelection,
-    [collection.toggleSelection],
-  );
+  const handleAppClick = useCallback(toggleSelection, [toggleSelection]);
 
   const handleDeleteApp = useCallback(
-    async (appPath) => {
-      try {
-        await invoke("delete_mendix_app", { appPath });
-        await mutate();
-        collection.removeFromSelection({ path: appPath });
-        return true;
-      } catch (err) {
-        console.error("Failed to delete app:", err);
-        throw err;
-      }
-    },
-    [mutate, collection.removeFromSelection],
+    (appPath) =>
+      R.pipe(
+        () => invoke("delete_mendix_app", { appPath }),
+        R.andThen(() => mutate()),
+        R.andThen(
+          R.pipe(
+            R.tap(() => removeFromSelection({ path: appPath })),
+            R.always(true),
+          ),
+        ),
+        R.otherwise((err) => {
+          console.error("Failed to delete app:", err);
+          throw err;
+        }),
+      )(),
+    [mutate, removeFromSelection],
   );
 
   useEffect(() => {
-    const processApps = async () => {
-      try {
-        const filtered = await processAppsPipeline(collection.items, {
-          searchTerm: collection.searchTerm,
-          targetVersion,
-          onlyValid: true,
-        });
-        collection.setFilteredItems(filtered);
-      } catch (err) {
-        console.error("Failed to filter apps:", err);
-        collection.setFilteredItems(collection.items);
-      }
-    };
+    const processApps = () =>
+      R.pipe(
+        () =>
+          processAppsPipeline(items, {
+            searchTerm,
+            targetVersion,
+            onlyValid: true,
+          }),
+        R.andThen(setFilteredItems),
+        R.otherwise(
+          R.pipe(
+            R.tap((err) => console.error("Failed to filter apps:", err)),
+            () => setFilteredItems(items),
+          ),
+        ),
+      )();
 
     R.ifElse(
-      R.complement(R.isEmpty),
+      R.isNotEmpty,
       processApps,
-      () => collection.setFilteredItems([]),
-    )(collection.items);
-  }, [collection.items, targetVersion, collection.searchTerm]);
+      () => setFilteredItems([]),
+    )(items);
+  }, [items, targetVersion, searchTerm]);
 
   return {
-    apps: collection.items,
-    setApps: collection.setItems,
-    filteredApps: collection.filteredItems,
+    apps: items,
+    setApps: setItems,
+    filteredApps: filteredItems,
     loadApps: mutate,
-    appSearchTerm: collection.searchTerm,
-    setAppSearchTerm: collection.setSearchTerm,
+    appSearchTerm: searchTerm,
+    setAppSearchTerm: setSearchTerm,
     versionFilter,
     setVersionFilter,
-    selectedApps: collection.selectedItems,
-    setSelectedApps: collection.setSelectedItems,
+    selectedApps: selectedItems,
+    setSelectedApps: setSelectedItems,
     handleAppClick,
     handleDeleteApp,
-    isAppSelected: collection.isSelected,
+    isAppSelected: isSelected,
     isLoading,
   };
 }

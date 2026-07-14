@@ -55,7 +55,9 @@
       "Bash(tasklist //FI \"IMAGENAME eq cargo.exe\")",
       "Bash(gh api *)",
       "Bash(gh release *)",
-      "WebFetch(domain:v7.vite.dev)"
+      "WebFetch(domain:v7.vite.dev)",
+      "Bash(bun *)",
+      "PowerShell(bun run *)"
     ]
   }
 }

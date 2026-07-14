@@ -1,3 +1,4 @@
+import * as R from "ramda";
 import { memo } from "react";
 import { useSetAtom } from "jotai";
 import { useVersionFiltering, useVersions, useApps } from "../../../hooks";
@@ -70,7 +71,7 @@ const StudioProManager = memo(() => {
         handleDownloadVersion={openDownloadModal}
         loadMoreHandler={loadMoreHandler}
         isLoadingDownloadableVersions={isLoadingDownloadableVersions}
-        totalDownloadableCount={downloadableVersions?.length || 0}
+        totalDownloadableCount={R.length(R.defaultTo([], downloadableVersions))}
         showOnlyDownloadableVersions={showOnlyDownloadableVersions}
         setShowOnlyDownloadableVersions={setShowOnlyDownloadableVersions}
         showLTSOnly={showLTSOnly}

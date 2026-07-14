@@ -31,12 +31,17 @@ const renderLaunchButton = R.curry(
     <button
       className="install-button"
       onClick={executeWithStoppedPropagation(() => onLaunch(version))}
-      disabled={isLaunching || !version.is_valid || isUninstalling}
+      disabled={R.or(
+        R.or(isLaunching, R.not(R.prop("is_valid", version))),
+        isUninstalling,
+      )}
     >
       <span className="button-icon">▶️</span>
-      {isLaunching
-        ? R.pathOr("Launching...", ["common", "launching"], t)
-        : R.pathOr("Launch", ["common", "launch"], t)}
+      {R.ifElse(
+        R.identity,
+        R.always(R.pathOr("Launching...", ["common", "launching"], t)),
+        R.always(R.pathOr("Launch", ["common", "launch"], t)),
+      )(isLaunching)}
     </button>
   ),
 );
@@ -46,11 +51,14 @@ const renderUninstallButton = R.curry(
     <button
       className="install-button uninstall-button"
       onClick={executeWithStoppedPropagation(() => onUninstall(version))}
-      disabled={isUninstalling || !version.is_valid || isLaunching}
+      disabled={R.or(
+        R.or(isUninstalling, R.not(R.prop("is_valid", version))),
+        isLaunching,
+      )}
       style={UNINSTALL_BUTTON_GRADIENT}
     >
       <span className="button-icon">🗑️</span>
-      {isUninstalling ? "..." : ""}
+      {R.ifElse(R.identity, R.always("..."), R.always(""))(isUninstalling)}
     </button>
   ),
 );
@@ -69,21 +77,25 @@ export const MendixVersionListItem = memo(
     const [statusText, setStatusText] = useState(R.pathOr("Loading...", ["common", "loading"], t));
 
     useEffect(() => {
-      invokeGetVersionStatusText(isLaunching, isUninstalling, version.install_date)
-        .then(setStatusText)
-        .catch(() => setStatusText(R.pathOr("Date unknown", ["common", "dateUnknown"], t)));
-    }, [isLaunching, isUninstalling, version.install_date, t]);
+      R.pipe(
+        () => invokeGetVersionStatusText(isLaunching, isUninstalling, R.prop("install_date", version)),
+        R.andThen(setStatusText),
+        R.otherwise(() => setStatusText(R.pathOr("Date unknown", ["common", "dateUnknown"], t))),
+      )();
+    }, [isLaunching, isUninstalling, R.prop("install_date", version), t]);
 
     const className = joinTruthyClassNames([
       "version-list-item",
-      isSelected && "selected",
-      isUninstalling && "disabled",
+      R.and(isSelected, "selected"),
+      R.and(isUninstalling, "disabled"),
     ]);
 
     const containerProps = {
       className,
-      onClick: isUninstalling ? undefined : onClick,
-      style: { cursor: isUninstalling ? "not-allowed" : "pointer" },
+      onClick: R.ifElse(R.identity, R.always(undefined), R.always(onClick))(isUninstalling),
+      style: {
+        cursor: R.ifElse(R.identity, R.always("not-allowed"), R.always("pointer"))(isUninstalling),
+      },
     };
 
     return (
@@ -91,7 +103,7 @@ export const MendixVersionListItem = memo(
         <div className="version-info">
           <span className="version-icon">🚀</span>
           <div className="version-details">
-            <span className="version-number">{version.version}</span>
+            <span className="version-number">{R.prop("version", version)}</span>
             <span className="version-date">{statusText}</span>
           </div>
         </div>
@@ -111,11 +123,14 @@ export const MendixVersionListItem = memo(
 
 MendixVersionListItem.displayName = "MendixVersionListItem";
 
-const renderAppVersionBadge = R.curry((version) =>
-  version ? (
-    <span className="version-badge app-version">v{version}</span>
-  ) : null,
-);
+const renderAppVersionBadge = (version) =>
+  R.ifElse(
+    R.either(R.isNil, R.isEmpty),
+    R.always(null),
+    (versionLabel) => (
+      <span className="version-badge app-version">v{versionLabel}</span>
+    ),
+  )(version);
 
 const renderAppDeleteButton = R.curry((onDelete, app, isDisabled, t) => (
   <button
@@ -134,22 +149,24 @@ export const MendixAppListItem = memo(({ app, isDisabled, onClick, onDelete }) =
   const [formattedDate, setFormattedDate] = useState(R.pathOr("Loading...", ["common", "loading"], t));
 
   useEffect(() => {
-    invokeFormatDateWithFallback(app.last_modified, R.pathOr("Date unknown", ["common", "dateUnknown"], t))
-      .then(setFormattedDate)
-      .catch(() => setFormattedDate(R.pathOr("Date unknown", ["common", "dateUnknown"], t)));
-  }, [app.last_modified, t]);
+    R.pipe(
+      () => invokeFormatDateWithFallback(R.prop("last_modified", app), R.pathOr("Date unknown", ["common", "dateUnknown"], t)),
+      R.andThen(setFormattedDate),
+      R.otherwise(() => setFormattedDate(R.pathOr("Date unknown", ["common", "dateUnknown"], t))),
+    )();
+  }, [R.prop("last_modified", app), t]);
 
   const className = joinTruthyClassNames([
     "version-list-item",
-    isDisabled && "disabled",
+    R.and(isDisabled, "disabled"),
   ]);
 
   const containerProps = {
     className,
-    onClick: isDisabled ? undefined : onClick,
+    onClick: R.ifElse(R.identity, R.always(undefined), R.always(onClick))(isDisabled),
     style: {
-      cursor: isDisabled ? "not-allowed" : "pointer",
-      opacity: isDisabled ? 0.5 : 1,
+      cursor: R.ifElse(R.identity, R.always("not-allowed"), R.always("pointer"))(isDisabled),
+      opacity: R.ifElse(R.identity, R.always(0.5), R.always(1))(isDisabled),
     },
   };
 
@@ -158,18 +175,22 @@ export const MendixAppListItem = memo(({ app, isDisabled, onClick, onDelete }) =
       <div className="version-info">
         <span className="version-icon">📁</span>
         <div className="version-details">
-          <span className="version-number">{app.name}</span>
+          <span className="version-number">{R.prop("name", app)}</span>
           <span className="version-date">
-            {renderAppVersionBadge(app.version)}
+            {renderAppVersionBadge(R.prop("version", app))}
             {formattedDate}
           </span>
         </div>
       </div>
-      {R.complement(R.isNil)(onDelete) && (
-        <div style={INLINE_FLEX_GAP}>
-          {renderAppDeleteButton(onDelete, app, isDisabled, t)}
-        </div>
-      )}
+      {R.ifElse(
+        R.isNotNil,
+        () => (
+          <div style={INLINE_FLEX_GAP}>
+            {renderAppDeleteButton(onDelete, app, isDisabled, t)}
+          </div>
+        ),
+        R.always(null),
+      )(onDelete)}
     </div>
   );
 });

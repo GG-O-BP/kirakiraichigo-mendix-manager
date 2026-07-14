@@ -7,11 +7,16 @@ import { renderPanel } from "../../common/Panel";
 import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 import { useI18n } from "../../../i18n/useI18n";
 
-const createAddWidgetClickHandler = (modalHandlers) => () => {
-  modalHandlers.setShowWidgetModal(true);
-  modalHandlers.setShowAddWidgetForm(false);
-  modalHandlers.setNewWidgetCaption("");
-  modalHandlers.setNewWidgetPath("");
+const createAddWidgetClickHandler = ({
+  setShowWidgetModal,
+  setShowAddWidgetForm,
+  setNewWidgetCaption,
+  setNewWidgetPath,
+}) => () => {
+  setShowWidgetModal(true);
+  setShowAddWidgetForm(false);
+  setNewWidgetCaption("");
+  setNewWidgetPath("");
 };
 
 const renderAddWidgetItem = (modalHandlers, t) => (
@@ -44,12 +49,12 @@ const WidgetsSelectionPanel = memo(({
   const { t } = useI18n();
   const [widgetListRef, reorderedWidgets, setReorderedWidgets] =
     useDragAndDrop(filteredWidgets, {
-      disabled: !R.isEmpty(widgetSearchTerm),
-      onSort: ({ values }) => {
-        if (R.isEmpty(widgetSearchTerm)) {
-          setWidgets(values);
-        }
-      },
+      disabled: R.isNotEmpty(widgetSearchTerm),
+      onSort: ({ values }) =>
+        R.when(
+          () => R.isEmpty(widgetSearchTerm),
+          setWidgets,
+        )(values),
     });
 
   useEffect(() => {
@@ -61,7 +66,7 @@ const WidgetsSelectionPanel = memo(({
 
     return R.cond([
       [
-        () => R.isEmpty(widgetsToShow) && R.isEmpty(widgetSearchTerm),
+        () => R.and(R.isEmpty(widgetsToShow), R.isEmpty(widgetSearchTerm)),
         () => (
           <div>
             {renderAddWidgetItem(modalHandlers, t)}
@@ -71,18 +76,22 @@ const WidgetsSelectionPanel = memo(({
         ),
       ],
       [
-        () => R.isEmpty(widgetsToShow) && !R.isEmpty(widgetSearchTerm),
+        () => R.and(R.isEmpty(widgetsToShow), R.isNotEmpty(widgetSearchTerm)),
         () => (
           <div>
             {renderAddWidgetItem(modalHandlers, t)}
             <div ref={widgetListRef} className="draggable-widget-list" style={{ display: "none" }} />
             {renderLoadingIndicator(
               "🔍",
-              R.pathOr(
-                `No widgets found matching "${widgetSearchTerm}"`,
-                ["widgets", "noWidgetsMatching"],
-                t,
-              ).replace("{term}", widgetSearchTerm),
+              R.replace(
+                "{term}",
+                widgetSearchTerm,
+                R.pathOr(
+                  `No widgets found matching "${widgetSearchTerm}"`,
+                  ["widgets", "noWidgetsMatching"],
+                  t,
+                ),
+              ),
             )}
           </div>
         ),

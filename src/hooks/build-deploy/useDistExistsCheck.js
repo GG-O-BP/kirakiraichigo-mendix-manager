@@ -2,28 +2,36 @@ import * as R from "ramda";
 import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
 
-const fetchAllDistExist = async (key) => {
-  const [, selectedWidgets, widgets] = key;
-  const selectedWidgetIds = Array.from(selectedWidgets);
+const fetchAllDistExist = (key) => {
+  const selectedWidgetIds = Array.from(R.nth(1, key));
+  const widgets = R.nth(2, key);
 
-  if (R.isEmpty(selectedWidgetIds)) {
-    return false;
-  }
-
-  const selectedWidgetPaths = await invoke("extract_selected_widget_paths", {
-    selectedIds: selectedWidgetIds,
-    widgets,
-  });
-
-  if (R.isEmpty(selectedWidgetPaths)) {
-    return false;
-  }
-
-  const results = await invoke("check_multiple_dist_exists", {
-    widgetPaths: selectedWidgetPaths,
-  });
-
-  return R.all(R.identity, results);
+  return R.ifElse(
+    R.isEmpty,
+    R.always(false),
+    () =>
+      R.pipe(
+        () =>
+          invoke("extract_selected_widget_paths", {
+            selectedIds: selectedWidgetIds,
+            widgets,
+          }),
+        R.andThen(
+          R.ifElse(
+            R.isEmpty,
+            R.always(false),
+            (selectedWidgetPaths) =>
+              R.pipe(
+                () =>
+                  invoke("check_multiple_dist_exists", {
+                    widgetPaths: selectedWidgetPaths,
+                  }),
+                R.andThen(R.all(R.identity)),
+              )(),
+          ),
+        ),
+      )(),
+  )(selectedWidgetIds);
 };
 
 export function useDistExistsCheck({ selectedWidgets, widgets }) {

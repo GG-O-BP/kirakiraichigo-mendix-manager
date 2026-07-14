@@ -3,20 +3,23 @@ import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
 import { SWR_KEYS } from "../../lib/swr";
 
-const fetchDistExists = async (key) => {
-  const widgetPath = key[1];
-  if (R.isNil(widgetPath)) {
-    return false;
-  }
-  return invoke("check_dist_exists", { widgetPath });
-};
+const fetchDistExists = (key) =>
+  R.ifElse(
+    R.isNil,
+    R.always(false),
+    (widgetPath) => invoke("check_dist_exists", { widgetPath }),
+  )(R.nth(1, key));
 
 export function useWidgetPreviewState(widgetPath) {
   const {
     data: distExists = false,
     mutate: checkDistExists,
   } = useSWR(
-    R.isNil(widgetPath) ? null : SWR_KEYS.DIST_EXISTS(widgetPath),
+    R.ifElse(
+      R.isNil,
+      R.always(null),
+      (path) => SWR_KEYS.DIST_EXISTS(path),
+    )(widgetPath),
     fetchDistExists,
   );
 

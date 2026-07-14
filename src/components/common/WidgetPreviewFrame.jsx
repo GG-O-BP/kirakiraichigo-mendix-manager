@@ -1,3 +1,4 @@
+import * as R from "ramda";
 import { useEffect, useRef, useCallback } from "react";
 
 const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, widgetDefinition, onDatasourceCommit }) => {
@@ -6,33 +7,37 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
   const bundleRef = useRef(null);
 
   const sendPropertiesToIframe = useCallback((props, definition) => {
-    if (!iframeRef.current || !iframeReadyRef.current) return;
-
-    const iframe = iframeRef.current;
-    iframe.contentWindow?.postMessage(
-      { type: "UPDATE_PROPERTIES", properties: props, widgetDefinition: definition },
-      "*"
-    );
+    R.when(
+      R.both(
+        () => R.isNotNil(iframeRef.current),
+        () => iframeReadyRef.current,
+      ),
+      () => {
+        iframeRef.current.contentWindow?.postMessage(
+          { type: "UPDATE_PROPERTIES", properties: props, widgetDefinition: definition },
+          "*"
+        );
+      },
+    )(null);
   }, []);
 
   useEffect(() => {
-    if (!iframeRef.current || !bundle) return;
-
-    if (bundleRef.current === bundle) {
-      return;
-    }
+    const renderIframeContent = () => {
     bundleRef.current = bundle;
     iframeReadyRef.current = false;
 
     const iframe = iframeRef.current;
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
-    const safeWidgetName = (widgetName || "Widget").replace(/'/g, "\\'");
-    const safeWidgetId = (widgetId || "").replace(/'/g, "\\'");
-    const safeProperties = JSON.stringify(properties || {});
-    const safeWidgetDefinition = JSON.stringify(widgetDefinition || {});
+    const safeWidgetName = R.pipe(
+      R.when(R.either(R.isNil, R.isEmpty), R.always("Widget")),
+      R.replace(/'/g, "\\'"),
+    )(widgetName);
+    const safeWidgetId = R.pipe(R.defaultTo(""), R.replace(/'/g, "\\'"))(widgetId);
+    const safeProperties = JSON.stringify(R.defaultTo({}, properties));
+    const safeWidgetDefinition = JSON.stringify(R.defaultTo({}, widgetDefinition));
     const safeBundle = bundle;
-    const safeCss = css || "";
+    const safeCss = R.defaultTo("", css);
 
     const html = `
       <!DOCTYPE html>
@@ -1191,18 +1196,37 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
     iframeDoc.open();
     iframeDoc.write(html);
     iframeDoc.close();
+    };
+
+    R.when(
+      R.allPass([
+        () => R.isNotNil(iframeRef.current),
+        () => R.both(R.isNotNil, R.isNotEmpty)(bundle),
+        () => R.not(R.identical(bundleRef.current, bundle)),
+      ]),
+      renderIframeContent,
+    )(null);
   }, [bundle, css, widgetName, widgetId]);
 
   useEffect(() => {
     const handleIframeMessage = (event) => {
-      if (event.data && event.data.type === "IFRAME_READY") {
-        iframeReadyRef.current = true;
-        sendPropertiesToIframe(properties, widgetDefinition);
-      }
-      if (event.data && event.data.type === "DATASOURCE_COMMIT" && onDatasourceCommit) {
-        const { datasourceKey, items } = event.data;
-        onDatasourceCommit(datasourceKey, JSON.stringify(items, null, 2));
-      }
+      R.when(
+        R.pathEq("IFRAME_READY", ["data", "type"]),
+        () => {
+          iframeReadyRef.current = true;
+          sendPropertiesToIframe(properties, widgetDefinition);
+        },
+      )(event);
+      R.when(
+        R.both(
+          R.pathEq("DATASOURCE_COMMIT", ["data", "type"]),
+          () => R.isNotNil(onDatasourceCommit),
+        ),
+        (messageEvent) => {
+          const { datasourceKey, items } = R.prop("data", messageEvent);
+          onDatasourceCommit(datasourceKey, JSON.stringify(items, null, 2));
+        },
+      )(event);
     };
 
     window.addEventListener("message", handleIframeMessage);
@@ -1210,9 +1234,13 @@ const WidgetPreviewFrame = ({ bundle, css, widgetName, widgetId, properties, wid
   }, [properties, widgetDefinition, sendPropertiesToIframe, onDatasourceCommit]);
 
   useEffect(() => {
-    if (iframeReadyRef.current && properties) {
-      sendPropertiesToIframe(properties, widgetDefinition);
-    }
+    R.when(
+      R.both(
+        () => iframeReadyRef.current,
+        () => R.isNotNil(properties),
+      ),
+      () => sendPropertiesToIframe(properties, widgetDefinition),
+    )(null);
   }, [properties, widgetDefinition, sendPropertiesToIframe]);
 
   return (

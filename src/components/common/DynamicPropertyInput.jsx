@@ -14,7 +14,7 @@ const renderTextInput = R.curry((property, value, onChange, disabled) => (
     <input
       type="text"
       className="property-input text-input"
-      value={value || ""}
+      value={R.defaultTo("", value)}
       onChange={createTypedChangeHandler(onChange, "string")}
       disabled={disabled}
     />
@@ -25,7 +25,7 @@ const renderTextarea = R.curry((property, value, onChange, disabled) => (
   <textarea
     className="property-textarea"
     rows="4"
-    value={value || ""}
+    value={R.defaultTo("", value)}
     onChange={createTypedChangeHandler(onChange, "string")}
     disabled={disabled}
     placeholder={R.prop("description", property)}
@@ -35,26 +35,37 @@ const renderTextarea = R.curry((property, value, onChange, disabled) => (
 const renderNumberInput = R.curry((property, value, onChange, disabled) => {
   const type = R.prop("type", property);
   const isDecimal = R.equals("decimal", type);
-  const step = isDecimal ? DECIMAL_STEP : INTEGER_STEP;
-  const numValue = value === "" || R.isNil(value) ? 0 : Number(value);
+  const step = R.ifElse(R.identity, R.always(DECIMAL_STEP), R.always(INTEGER_STEP))(isDecimal);
+  const numValue = R.ifElse(
+    R.either(R.equals(""), R.isNil),
+    R.always(0),
+    Number,
+  )(value);
 
   const roundDecimalPrecision = (num) =>
-    Math.round(num * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_MULTIPLIER;
+    R.divide(
+      Math.round(R.multiply(num, DECIMAL_PRECISION_MULTIPLIER)),
+      DECIMAL_PRECISION_MULTIPLIER,
+    );
 
   const calculateNewValue = (currentValue, delta) =>
-    isDecimal ? roundDecimalPrecision(currentValue + delta) : currentValue + delta;
+    R.ifElse(
+      R.always(isDecimal),
+      roundDecimalPrecision,
+      R.identity,
+    )(R.add(currentValue, delta));
 
-  const handleDecrement = () => {
-    if (!disabled) {
-      onChange(calculateNewValue(numValue, -step));
-    }
-  };
+  const handleDecrement = () =>
+    R.unless(
+      R.identity,
+      () => onChange(calculateNewValue(numValue, R.negate(step))),
+    )(disabled);
 
-  const handleIncrement = () => {
-    if (!disabled) {
-      onChange(calculateNewValue(numValue, step));
-    }
-  };
+  const handleIncrement = () =>
+    R.unless(
+      R.identity,
+      () => onChange(calculateNewValue(numValue, step)),
+    )(disabled);
 
   return (
     <div className="number-input-container">
@@ -71,7 +82,7 @@ const renderNumberInput = R.curry((property, value, onChange, disabled) => {
         type="number"
         step={step}
         className="property-input number-input"
-        value={value ?? ""}
+        value={R.defaultTo("", value)}
         onChange={createTypedChangeHandler(onChange, type)}
         disabled={disabled}
         placeholder={R.prop("description", property)}
@@ -109,7 +120,10 @@ const renderSelect = R.curry((property, value, onChange, disabled) => {
 
   return (
     <Dropdown
-      value={value || R.propOr("", 0, options)}
+      value={R.when(
+        R.either(R.isNil, R.isEmpty),
+        R.always(R.propOr("", 0, options)),
+      )(value)}
       onChange={onChange}
       options={options}
       disabled={disabled}
@@ -168,16 +182,18 @@ const DatasourceTextarea = ({ value, onChange, disabled }) => {
   return (
     <div className="datasource-textarea-container">
       <textarea
-        className={`property-textarea datasource-json ${jsonValid ? "" : "invalid-json"}`}
+        className={`property-textarea datasource-json ${R.ifElse(R.identity, R.always(""), R.always("invalid-json"))(jsonValid)}`}
         rows="6"
-        value={value || ""}
+        value={R.defaultTo("", value)}
         onChange={handleChange}
         disabled={disabled}
         placeholder={DATASOURCE_DEFAULT_VALUE}
       />
-      {R.not(jsonValid) && (
-        <div className="json-error-hint">Invalid JSON format</div>
-      )}
+      {R.ifElse(
+        R.not,
+        () => (<div className="json-error-hint">Invalid JSON format</div>),
+        R.always(null),
+      )(jsonValid)}
     </div>
   );
 };
@@ -192,7 +208,7 @@ const extractKeysFromParsedJson = R.cond([
     R.is(Array),
     R.pipe(
       R.head,
-      R.ifElse(R.both(R.complement(R.isNil), R.is(Object)), R.keys, R.always([])),
+      R.ifElse(R.both(R.isNotNil, R.is(Object)), R.keys, R.always([])),
     ),
   ],
   [R.is(Object), R.keys],
@@ -203,32 +219,32 @@ const isStringType = R.pipe(R.type, R.equals("String"));
 
 const safeJsonParse = R.tryCatch(JSON.parse, R.always(null));
 
-const extractDatasourceKeys = (allProperties, dataSourceKey) => {
-  const datasourceValue = R.prop(dataSourceKey, allProperties);
-  const isValidString = R.both(R.complement(R.isNil), isStringType)(datasourceValue);
+const extractDatasourceKeys = (allProperties, dataSourceKey) =>
+  R.pipe(
+    R.prop(dataSourceKey),
+    R.ifElse(
+      R.both(R.isNotNil, isStringType),
+      R.pipe(
+        safeJsonParse,
+        R.ifElse(R.isNil, R.always([]), extractKeysFromParsedJson),
+      ),
+      R.always([]),
+    ),
+  )(allProperties);
 
-  if (!isValidString) {
-    return [];
-  }
-
-  const parsed = safeJsonParse(datasourceValue);
-
-  if (R.isNil(parsed)) {
-    return [];
-  }
-
-  return extractKeysFromParsedJson(parsed);
-};
-
-const resolveDataSourcePath = (dataSourceKey, allProperties, parentProperties) => {
-  if (R.isNil(dataSourceKey)) {
-    return { resolvedKey: null, targetProperties: allProperties };
-  }
-  const isParentRef = R.startsWith("../", dataSourceKey);
-  const resolvedKey = isParentRef ? R.replace(/^\.\.\//, "", dataSourceKey) : dataSourceKey;
-  const targetProperties = isParentRef ? parentProperties : allProperties;
-  return { resolvedKey, targetProperties };
-};
+const resolveDataSourcePath = (dataSourceKey, allProperties, parentProperties) =>
+  R.ifElse(
+    R.isNil,
+    R.always({ resolvedKey: null, targetProperties: allProperties }),
+    R.ifElse(
+      R.startsWith("../"),
+      (parentKey) => ({
+        resolvedKey: R.replace(/^\.\.\//, "", parentKey),
+        targetProperties: parentProperties,
+      }),
+      (ownKey) => ({ resolvedKey: ownKey, targetProperties: allProperties }),
+    ),
+  )(dataSourceKey);
 
 const renderAttributeSelect = R.curry(
   (property, value, onChange, disabled, allProperties, parentProperties) => {
@@ -238,35 +254,45 @@ const renderAttributeSelect = R.curry(
       allProperties,
       parentProperties
     );
-    const extractResult = R.isNil(resolvedKey)
-      ? []
-      : extractDatasourceKeys(targetProperties, resolvedKey);
-    const datasourceKeys = Array.isArray(extractResult) ? extractResult : [];
+    const datasourceKeys = R.pipe(
+      R.ifElse(
+        R.isNil,
+        R.always([]),
+        (key) => extractDatasourceKeys(targetProperties, key),
+      ),
+      R.ifElse(R.is(Array), R.identity, R.always([])),
+    )(resolvedKey);
 
     const hasNoDataSource = R.isNil(dataSourceKey);
     const datasourceValue = R.prop(resolvedKey, targetProperties);
     const hasNoDatasourceValue = R.and(
-      R.complement(R.isNil)(dataSourceKey),
+      R.isNotNil(dataSourceKey),
       R.either(R.isNil, R.isEmpty)(datasourceValue),
     );
 
     return (
       <div className="attribute-select-container">
         <Dropdown
-          value={value || ""}
+          value={R.defaultTo("", value)}
           onChange={onChange}
           options={datasourceKeys}
           disabled={R.or(disabled, R.isEmpty(datasourceKeys))}
           placeholder="Select attribute..."
         />
-        {hasNoDataSource && (
-          <div className="attribute-hint">No datasource linked</div>
-        )}
-        {hasNoDatasourceValue && (
-          <div className="attribute-hint">
-            Enter JSON in "{resolvedKey}" first
-          </div>
-        )}
+        {R.ifElse(
+          R.identity,
+          () => (<div className="attribute-hint">No datasource linked</div>),
+          R.always(null),
+        )(hasNoDataSource)}
+        {R.ifElse(
+          R.identity,
+          () => (
+            <div className="attribute-hint">
+              Enter JSON in "{resolvedKey}" first
+            </div>
+          ),
+          R.always(null),
+        )(hasNoDatasourceValue)}
       </div>
     );
   },
@@ -294,22 +320,28 @@ const inputRenderers = {
 
 const getRenderer = (type) => R.propOr(renderPlaceholder, type, inputRenderers);
 
-const renderValidationError = R.curry((error) =>
-  error ? (
-    <div className="property-error">
-      <span className="error-icon">⚠️</span>
-      <span className="error-text">{error}</span>
-    </div>
-  ) : null,
-);
+const renderValidationError = (error) =>
+  R.ifElse(
+    R.either(R.isNil, R.isEmpty),
+    R.always(null),
+    (message) => (
+      <div className="property-error">
+        <span className="error-icon">⚠️</span>
+        <span className="error-text">{message}</span>
+      </div>
+    ),
+  )(error);
 
-const renderDescription = R.curry((description) =>
-  description ? (
-    <div className="property-description">
-      <span className="description-text">{description}</span>
-    </div>
-  ) : null,
-);
+const renderDescription = (description) =>
+  R.ifElse(
+    R.either(R.isNil, R.isEmpty),
+    R.always(null),
+    (text) => (
+      <div className="property-description">
+        <span className="description-text">{text}</span>
+      </div>
+    ),
+  )(description);
 
 const DynamicPropertyInput = memo(
   ({
@@ -333,67 +365,85 @@ const DynamicPropertyInput = memo(
 
     const isObjectList = R.and(R.equals("object", type), isList);
 
-    const validation = showValidation
-      ? validatePropertyValue(property, value)
-      : { isValid: true, error: null };
+    const validation = R.ifElse(
+      R.identity,
+      () => validatePropertyValue(property, value),
+      R.always({ isValid: true, error: null }),
+    )(showValidation);
 
-    const inputElement = useMemo(() => {
-      if (isObjectList) {
-        return (
-          <ObjectListPropertyInput
-            property={property}
-            items={value}
-            onAddItem={(defaultItem) => onAddArrayItem(propertyKey, defaultItem)}
-            onRemoveItem={(index) => onRemoveArrayItem(propertyKey, index)}
-            onUpdateItemProperty={(index, nestedKey, nestedValue) =>
-              onUpdateArrayItemProperty(propertyKey, index, nestedKey, nestedValue)
-            }
-            disabled={disabled}
-            parentProperties={allProperties}
-          />
-        );
-      }
-
-      const isAttributeType = R.equals("attribute", type);
-
-      return R.ifElse(
-        R.always(isAttributeType),
-        R.always(renderAttributeSelect(property, value, onChange, disabled, allProperties, parentProperties)),
-        R.always(getRenderer(type)(property, value, onChange, disabled)),
-      )();
-    }, [type, property, value, onChange, disabled, allProperties, parentProperties, isObjectList, propertyKey, onAddArrayItem, onRemoveArrayItem, onUpdateArrayItemProperty]);
-
-    if (isObjectList) {
-      return inputElement;
-    }
-
-    const containerClass = R.pipe(
-      R.always([
-        "dynamic-property-input",
-        required ? "required" : "",
-        !validation.isValid ? "invalid" : "",
-        disabled ? "disabled" : "",
-      ]),
-      R.filter(R.identity),
-      R.join(" "),
-    )();
-
-    const isNumberType = R.includes(type, ["integer", "decimal"]);
-    const WrapperElement = isNumberType ? "div" : "label";
-
-    return (
-      <div className={containerClass}>
-        <WrapperElement className="property-label">
-          <span className="label-text">
-            {caption}
-            {required && <span className="required-indicator"> *</span>}
-          </span>
-          {inputElement}
-          {!R.equals(type, "boolean") && renderDescription(description)}
-          {showValidation && renderValidationError(validation.error)}
-        </WrapperElement>
-      </div>
+    const inputElement = useMemo(
+      () =>
+        R.cond([
+          [
+            R.always(isObjectList),
+            () => (
+              <ObjectListPropertyInput
+                property={property}
+                items={value}
+                onAddItem={(defaultItem) => onAddArrayItem(propertyKey, defaultItem)}
+                onRemoveItem={(index) => onRemoveArrayItem(propertyKey, index)}
+                onUpdateItemProperty={(index, nestedKey, nestedValue) =>
+                  onUpdateArrayItemProperty(propertyKey, index, nestedKey, nestedValue)
+                }
+                disabled={disabled}
+                parentProperties={allProperties}
+              />
+            ),
+          ],
+          [
+            R.always(R.equals("attribute", type)),
+            () => renderAttributeSelect(property, value, onChange, disabled, allProperties, parentProperties),
+          ],
+          [R.T, () => getRenderer(type)(property, value, onChange, disabled)],
+        ])(),
+      [type, property, value, onChange, disabled, allProperties, parentProperties, isObjectList, propertyKey, onAddArrayItem, onRemoveArrayItem, onUpdateArrayItemProperty],
     );
+
+    return R.ifElse(
+      R.identity,
+      R.always(inputElement),
+      () => {
+        const containerClass = R.pipe(
+          R.always([
+            "dynamic-property-input",
+            R.ifElse(R.identity, R.always("required"), R.always(""))(required),
+            R.ifElse(R.prop("isValid"), R.always(""), R.always("invalid"))(validation),
+            R.ifElse(R.identity, R.always("disabled"), R.always(""))(disabled),
+          ]),
+          R.filter(R.identity),
+          R.join(" "),
+        )();
+
+        const isNumberType = R.includes(type, ["integer", "decimal"]);
+        const WrapperElement = R.ifElse(R.identity, R.always("div"), R.always("label"))(isNumberType);
+
+        return (
+          <div className={containerClass}>
+            <WrapperElement className="property-label">
+              <span className="label-text">
+                {caption}
+                {R.ifElse(
+                  R.identity,
+                  () => (<span className="required-indicator"> *</span>),
+                  R.always(null),
+                )(required)}
+              </span>
+              {inputElement}
+              {R.ifElse(
+                R.equals("boolean"),
+                R.always(null),
+                () => renderDescription(description),
+              )(type)}
+              {R.ifElse(
+                R.identity,
+                () => renderValidationError(R.prop("error", validation)),
+                R.always(null),
+              )(showValidation)}
+            </WrapperElement>
+          </div>
+        );
+      },
+    )(isObjectList);
   },
 );
 

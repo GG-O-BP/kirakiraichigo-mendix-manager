@@ -3,7 +3,9 @@ import { memo } from "react";
 
 const InlineResultItem = memo(({ type, widget, apps }) => (
   <div className={`inline-result-item ${type}`}>
-    <span className="result-icon">{R.equals(type, "success") ? "✅" : "❌"}</span>
+    <span className="result-icon">
+      {R.ifElse(R.equals("success"), R.always("✅"), R.always("❌"))(type)}
+    </span>
     <span className="result-text">{widget}</span>
     {R.ifElse(
       R.both(R.always(R.equals(type, "success")), R.complement(R.isNil)),
@@ -22,13 +24,23 @@ InlineResultItem.displayName = "InlineResultItem";
 const ProgressIndicator = memo(({ isDeploying }) => (
   <div className="inline-results-container">
     <div className="inline-results-header">
-      <h4>{isDeploying ? "Deploy Results" : "Build & Deploy Results"}</h4>
+      <h4>
+        {R.ifElse(
+          R.identity,
+          R.always("Deploy Results"),
+          R.always("Build & Deploy Results"),
+        )(isDeploying)}
+      </h4>
     </div>
     <div className="inline-results-content">
       <div className="build-progress-container">
         <progress className="build-progress-bar" />
         <span className="build-progress-text">
-          {isDeploying ? "Deploying..." : "Building & Deploying..."}
+          {R.ifElse(
+            R.identity,
+            R.always("Deploying..."),
+            R.always("Building & Deploying..."),
+          )(isDeploying)}
         </span>
       </div>
     </div>
@@ -53,18 +65,19 @@ const InlineResults = memo(({ inlineResults, setInlineResults, isBuilding, isDep
     R.any(R.identity),
   )(inlineResults);
 
-  if (R.or(isBuilding, isDeploying)) {
-    return <ProgressIndicator isDeploying={isDeploying} />;
-  }
-
-  if (R.or(R.isNil(inlineResults), R.not(hasResults))) {
-    return null;
-  }
-
   const successfulResults = R.propOr([], "successful", inlineResults);
   const failedResults = R.propOr([], "failed", inlineResults);
 
-  return (
+  return R.cond([
+    [
+      () => R.or(isBuilding, isDeploying),
+      () => <ProgressIndicator isDeploying={isDeploying} />,
+    ],
+    [
+      () => R.or(R.isNil(inlineResults), R.not(hasResults)),
+      R.always(null),
+    ],
+    [R.T, () => (
     <div className="inline-results-container">
       <div className="inline-results-header">
         <h4>{getResultsTitle(lastOperationType)}</h4>
@@ -99,7 +112,8 @@ const InlineResults = memo(({ inlineResults, setInlineResults, isBuilding, isDep
         )}
       </div>
     </div>
-  );
+    )],
+  ])();
 });
 
 InlineResults.displayName = "InlineResults";

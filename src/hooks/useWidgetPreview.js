@@ -13,8 +13,10 @@ export function useWidgetPreview() {
   const { packageManager, setPackageManager } = usePackageManagerPersistence();
   const widgets = useAtomValue(itemsAtomFamily("widgets"));
 
+  const { selectedWidgetForPreview } = selection;
+
   const selectedWidget = R.find(
-    R.propEq(selection.selectedWidgetForPreview, "id"),
+    R.propEq(selectedWidgetForPreview, "id"),
     widgets,
   );
   const widgetPath = R.prop("path", selectedWidget);
@@ -22,15 +24,14 @@ export function useWidgetPreview() {
   const state = useWidgetPreviewState(widgetPath);
 
   const build = useWidgetPreviewBuild({
-    selectedWidgetForPreview: selection.selectedWidgetForPreview,
+    selectedWidgetForPreview,
     packageManager,
   });
 
-  return {
-    ...state,
-    ...selection,
-    ...build,
-    packageManager,
-    setPackageManager,
-  };
+  return R.mergeAll([
+    state,
+    selection,
+    build,
+    { packageManager, setPackageManager },
+  ]);
 }

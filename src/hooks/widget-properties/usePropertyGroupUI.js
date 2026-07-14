@@ -16,26 +16,21 @@ export function usePropertyGroupUI(widgetDefinition) {
   const initializeAction = useSetAtom(initializeExpandedGroupsAtomFamily(widgetId));
 
   useEffect(() => {
-    const initializeExpandedGroups = async () => {
-      R.when(
-        R.complement(R.isNil),
-        async (definition) => {
-          try {
-            const propertyGroups = R.propOr([], "propertyGroups", definition);
-            const initialState = await invoke("build_initial_expanded_state", {
+    R.when(
+      R.isNotNil,
+      (definition) =>
+        R.pipe(
+          () =>
+            invoke("build_initial_expanded_state", {
               propertyGroups: R.map(
                 (group) => ({ caption: R.prop("caption", group) }),
-                propertyGroups,
+                R.propOr([], "propertyGroups", definition),
               ),
-            });
-            initializeAction(initialState);
-          } catch (error) {
-            console.error("Failed to build initial expanded state:", error);
-          }
-        },
-      )(widgetDefinition);
-    };
-    initializeExpandedGroups();
+            }),
+          R.andThen(initializeAction),
+          R.otherwise((error) => console.error("Failed to build initial expanded state:", error)),
+        )(),
+    )(widgetDefinition);
   }, [widgetDefinition, initializeAction]);
 
   const toggleGroup = useCallback(

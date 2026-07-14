@@ -3,62 +3,44 @@ import { useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 export function useArrayPropertyOperations(dynamicProperties, setDynamicProperties) {
-  const addArrayItem = useCallback(
-    R.curry(async (propertyKey, defaultItem) => {
-      try {
-        const result = await invoke("manipulate_array_property", {
+  const executeArrayOperation = (operation, errorLabel) =>
+    R.pipe(
+      () =>
+        invoke("manipulate_array_property", {
           properties: dynamicProperties,
-          operation: {
-            type: "add",
-            propertyKey,
-            defaultItem,
-          },
-        });
-        setDynamicProperties(result);
-      } catch (error) {
-        console.error("Failed to add array item:", error);
-      }
-    }),
+          operation,
+        }),
+      R.andThen(setDynamicProperties),
+      R.otherwise((error) => console.error(errorLabel, error)),
+    )();
+
+  const addArrayItem = useCallback(
+    R.curry((propertyKey, defaultItem) =>
+      executeArrayOperation(
+        { type: "add", propertyKey, defaultItem },
+        "Failed to add array item:",
+      ),
+    ),
     [dynamicProperties, setDynamicProperties]
   );
 
   const removeArrayItem = useCallback(
-    R.curry(async (propertyKey, index) => {
-      try {
-        const result = await invoke("manipulate_array_property", {
-          properties: dynamicProperties,
-          operation: {
-            type: "remove",
-            propertyKey,
-            index,
-          },
-        });
-        setDynamicProperties(result);
-      } catch (error) {
-        console.error("Failed to remove array item:", error);
-      }
-    }),
+    R.curry((propertyKey, index) =>
+      executeArrayOperation(
+        { type: "remove", propertyKey, index },
+        "Failed to remove array item:",
+      ),
+    ),
     [dynamicProperties, setDynamicProperties]
   );
 
   const updateArrayItemProperty = useCallback(
-    R.curry(async (propertyKey, index, nestedKey, value) => {
-      try {
-        const result = await invoke("manipulate_array_property", {
-          properties: dynamicProperties,
-          operation: {
-            type: "update",
-            propertyKey,
-            index,
-            nestedKey,
-            value,
-          },
-        });
-        setDynamicProperties(result);
-      } catch (error) {
-        console.error("Failed to update array item property:", error);
-      }
-    }),
+    R.curry((propertyKey, index, nestedKey, value) =>
+      executeArrayOperation(
+        { type: "update", propertyKey, index, nestedKey, value },
+        "Failed to update array item property:",
+      ),
+    ),
     [dynamicProperties, setDynamicProperties]
   );
 

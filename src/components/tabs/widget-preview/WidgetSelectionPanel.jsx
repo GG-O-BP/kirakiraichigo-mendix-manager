@@ -23,14 +23,14 @@ const isWidgetSelectedForPreview = R.curry((selectedWidgetId, widget) =>
   R.equals(selectedWidgetId, R.prop("id", widget)),
 );
 
-const renderAddWidgetButton = (modalHandlers, t) => (
+const renderAddWidgetButton = ({ setShowWidgetModal, setShowAddWidgetForm, setNewWidgetCaption, setNewWidgetPath }, t) => (
   <div
     className="version-list-item"
     onClick={R.pipe(
-      R.tap(() => modalHandlers.setShowWidgetModal(true)),
-      R.tap(() => modalHandlers.setShowAddWidgetForm(false)),
-      R.tap(() => modalHandlers.setNewWidgetCaption("")),
-      R.tap(() => modalHandlers.setNewWidgetPath("")),
+      R.tap(() => setShowWidgetModal(true)),
+      R.tap(() => setShowAddWidgetForm(false)),
+      R.tap(() => setNewWidgetCaption("")),
+      R.tap(() => setNewWidgetPath("")),
       R.always(undefined),
     )}
     style={ADD_WIDGET_BUTTON_STYLE}
@@ -73,38 +73,47 @@ const WidgetSelectionPanel = memo(({
     setReorderedWidgets(filteredWidgets);
   }, [filteredWidgets, setReorderedWidgets]);
 
-  const hasWidgetsWithoutSearch = R.isEmpty(reorderedWidgets) && R.isEmpty(widgetSearchTerm);
-  const hasNoSearchResults = R.isEmpty(reorderedWidgets) && !R.isEmpty(widgetSearchTerm);
+  const hasWidgetsWithoutSearch = R.and(R.isEmpty(reorderedWidgets), R.isEmpty(widgetSearchTerm));
+  const hasNoSearchResults = R.and(R.isEmpty(reorderedWidgets), R.isNotEmpty(widgetSearchTerm));
 
-  const renderWidgetsList = () => {
-    if (hasWidgetsWithoutSearch) {
-      return renderLoadingIndicator("🧩", R.pathOr("No widgets registered yet!", ["widgets", "noWidgetsRegistered"], t));
-    }
-
-    if (hasNoSearchResults) {
-      return renderLoadingIndicator(
-        "🔍",
-        R.pathOr(`Can't find "${widgetSearchTerm}"~`, ["widgets", "noWidgetsMatching"], t)
-          .replace("{term}", widgetSearchTerm)
-      );
-    }
-
-    return R.map(
-      (widget) => (
-        <WidgetListItem
-          key={R.prop("id", widget)}
-          widget={widget}
-          isSelected={isWidgetSelectedForPreview(selectedWidgetForPreview, widget)}
-          onClick={() => setSelectedWidgetForPreview(
-            toggleWidgetSelection(selectedWidgetForPreview, R.prop("id", widget))
-          )}
-          onDelete={handleWidgetDeleteClick}
-          showIcon={false}
-        />
-      ),
-      reorderedWidgets,
-    );
-  };
+  const renderWidgetsList = () =>
+    R.cond([
+      [
+        R.always(hasWidgetsWithoutSearch),
+        () => renderLoadingIndicator("🧩", R.pathOr("No widgets registered yet!", ["widgets", "noWidgetsRegistered"], t)),
+      ],
+      [
+        R.always(hasNoSearchResults),
+        () =>
+          renderLoadingIndicator(
+            "🔍",
+            R.replace(
+              "{term}",
+              widgetSearchTerm,
+              R.pathOr(`Can't find "${widgetSearchTerm}"~`, ["widgets", "noWidgetsMatching"], t),
+            ),
+          ),
+      ],
+      [
+        R.T,
+        () =>
+          R.map(
+            (widget) => (
+              <WidgetListItem
+                key={R.prop("id", widget)}
+                widget={widget}
+                isSelected={isWidgetSelectedForPreview(selectedWidgetForPreview, widget)}
+                onClick={() => setSelectedWidgetForPreview(
+                  toggleWidgetSelection(selectedWidgetForPreview, R.prop("id", widget))
+                )}
+                onDelete={handleWidgetDeleteClick}
+                showIcon={false}
+              />
+            ),
+            reorderedWidgets,
+          ),
+      ],
+    ])();
 
   return (
     <div className="preview-left">

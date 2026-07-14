@@ -43,12 +43,11 @@ function WidgetModals() {
     });
   };
 
-  const handleConfirmWidgetDelete = async () => {
-    const success = await handleWidgetDelete(widgetToDelete);
-    if (success) {
-      closeWidgetDeleteModal();
-    }
-  };
+  const handleConfirmWidgetDelete = () =>
+    R.pipe(
+      () => handleWidgetDelete(widgetToDelete),
+      R.andThen(R.when(R.identity, () => closeWidgetDeleteModal())),
+    )();
 
   const removeTitle = R.pathOr(
     "Remove Widget from List?",
@@ -56,13 +55,20 @@ function WidgetModals() {
     t,
   );
 
-  const removeMessage = widgetToDelete
-    ? R.pathOr(
-        `Should I remove "${widgetToDelete.caption}" from your widget list?\n\nDon't worry! This only removes it from my list - your files will stay safe and sound!`,
-        ["modals", "widgetRemove", "message"],
-        t,
-      ).replace("{caption}", widgetToDelete.caption)
-    : "";
+  const removeMessage = R.ifElse(
+    R.isNil,
+    R.always(""),
+    (widget) =>
+      R.replace(
+        "{caption}",
+        R.prop("caption", widget),
+        R.pathOr(
+          `Should I remove "${R.prop("caption", widget)}" from your widget list?\n\nDon't worry! This only removes it from my list - your files will stay safe and sound!`,
+          ["modals", "widgetRemove", "message"],
+          t,
+        ),
+      ),
+  )(widgetToDelete);
 
   return (
     <>

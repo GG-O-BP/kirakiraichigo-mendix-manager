@@ -29,7 +29,11 @@ const Dropdown = memo(({
       onChange={createChangeHandler(onChange)}
       disabled={disabled}
     >
-      {placeholder && <option value="">{placeholder}</option>}
+      {R.ifElse(
+        R.either(R.isNil, R.isEmpty),
+        R.always(null),
+        (placeholderText) => (<option value="">{placeholderText}</option>),
+      )(placeholder)}
       {R.map(Option, options)}
     </select>
     <span className="dropdown-icon">🍓</span>

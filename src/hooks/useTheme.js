@@ -56,38 +56,37 @@ const applyCatppuccinColors = R.curry((root, flavor) => {
   }, CATPPUCCIN_CSS_VARS);
 });
 
-const applyTheme = async (themeName) => {
+const applyTheme = (themeName) => {
   const root = document.documentElement;
 
   root.classList.remove(...THEME_CLASSES);
   root.classList.add(`theme-${themeName}`);
 
-  try {
-    const metadata = await invoke("get_theme_metadata", { themeName });
+  const applyFlavorColors = () =>
+    R.when(R.isNotNil, applyCatppuccinColors(root))(R.prop(themeName, flavors));
 
-    R.unless(
-      R.always(metadata.isCustom),
-      () => {
-        const flavor = R.prop(themeName, flavors);
-        R.when(R.complement(R.isNil), applyCatppuccinColors(root))(flavor);
-      },
-    )();
-  } catch (error) {
-    console.error("Failed to get theme metadata:", error);
-    const flavor = R.prop(themeName, flavors);
-    R.when(R.complement(R.isNil), applyCatppuccinColors(root))(flavor);
-  }
+  return R.pipe(
+    () => invoke("get_theme_metadata", { themeName }),
+    R.andThen(R.unless(R.prop("isCustom"), applyFlavorColors)),
+    R.otherwise(
+      R.pipe(
+        R.tap((error) => console.error("Failed to get theme metadata:", error)),
+        applyFlavorColors,
+      ),
+    ),
+  )();
 };
 
-const fetchThemeMetadata = async (key) => {
-  const themeName = key[1];
-  try {
-    return await invoke("get_theme_metadata", { themeName });
-  } catch (error) {
-    console.error("Failed to load theme metadata:", error);
-    return { isLight: false, isCustom: true };
-  }
-};
+const fetchThemeMetadata = (key) =>
+  R.pipe(
+    () => invoke("get_theme_metadata", { themeName: R.nth(1, key) }),
+    R.otherwise(
+      R.pipe(
+        R.tap((error) => console.error("Failed to load theme metadata:", error)),
+        R.always({ isLight: false, isCustom: true }),
+      ),
+    ),
+  )();
 
 export function useTheme() {
   const [currentTheme, setCurrentTheme] = useAtom(currentThemeAtom);

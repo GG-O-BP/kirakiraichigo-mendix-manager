@@ -17,7 +17,7 @@ const TAB_COMPONENTS = [StudioProManager, WidgetManager, WidgetPreview];
 const TAB_LABEL_KEYS = ["studioProManager", "widgetManager", "widgetPreview"];
 
 function App() {
-  const theme = useTheme();
+  const { currentTheme, currentLogo, handleThemeChange } = useTheme();
   const { t, locale, setLocale, supportedLocales } = useI18n();
 
   useEffect(() => {
@@ -64,9 +64,9 @@ function App() {
       <SWRConfig value={swrConfig}>
         <main className="app-container">
           <AppHeader
-            currentTheme={theme.currentTheme}
-            currentLogo={theme.currentLogo}
-            handleThemeChange={theme.handleThemeChange}
+            currentTheme={currentTheme}
+            currentLogo={currentLogo}
+            handleThemeChange={handleThemeChange}
             locale={locale}
             setLocale={setLocale}
             supportedLocales={supportedLocales}

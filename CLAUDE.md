@@ -25,18 +25,26 @@ cd src-tauri && cargo clippy     # Lint
 
 ### Ramda.js (IMPORTANT)
 
-**모든 프론트엔드 코드에서 Ramda 사용이 필수.** 네이티브 JavaScript 메서드 대신 Ramda를 사용할 것.
+**모든 프론트엔드 코드에서 Ramda 사용이 필수.** 원칙: **Ramda로 표현할 수 있는 것은 전부 Ramda로 작성한다.** 네이티브 JavaScript는 아래 예외 목록에 해당할 때만 허용된다.
 
 - `import * as R from "ramda"` 형태로 import
-- 조건문: `R.ifElse`, `R.when`, `R.cond` (not `if/else`)
-- Null/Empty 체크: `R.isNil`, `R.isEmpty` (not `=== null`, `.length > 0`)
+- 조건문: `R.ifElse`, `R.when`, `R.unless`, `R.cond` (not `if/else`, `switch`, 데이터 삼항)
+- JSX 조건 렌더링도 동일: `{cond && <X/>}`, `cond ? <X/> : null` 대신 `R.ifElse(pred, () => <X/>, R.always(null))` / `R.when` / `R.cond`
+- Null/Empty 체크: `R.isNil`, `R.isNotNil`, `R.isEmpty`, `R.isNotEmpty` (not `=== null`, `.length > 0`)
 - 프로퍼티 접근: `R.prop`, `R.path`, `R.propOr`, `R.pathOr` (not dot notation)
 - 배열 연산: `R.map`, `R.filter`, `R.find`, `R.reduce` (not native methods)
-- 비교: `R.equals`, `R.propEq`, `R.gt`, `R.lt`
+- 문자열: `R.replace`, `R.split`, `R.trim`, `R.toLower`/`R.toUpper`, `R.test`, `R.match` (not 문자열 메서드)
+- 비교: `R.equals`, `R.propEq`, `R.gt`, `R.lt`; 불리언 합성: `R.both`, `R.either`, `R.allPass`, `R.anyPass`, `R.not`, `R.complement`
+- 산술(데이터 연산): `R.add`, `R.subtract`, `R.multiply`, `R.divide`, `R.inc`, `R.dec`
 - 함수 합성: `R.pipe`, `R.compose`
-- 기본값: `R.defaultTo` (not `|| default`)
+- 기본값: `R.defaultTo` (not `|| default`, `?? default`)
+- **비동기: `promise.then/catch`와 async `try/catch` 대신 `R.andThen`/`R.otherwise`/`R.pipeWith(R.andThen, [...])`** — 모범: `src/utils/storage.js`
 
-기존 코드의 Ramda 패턴을 참고: `src/hooks/`, `src/contexts/`
+**Ramda 예외 (표현 불가능한 것만 네이티브 허용):** 호스트 객체 조작(`window`/`document`/DOM의 쓰기·메서드 호출 — `window.location` 등), React hooks 호출, 함수·Tauri 커맨드 호출 자체, `Set`/`Map` 조작, JSX 문법과 파라미터 구조분해, 언어 구문(`import`/`async` 정의/`throw`), Ramda 대응 없는 내장(`JSON.*`, `Math.ceil/round/floor`, `String()`/`Number()`/`parseInt`), iframe 주입용 템플릿 리터럴 내부. 상세 목록은 `ramda-reference` 스킬 참고.
+
+기존 코드의 Ramda 패턴 참고 (모범 파일): `src/utils/storage.js` (Promise 파이프라인), `src/atoms/widgetPreview.js`, `src/schemas/widgetPropertySchemas.js`
+
+**전체 272개 함수 레퍼런스는 `ramda-reference` 스킬에 있다** (ramdajs.com/docs 0.32.0 전체를 카테고리별로 수록 + 네이티브→Ramda 치환표). 프론트엔드 코드를 작성·수정하기 전에 반드시 로드해서 적합한 함수를 고를 것.
 
 ### Self-Documenting Code
 

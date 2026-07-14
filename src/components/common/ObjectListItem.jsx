@@ -2,6 +2,9 @@ import * as R from "ramda";
 import { memo, useState } from "react";
 import DynamicPropertyInput from "./DynamicPropertyInput";
 
+const expandedIconClassName = R.ifElse(R.identity, R.always("expanded"), R.always(""));
+const expandCollapseClassName = R.ifElse(R.identity, R.always("expanded"), R.always("collapsed"));
+
 const ObjectListItem = memo(
   ({
     index,
@@ -23,28 +26,43 @@ const ObjectListItem = memo(
 
     const isGroupExpanded = (groupId) => R.propOr(true, groupId, expandedGroups);
 
-    const getItemPreview = () => {
-      const firstGroup = R.head(R.defaultTo([], nestedPropertyGroups));
-      if (!firstGroup) return null;
-
-      const firstProp = R.head(R.propOr([], "properties", firstGroup));
-      if (!firstProp) return null;
-
-      const key = R.prop("key", firstProp);
-      const value = R.prop(key, item);
-      return value && R.complement(R.isEmpty)(String(value))
-        ? String(value)
-        : null;
-    };
+    const getItemPreview = () =>
+      R.pipe(
+        R.defaultTo([]),
+        R.head,
+        R.ifElse(
+          R.isNil,
+          R.always(null),
+          R.pipe(
+            R.propOr([], "properties"),
+            R.head,
+            R.ifElse(
+              R.isNil,
+              R.always(null),
+              R.pipe(
+                R.prop("key"),
+                (key) => R.prop(key, item),
+                R.ifElse(
+                  R.both(Boolean, R.pipe(String, R.isNotEmpty)),
+                  String,
+                  R.always(null),
+                ),
+              ),
+            ),
+          ),
+        ),
+      )(nestedPropertyGroups);
 
     const itemPreview = getItemPreview();
 
-    const handleHeaderKeyDown = (e) => {
-      if (R.includes(R.prop("key", e), ["Enter", " "])) {
-        e.preventDefault();
-        onToggleExpanded();
-      }
-    };
+    const handleHeaderKeyDown = (e) =>
+      R.when(
+        (event) => R.includes(R.prop("key", event), ["Enter", " "]),
+        (event) => {
+          event.preventDefault();
+          onToggleExpanded();
+        },
+      )(e);
 
     const renderItemHeader = () => (
       <div
@@ -55,22 +73,27 @@ const ObjectListItem = memo(
         onKeyDown={handleHeaderKeyDown}
         aria-expanded={isExpanded}
       >
-        <span className={`object-list-item-icon ${isExpanded ? "expanded" : ""}`}>
+        <span className={`object-list-item-icon ${expandedIconClassName(isExpanded)}`}>
           🍓
         </span>
-        <span className="object-list-item-title">Item {index + 1}</span>
-        {itemPreview && (
-          <span className="object-list-item-preview">{itemPreview}</span>
-        )}
+        <span className="object-list-item-title">Item {R.inc(index)}</span>
+        {R.ifElse(
+          R.isNotNil,
+          (preview) => (
+            <span className="object-list-item-preview">{preview}</span>
+          ),
+          R.always(null),
+        )(itemPreview)}
         <button
           type="button"
           className="object-list-item-remove"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
+          onClick={R.pipe(
+            R.tap((e) => e.stopPropagation()),
+            R.tap(() => onRemove()),
+            R.always(undefined),
+          )}
           disabled={disabled}
-          aria-label={`Remove item ${index + 1}`}
+          aria-label={`Remove item ${R.inc(index)}`}
         >
           ✕
         </button>
@@ -83,28 +106,32 @@ const ObjectListItem = memo(
       const nestedGroups = R.propOr([], "propertyGroups", group);
       const groupId = String(groupIndex);
       const groupExpanded = isGroupExpanded(groupId);
-      const hasCaption = R.complement(R.isEmpty)(groupCaption);
+      const hasCaption = R.isNotEmpty(groupCaption);
 
       return (
         <div
           key={groupIndex}
-          className={`object-list-property-group depth-${depth} ${groupExpanded ? "expanded" : "collapsed"}`}
+          className={`object-list-property-group depth-${depth} ${expandCollapseClassName(groupExpanded)}`}
         >
-          {hasCaption && (
-            <button
-              type="button"
-              className="object-list-group-header"
-              onClick={() => toggleGroupExpanded(groupId)}
-            >
-              <span className={`object-list-group-icon ${groupExpanded ? "expanded" : ""}`}>
-                🍓
-              </span>
-              <span className="object-list-group-caption">{groupCaption}</span>
-              <span className="object-list-group-count">
-                {R.length(properties)}
-              </span>
-            </button>
-          )}
+          {R.ifElse(
+            R.identity,
+            () => (
+              <button
+                type="button"
+                className="object-list-group-header"
+                onClick={() => toggleGroupExpanded(groupId)}
+              >
+                <span className={`object-list-group-icon ${expandedIconClassName(groupExpanded)}`}>
+                  🍓
+                </span>
+                <span className="object-list-group-caption">{groupCaption}</span>
+                <span className="object-list-group-count">
+                  {R.length(properties)}
+                </span>
+              </button>
+            ),
+            R.always(null),
+          )(hasCaption)}
           <div className="object-list-group-content-wrapper">
             <div className="object-list-group-content">
               <div className="object-list-properties">
@@ -126,7 +153,7 @@ const ObjectListItem = memo(
               </div>
               {R.addIndex(R.map)(
                 (nestedGroup, nestedIndex) =>
-                  renderPropertyGroup(nestedGroup, `${groupIndex}-${nestedIndex}`, depth + 1),
+                  renderPropertyGroup(nestedGroup, `${groupIndex}-${nestedIndex}`, R.inc(depth)),
                 nestedGroups
               )}
             </div>
@@ -136,7 +163,7 @@ const ObjectListItem = memo(
     };
 
     return (
-      <div className={`object-list-item ${isExpanded ? "expanded" : "collapsed"}`}>
+      <div className={`object-list-item ${expandCollapseClassName(isExpanded)}`}>
         {renderItemHeader()}
         <div className="object-list-item-content-wrapper">
           <div className="object-list-item-content">

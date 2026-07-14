@@ -19,19 +19,20 @@ export function useInstalledVersions(searchTerm = "") {
   } = useSWR(SWR_KEYS.INSTALLED_VERSIONS, fetchInstalledVersions);
 
   useEffect(() => {
-    const processVersions = async () => {
-      try {
-        const term = R.defaultTo(null, searchTerm);
-        const filtered = await filterMendixVersions(versions, term, true);
-        setFilteredVersions(filtered);
-      } catch (err) {
-        console.error("Failed to filter versions:", err);
-        setFilteredVersions(versions);
-      }
-    };
+    const processVersions = () =>
+      R.pipe(
+        () => filterMendixVersions(versions, R.defaultTo(null, searchTerm), true),
+        R.andThen(setFilteredVersions),
+        R.otherwise(
+          R.pipe(
+            R.tap((err) => console.error("Failed to filter versions:", err)),
+            () => setFilteredVersions(versions),
+          ),
+        ),
+      )();
 
     R.ifElse(
-      R.complement(R.isEmpty),
+      R.isNotEmpty,
       processVersions,
       () => setFilteredVersions([]),
     )(versions);

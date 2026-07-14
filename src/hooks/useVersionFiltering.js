@@ -27,8 +27,7 @@ const invokeFilterDownloadableVersions = async (
     searchTerm,
   });
 
-const fetchFilteredDownloadable = async (key) => {
-  const deps = JSON.parse(key[1]);
+const fetchFilteredDownloadable = (key) => {
   const {
     downloadableVersions,
     installedVersions,
@@ -37,68 +36,80 @@ const fetchFilteredDownloadable = async (key) => {
     showMTSOnly,
     showBetaOnly,
     searchTerm,
-  } = deps;
+  } = JSON.parse(R.nth(1, key));
 
-  if (R.or(R.isNil(downloadableVersions), R.isEmpty(downloadableVersions))) {
-    return [];
-  }
+  const normalizedSearchTerm = R.ifElse(
+    R.both(R.isNotNil, R.pipe(R.trim, R.isNotEmpty)),
+    R.identity,
+    R.always(null),
+  )(searchTerm);
 
-  try {
-    const normalizedSearchTerm = R.ifElse(
-      R.both(R.complement(R.isNil), R.pipe(R.trim, R.complement(R.isEmpty))),
-      R.identity,
-      R.always(null),
-    )(searchTerm);
-
-    return await invokeFilterDownloadableVersions(
-      downloadableVersions,
-      R.defaultTo([], installedVersions),
-      showOnlyDownloadableVersions,
-      showLTSOnly,
-      showMTSOnly,
-      showBetaOnly,
-      normalizedSearchTerm,
-    );
-  } catch (error) {
-    console.error("Failed to filter downloadable versions:", error);
-    return downloadableVersions;
-  }
+  return R.ifElse(
+    R.either(R.isNil, R.isEmpty),
+    R.always([]),
+    () =>
+      R.pipe(
+        () =>
+          invokeFilterDownloadableVersions(
+            downloadableVersions,
+            R.defaultTo([], installedVersions),
+            showOnlyDownloadableVersions,
+            showLTSOnly,
+            showMTSOnly,
+            showBetaOnly,
+            normalizedSearchTerm,
+          ),
+        R.otherwise(
+          R.pipe(
+            R.tap((error) => console.error("Failed to filter downloadable versions:", error)),
+            R.always(downloadableVersions),
+          ),
+        ),
+      )(),
+  )(downloadableVersions);
 };
 
-const fetchFilteredInstalled = async (key) => {
-  const deps = JSON.parse(key[1]);
-  const { installedVersions, searchTerm } = deps;
+const fetchFilteredInstalled = (key) => {
+  const { installedVersions, searchTerm } = JSON.parse(R.nth(1, key));
 
-  if (R.or(R.isNil(installedVersions), R.isEmpty(installedVersions))) {
-    return [];
-  }
-
-  try {
-    return await filterMendixVersions(installedVersions, searchTerm, true);
-  } catch (error) {
-    console.error("Failed to filter versions:", error);
-    return installedVersions;
-  }
+  return R.ifElse(
+    R.either(R.isNil, R.isEmpty),
+    R.always([]),
+    () =>
+      R.pipe(
+        () => filterMendixVersions(installedVersions, searchTerm, true),
+        R.otherwise(
+          R.pipe(
+            R.tap((error) => console.error("Failed to filter versions:", error)),
+            R.always(installedVersions),
+          ),
+        ),
+      )(),
+  )(installedVersions);
 };
 
-const fetchFilteredApps = async (key) => {
-  const deps = JSON.parse(key[1]);
-  const { apps, appSearchTerm, selectedVersion } = deps;
+const fetchFilteredApps = (key) => {
+  const { apps, appSearchTerm, selectedVersion } = JSON.parse(R.nth(1, key));
 
-  if (R.or(R.isNil(apps), R.isEmpty(apps))) {
-    return [];
-  }
-
-  try {
-    return await processAppsPipeline(apps, {
-      searchTerm: appSearchTerm,
-      priorityVersion: R.path(["version"], selectedVersion),
-      onlyValid: true,
-    });
-  } catch (error) {
-    console.error("Failed to filter apps:", error);
-    return apps;
-  }
+  return R.ifElse(
+    R.either(R.isNil, R.isEmpty),
+    R.always([]),
+    () =>
+      R.pipe(
+        () =>
+          processAppsPipeline(apps, {
+            searchTerm: appSearchTerm,
+            priorityVersion: R.path(["version"], selectedVersion),
+            onlyValid: true,
+          }),
+        R.otherwise(
+          R.pipe(
+            R.tap((error) => console.error("Failed to filter apps:", error)),
+            R.always(apps),
+          ),
+        ),
+      )(),
+  )(apps);
 };
 
 export const useVersionFiltering = ({
@@ -152,19 +163,29 @@ export const useVersionFiltering = ({
     fetchFilteredApps,
   );
 
-  const nextPageNumber = useMemo(() => {
-    if (R.or(R.isNil(downloadableVersions), R.isEmpty(downloadableVersions))) {
-      return 1;
-    }
-    return Math.ceil(R.length(downloadableVersions) / DOWNLOADABLE_VERSIONS_PAGE_SIZE) + 1;
-  }, [downloadableVersions]);
+  const nextPageNumber = useMemo(
+    () =>
+      R.ifElse(
+        R.either(R.isNil, R.isEmpty),
+        R.always(1),
+        R.pipe(
+          R.length,
+          (count) => Math.ceil(R.divide(count, DOWNLOADABLE_VERSIONS_PAGE_SIZE)),
+          R.inc,
+        ),
+      )(downloadableVersions),
+    [downloadableVersions],
+  );
 
-  const createLoadMoreHandler = useCallback(() => {
-    if (fetchVersionsFromDatagrid && nextPageNumber > 0) {
-      return () => fetchVersionsFromDatagrid(nextPageNumber);
-    }
-    return null;
-  }, [fetchVersionsFromDatagrid, nextPageNumber]);
+  const createLoadMoreHandler = useCallback(
+    () =>
+      R.ifElse(
+        R.both(R.isNotNil, () => R.gt(nextPageNumber, 0)),
+        (fetchVersions) => () => fetchVersions(nextPageNumber),
+        R.always(null),
+      )(fetchVersionsFromDatagrid),
+    [fetchVersionsFromDatagrid, nextPageNumber],
+  );
 
   return {
     displayedDownloadableVersions,

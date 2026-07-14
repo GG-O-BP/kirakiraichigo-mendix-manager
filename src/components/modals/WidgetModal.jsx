@@ -38,65 +38,85 @@ const closeFormAndResetFields = R.curry((props) =>
 
 const handleCancelClick = R.curry((props) => closeFormAndResetFields(props));
 
-const handleAddWidgetSubmit = R.curry(async (props, t) => {
-  if (hasValidCaptionAndPath(props)) {
-    const { newWidgetCaption, newWidgetPath, setWidgets } = props;
+const handleAddWidgetSubmit = R.curry((props, t) =>
+  R.when(
+    hasValidCaptionAndPath,
+    ({ newWidgetCaption, newWidgetPath, setWidgets }) =>
+      R.pipe(
+        () => invoke("validate_mendix_widget", { widgetPath: newWidgetPath }),
+        R.andThen(
+          R.ifElse(
+            R.identity,
+            () =>
+              R.pipe(
+                () => invokeCreateWidget(newWidgetCaption, newWidgetPath),
+                R.andThen(
+                  R.pipe(
+                    R.tap((newWidget) =>
+                      setWidgets((prev) =>
+                        R.pipe(
+                          R.append(newWidget),
+                          R.tap((newWidgets) =>
+                            R.otherwise(console.error, saveToStorage(STORAGE_KEYS.WIDGETS, newWidgets)),
+                          ),
+                        )(prev),
+                      ),
+                    ),
+                    R.tap(() => closeFormAndResetFields(props)),
+                  ),
+                ),
+              )(),
+            () =>
+              alert(R.pathOr(
+                "Invalid Mendix Widget: The selected path does not contain a valid Mendix widget.\n\nA valid Mendix widget must have a 'src/package.xml' file that contains 'mendix' namespace.",
+                ["modals", "widget", "invalidWidget"],
+                t,
+              )),
+          ),
+        ),
+        R.otherwise((error) =>
+          alert(
+            R.replace(
+              "{error}",
+              error,
+              R.pathOr(
+                `Validation Error: ${error}\n\nPlease ensure the selected path contains a valid Mendix widget with 'src/package.xml' file.`,
+                ["modals", "widget", "validationError"],
+                t,
+              ),
+            ),
+          ),
+        ),
+      )(),
+  )(props),
+);
 
-    try {
-      const isValid = await invoke("validate_mendix_widget", {
-        widgetPath: newWidgetPath,
-      });
-
-      if (!isValid) {
-        alert(R.pathOr(
-          "Invalid Mendix Widget: The selected path does not contain a valid Mendix widget.\n\nA valid Mendix widget must have a 'src/package.xml' file that contains 'mendix' namespace.",
-          ["modals", "widget", "invalidWidget"],
-          t,
-        ));
-        return;
-      }
-
-      const newWidget = await invokeCreateWidget(newWidgetCaption, newWidgetPath);
-      setWidgets((prev) => {
-        const newWidgets = [...prev, newWidget];
-        saveToStorage(STORAGE_KEYS.WIDGETS, newWidgets).catch(console.error);
-        return newWidgets;
-      });
-      closeFormAndResetFields(props);
-    } catch (error) {
-      alert(
-        R.pathOr(
-          `Validation Error: ${error}\n\nPlease ensure the selected path contains a valid Mendix widget with 'src/package.xml' file.`,
-          ["modals", "widget", "validationError"],
-          t,
-        ).replace("{error}", error),
-      );
-    }
-  }
-});
-
-const handleFolderBrowse = R.curry(async (props, t) => {
+const handleFolderBrowse = R.curry((props, t) => {
   const { newWidgetCaption, setNewWidgetPath, setNewWidgetCaption } = props;
 
-  try {
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: R.pathOr("Select Widget Folder", ["widgets", "selectFolder"], t),
-    });
-
-    if (selected) {
-      const folderPath = selected;
-      setNewWidgetPath(folderPath);
-
-      if (R.isEmpty(newWidgetCaption.trim())) {
-        const folderName = await extractFolderNameFromPath(folderPath);
-        setNewWidgetCaption(folderName);
-      }
-    }
-  } catch (error) {
-    console.error("Error selecting folder:", error);
-  }
+  return R.pipe(
+    () =>
+      open({
+        directory: true,
+        multiple: false,
+        title: R.pathOr("Select Widget Folder", ["widgets", "selectFolder"], t),
+      }),
+    R.andThen(
+      R.when(
+        R.isNotNil,
+        (folderPath) =>
+          R.pipe(
+            R.tap(setNewWidgetPath),
+            (path) =>
+              R.when(
+                () => R.isEmpty(R.trim(newWidgetCaption)),
+                () => R.andThen(setNewWidgetCaption, extractFolderNameFromPath(path)),
+              )(null),
+          )(folderPath),
+      ),
+    ),
+    R.otherwise((error) => console.error("Error selecting folder:", error)),
+  )();
 });
 
 const renderTextInput = R.curry((type, value, onChange, placeholder) => (
@@ -193,7 +213,7 @@ const AddWidgetFormModal = (props) => {
               R.tap(() => handleAddWidgetSubmit(props, t)),
               R.always(undefined),
             )}
-            disabled={!hasValidCaptionAndPath(props)}
+            disabled={R.complement(hasValidCaptionAndPath)(props)}
           >
             {R.pathOr("Add Widget", ["widgets", "addWidget"], t)}
           </button>
@@ -258,16 +278,22 @@ const WidgetModal = memo((props) => {
     isWidgetActionModalVisible(props),
   );
 
-  useEffect(() => {
-    if (!isModalVisible) return;
-
-    const handleKeyDown = R.when(
-      R.propEq("Escape", "key"),
-      R.tap(() => handleCancelClick(props)),
-    );
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showWidgetModal, showAddWidgetForm, isModalVisible]);
+  useEffect(
+    () =>
+      R.ifElse(
+        R.identity,
+        () => {
+          const handleKeyDown = R.when(
+            R.propEq("Escape", "key"),
+            R.tap(() => handleCancelClick(props)),
+          );
+          window.addEventListener("keydown", handleKeyDown);
+          return () => window.removeEventListener("keydown", handleKeyDown);
+        },
+        R.always(undefined),
+      )(isModalVisible),
+    [showWidgetModal, showAddWidgetForm, isModalVisible],
+  );
 
   return R.cond([
     [isAddWidgetFormVisible, AddWidgetFormModal],

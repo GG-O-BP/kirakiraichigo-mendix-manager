@@ -65,32 +65,43 @@ const BuildDeploySection = memo(({
     updateCounts();
   }, [selectedWidgets, selectedApps]);
 
+  const replaceCountPlaceholders = R.pipe(
+    R.replace("{widgetCount}", widgetCount),
+    R.replace("{appCount}", appCount),
+  );
+
   const getInstallText = () =>
-    isInstalling
-      ? R.pathOr("Installing...", ["widgets", "installing"], t)
-      : R.pathOr(`Install (${widgetCount} widgets)`, ["widgets", "install"], t)
-          .replace("{count}", widgetCount);
+    R.ifElse(
+      R.identity,
+      R.always(R.pathOr("Installing...", ["widgets", "installing"], t)),
+      () =>
+        R.replace(
+          "{count}",
+          widgetCount,
+          R.pathOr(`Install (${widgetCount} widgets)`, ["widgets", "install"], t),
+        ),
+    )(isInstalling);
 
   const getBuildDeployText = () =>
     R.cond([
       [R.always(isBuilding), R.always(R.pathOr("Building & Deploying...", ["widgets", "buildingAndDeploying"], t))],
       [R.always(isDeploying), R.always(R.pathOr("Deploying...", ["widgets", "deploying"], t))],
-      [R.T, R.always(
-        R.pathOr(`Build + Deploy (${widgetCount} widgets → ${appCount} apps)`, ["widgets", "buildDeploy"], t)
-          .replace("{widgetCount}", widgetCount)
-          .replace("{appCount}", appCount)
-      )],
+      [R.T, () =>
+        replaceCountPlaceholders(
+          R.pathOr(`Build + Deploy (${widgetCount} widgets → ${appCount} apps)`, ["widgets", "buildDeploy"], t),
+        ),
+      ],
     ])();
 
   const getDeployOnlyText = () =>
     R.cond([
       [R.always(isBuilding), R.always(R.pathOr("Building & Deploying...", ["widgets", "buildingAndDeploying"], t))],
       [R.always(isDeploying), R.always(R.pathOr("Deploying...", ["widgets", "deploying"], t))],
-      [R.T, R.always(
-        R.pathOr(`Deploy Only (${widgetCount} widgets → ${appCount} apps)`, ["widgets", "deployOnly"], t)
-          .replace("{widgetCount}", widgetCount)
-          .replace("{appCount}", appCount)
-      )],
+      [R.T, () =>
+        replaceCountPlaceholders(
+          R.pathOr(`Deploy Only (${widgetCount} widgets → ${appCount} apps)`, ["widgets", "deployOnly"], t),
+        ),
+      ],
     ])();
 
   return (
@@ -103,11 +114,15 @@ const BuildDeploySection = memo(({
       <button
         onClick={handleInstall}
         disabled={isInstallButtonDisabled(isInstalling, widgetCount)}
-        className={`install-button install-button-full ${
-          R.gt(widgetCount, 0) ? "button-enabled" : "button-disabled"
-        }`}
+        className={`install-button install-button-full ${R.ifElse(
+          R.identity,
+          R.always("button-enabled"),
+          R.always("button-disabled"),
+        )(R.gt(widgetCount, 0))}`}
       >
-        <span className="button-icon">{isInstalling ? "⏳" : "📦"}</span>
+        <span className="button-icon">
+          {R.ifElse(R.identity, R.always("⏳"), R.always("📦"))(isInstalling)}
+        </span>
         {getInstallText()}
       </button>
 
@@ -119,13 +134,15 @@ const BuildDeploySection = memo(({
           widgetCount,
           appCount,
         )}
-        className={`install-button build-deploy-button ${
-          R.and(R.gt(widgetCount, 0), R.gt(appCount, 0))
-            ? "button-enabled"
-            : "button-disabled"
-        }`}
+        className={`install-button build-deploy-button ${R.ifElse(
+          R.identity,
+          R.always("button-enabled"),
+          R.always("button-disabled"),
+        )(R.and(R.gt(widgetCount, 0), R.gt(appCount, 0)))}`}
       >
-        <span className="button-icon">{R.or(isBuilding, isDeploying) ? "⏳" : "🚀"}</span>
+        <span className="button-icon">
+          {R.ifElse(R.identity, R.always("⏳"), R.always("🚀"))(R.or(isBuilding, isDeploying))}
+        </span>
         {getBuildDeployText()}
       </button>
 
@@ -138,16 +155,15 @@ const BuildDeploySection = memo(({
           appCount,
           allDistExist,
         )}
-        className={`install-button deploy-only-button ${
-          R.and(
-            R.and(R.gt(widgetCount, 0), R.gt(appCount, 0)),
-            allDistExist,
-          )
-            ? "button-enabled"
-            : "button-disabled"
-        }`}
+        className={`install-button deploy-only-button ${R.ifElse(
+          R.identity,
+          R.always("button-enabled"),
+          R.always("button-disabled"),
+        )(R.and(R.and(R.gt(widgetCount, 0), R.gt(appCount, 0)), allDistExist))}`}
       >
-        <span className="button-icon">{R.or(isBuilding, isDeploying) ? "⏳" : "📤"}</span>
+        <span className="button-icon">
+          {R.ifElse(R.identity, R.always("⏳"), R.always("📤"))(R.or(isBuilding, isDeploying))}
+        </span>
         {getDeployOnlyText()}
       </button>
 

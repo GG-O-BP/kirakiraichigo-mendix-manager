@@ -51,16 +51,18 @@ export const getLoadingStateSyncAtom = atom((get) => (versionId) => {
   const state = R.prop(versionId, states);
   const noActiveOperations = { isLaunching: false, isUninstalling: false, isDownloading: false };
 
-  if (!state) return noActiveOperations;
-
   const isActiveOperation = (operationType) =>
     R.and(R.propEq(operationType, "operation", state), R.prop("value", state));
 
-  return {
-    isLaunching: isActiveOperation("launch"),
-    isUninstalling: isActiveOperation("uninstall"),
-    isDownloading: isActiveOperation("download"),
-  };
+  return R.ifElse(
+    R.isNil,
+    R.always(noActiveOperations),
+    R.always({
+      isLaunching: isActiveOperation("launch"),
+      isUninstalling: isActiveOperation("uninstall"),
+      isDownloading: isActiveOperation("download"),
+    }),
+  )(state);
 });
 
 export const isVersionBusyAtom = atom((get) => (versionId) => {

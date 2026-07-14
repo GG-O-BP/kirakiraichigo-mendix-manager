@@ -4,17 +4,17 @@ import { invoke } from "@tauri-apps/api/core";
 import { useSWRConfig } from "swr";
 import { SWR_KEYS } from "../../lib/swr";
 
-const downloadVersion = async (_, { arg }) => {
+const downloadVersion = (_, { arg }) => {
   const { versionId, updateLoadingState } = arg;
-  try {
-    updateLoadingState(versionId, "download", true);
-    const result = await invoke("download_and_install_mendix_version", {
-      version: versionId,
-    });
-    return result;
-  } finally {
-    updateLoadingState(versionId, "download", false);
-  }
+  updateLoadingState(versionId, "download", true);
+  return R.pipe(
+    () => invoke("download_and_install_mendix_version", { version: versionId }),
+    R.andThen(R.tap(() => updateLoadingState(versionId, "download", false))),
+    R.otherwise((error) => {
+      updateLoadingState(versionId, "download", false);
+      throw error;
+    }),
+  )();
 };
 
 export function useDownloadOperation({ updateLoadingState }) {
@@ -25,17 +25,20 @@ export function useDownloadOperation({ updateLoadingState }) {
     downloadVersion,
   );
 
-  const handleModalDownload = async (version) => {
-    const versionId = R.prop("version", version);
-    try {
-      const result = await trigger({ versionId, updateLoadingState });
-      await mutate(SWR_KEYS.INSTALLED_VERSIONS);
-      return result;
-    } catch (err) {
-      console.error("Error in download process:", err);
-      throw err;
-    }
-  };
+  const handleModalDownload = (version) =>
+    R.pipe(
+      () => trigger({ versionId: R.prop("version", version), updateLoadingState }),
+      R.andThen((result) =>
+        R.pipe(
+          () => mutate(SWR_KEYS.INSTALLED_VERSIONS),
+          R.andThen(R.always(result)),
+        )(),
+      ),
+      R.otherwise((err) => {
+        console.error("Error in download process:", err);
+        throw err;
+      }),
+    )();
 
   return {
     handleModalDownload,

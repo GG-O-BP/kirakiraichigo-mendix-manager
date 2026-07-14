@@ -1,3 +1,4 @@
+import * as R from "ramda";
 import { useCallback } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
@@ -13,18 +14,17 @@ export function useVersionLoadingStates() {
   const isVersionBusy = useAtomValue(isVersionBusyAtom);
 
   const updateLoadingState = useCallback(
-    async (versionId, operation, isLoading) => {
-      try {
-        const result = await invoke("set_version_operation", {
-          versionId,
-          operation,
-          isActive: isLoading,
-        });
-        setVersionLoadingStates(result);
-      } catch (error) {
-        console.error("Failed to update version loading state:", error);
-      }
-    },
+    (versionId, operation, isLoading) =>
+      R.pipe(
+        () =>
+          invoke("set_version_operation", {
+            versionId,
+            operation,
+            isActive: isLoading,
+          }),
+        R.andThen(setVersionLoadingStates),
+        R.otherwise((error) => console.error("Failed to update version loading state:", error)),
+      )(),
     [setVersionLoadingStates],
   );
 

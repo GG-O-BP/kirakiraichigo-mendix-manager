@@ -10,7 +10,7 @@ const hasRelatedApps = R.pipe(
 );
 
 const getLoadingOrDefaultText = R.curry((loadingText, defaultText, isLoading) =>
-  isLoading ? loadingText : defaultText,
+  R.ifElse(R.identity, R.always(loadingText), R.always(defaultText))(isLoading),
 );
 
 const RelatedAppItem = (app) => (
@@ -38,21 +38,23 @@ const RelatedAppsList = R.curry((t, relatedApps) =>
 
 const ConfirmWithAppsButton = R.curry(
   (t, onConfirmWithApps, isLoading, relatedApps) =>
-    R.both(R.identity, () => hasRelatedApps({ relatedApps }))(
-      onConfirmWithApps,
-    ) ? (
-      <button
-        className="modal-button confirm-with-apps-button"
-        onClick={onConfirmWithApps}
-        disabled={isLoading}
-      >
-        {getLoadingOrDefaultText(
-          R.pathOr("Processing...", ["modals", "confirm", "processing"], t),
-          R.pathOr("Uninstall + Delete Apps", ["modals", "studioPro", "uninstallAndDeleteApps"], t),
-          isLoading,
-        )}
-      </button>
-    ) : null,
+    R.ifElse(
+      R.both(R.identity, () => hasRelatedApps({ relatedApps })),
+      () => (
+        <button
+          className="modal-button confirm-with-apps-button"
+          onClick={onConfirmWithApps}
+          disabled={isLoading}
+        >
+          {getLoadingOrDefaultText(
+            R.pathOr("Processing...", ["modals", "confirm", "processing"], t),
+            R.pathOr("Uninstall + Delete Apps", ["modals", "studioPro", "uninstallAndDeleteApps"], t),
+            isLoading,
+          )}
+        </button>
+      ),
+      R.always(null),
+    )(onConfirmWithApps),
 );
 
 const ModalContentComponent = ({
@@ -68,7 +70,7 @@ const ModalContentComponent = ({
 
   useEffect(() => {
     const handleKeyDown = R.when(
-      R.both(R.propEq("Escape", "key"), () => !isLoading),
+      R.both(R.propEq("Escape", "key"), () => R.not(isLoading)),
       R.tap(onCancel),
     );
     window.addEventListener("keydown", handleKeyDown);

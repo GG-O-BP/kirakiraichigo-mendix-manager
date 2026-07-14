@@ -57,48 +57,42 @@ export function useWidgetPreviewBuild({ selectedWidgetForPreview, packageManager
     )(response);
   };
 
-  const handleBuildAndRun = async (selectedWidget) => {
-    if (R.isNil(selectedWidget)) return;
+  const runPreviewOperation = R.curry((logLabel, executeTrigger, selectedWidget) =>
+    R.when(
+      R.isNotNil,
+      (widget) => {
+        const widgetId = R.prop("id", widget);
+        setBuildError(null);
+        return R.pipe(
+          () => executeTrigger(widget),
+          R.andThen((response) => processResponse(widgetId, response)),
+          R.otherwise(
+            R.pipe(
+              R.tap((error) => console.error(logLabel, error)),
+              R.tap((error) => setBuildError(String(error))),
+              R.tap(() => setPreviewData({ widgetId, data: null })),
+            ),
+          ),
+        )();
+      },
+    )(selectedWidget),
+  );
 
-    const widgetId = R.prop("id", selectedWidget);
-    setBuildError(null);
+  const handleBuildAndRun = runPreviewOperation(
+    "[Widget Preview] Error:",
+    (widget) => triggerBuild({ widgetPath: R.prop("path", widget), packageManager }),
+  );
 
-    try {
-      const response = await triggerBuild({
-        widgetPath: R.prop("path", selectedWidget),
-        packageManager,
-      });
-      processResponse(widgetId, response);
-    } catch (error) {
-      console.error("[Widget Preview] Error:", error);
-      setBuildError(String(error));
-      setPreviewData({ widgetId, data: null });
-    }
-  };
-
-  const handleRunOnly = async (selectedWidget) => {
-    if (R.isNil(selectedWidget)) return;
-
-    const widgetId = R.prop("id", selectedWidget);
-    setBuildError(null);
-
-    try {
-      const response = await triggerRun({
-        widgetPath: R.prop("path", selectedWidget),
-      });
-      processResponse(widgetId, response);
-    } catch (error) {
-      console.error("[Widget Preview] Run Only Error:", error);
-      setBuildError(String(error));
-      setPreviewData({ widgetId, data: null });
-    }
-  };
+  const handleRunOnly = runPreviewOperation(
+    "[Widget Preview] Run Only Error:",
+    (widget) => triggerRun({ widgetPath: R.prop("path", widget) }),
+  );
 
   return {
     previewData,
     handleBuildAndRun,
     handleRunOnly,
-    isBuilding: isBuildingPreview || isRunningPreview,
+    isBuilding: R.or(isBuildingPreview, isRunningPreview),
     buildError,
   };
 }

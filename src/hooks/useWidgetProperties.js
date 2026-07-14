@@ -11,37 +11,45 @@ export const useWidgetProperties = (selectedWidget, baseProperties = {}, externa
     setDynamicProperties,
   } = externalState;
 
-  const loader = useWidgetDataLoader(selectedWidget, {
+  const {
+    widgetDefinition,
+    dynamicProperties: loadedDynamicProperties,
+    editorConfigContent,
+    updateProperty,
+    addArrayItem,
+    removeArrayItem,
+    updateArrayItemProperty,
+  } = useWidgetDataLoader(selectedWidget, {
     dynamicProperties,
     setDynamicProperties,
   });
 
-  const visibility = usePropertyVisibility({
-    editorConfigContent: loader.editorConfigContent,
-    widgetDefinition: loader.widgetDefinition,
-    dynamicProperties: loader.dynamicProperties,
+  const { visiblePropertyKeys, groupCounts } = usePropertyVisibility({
+    editorConfigContent,
+    widgetDefinition,
+    dynamicProperties: loadedDynamicProperties,
     baseProperties,
   });
 
-  const groupUI = usePropertyGroupUI(loader.widgetDefinition);
+  const { expandedGroups, toggleGroup } = usePropertyGroupUI(widgetDefinition);
 
-  const combinedProperties = R.mergeRight(baseProperties, loader.dynamicProperties);
+  const combinedProperties = R.mergeRight(baseProperties, loadedDynamicProperties);
 
   const arrayHandlers = {
-    addArrayItem: loader.addArrayItem,
-    removeArrayItem: loader.removeArrayItem,
-    updateArrayItemProperty: loader.updateArrayItemProperty,
+    addArrayItem,
+    removeArrayItem,
+    updateArrayItemProperty,
   };
 
   return {
-    widgetDefinition: loader.widgetDefinition,
-    dynamicProperties: loader.dynamicProperties,
-    updateProperty: loader.updateProperty,
+    widgetDefinition,
+    dynamicProperties: loadedDynamicProperties,
+    updateProperty,
     arrayHandlers,
-    visiblePropertyKeys: visibility.visiblePropertyKeys,
-    groupCounts: visibility.groupCounts,
-    expandedGroups: groupUI.expandedGroups,
-    toggleGroup: groupUI.toggleGroup,
+    visiblePropertyKeys,
+    groupCounts,
+    expandedGroups,
+    toggleGroup,
     combinedProperties,
   };
 };

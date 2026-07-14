@@ -1,13 +1,12 @@
 import * as R from "ramda";
 import { memo } from "react";
 
-const getWidgetClassName = R.curry((isSelected) =>
+const getWidgetClassName = (isSelected) =>
   R.join(" ", [
     "version-list-item",
     "widget-item-clickable",
-    isSelected ? "selected" : "",
-  ]),
-);
+    R.ifElse(R.identity, R.always("selected"), R.always(""))(isSelected),
+  ]);
 
 const handleDeleteClick = R.curry((onDelete, widget, e) =>
   R.pipe(
@@ -29,7 +28,7 @@ const WidgetListItem = memo(
     unselectedIcon = "🧩",
   }) => {
     const widgetId = R.prop("id", widget);
-    const icon = isSelected ? selectedIcon : unselectedIcon;
+    const icon = R.ifElse(R.identity, R.always(selectedIcon), R.always(unselectedIcon))(isSelected);
 
     return (
       <div
@@ -39,7 +38,11 @@ const WidgetListItem = memo(
         onClick={onClick}
       >
         <div className="version-info">
-          {showIcon && <span className="version-icon">{icon}</span>}
+          {R.ifElse(
+            R.identity,
+            () => (<span className="version-icon">{icon}</span>),
+            R.always(null),
+          )(showIcon)}
           <div className="version-details">
             <span className="version-number">{R.prop("caption", widget)}</span>
             <span className="version-date">{R.prop("path", widget)}</span>

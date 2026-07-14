@@ -12,9 +12,7 @@ const DEFAULT_LOCALE = "en";
 const storedLocale = atom(undefined);
 
 onMount(storedLocale, () => {
-  loadFromStorage(STORAGE_KEYS.LOCALE, null).then((saved) => {
-    storedLocale.set(saved);
-  });
+  R.andThen((saved) => storedLocale.set(saved), loadFromStorage(STORAGE_KEYS.LOCALE, null));
 });
 
 const normalizeLocale = R.pipe(
@@ -26,16 +24,14 @@ const normalizeLocale = R.pipe(
 
 const isValidLocale = R.includes(R.__, SUPPORTED_LOCALES);
 
-const detectLocale = async () => {
-  try {
-    const osLocale = await getOsLocale();
-    const normalized = normalizeLocale(osLocale);
-    return R.ifElse(isValidLocale, R.identity, R.always(DEFAULT_LOCALE))(normalized);
-  } catch {
-    const browserLocale = normalizeLocale(navigator.language);
-    return R.ifElse(isValidLocale, R.identity, R.always(DEFAULT_LOCALE))(browserLocale);
-  }
-};
+const toValidLocale = R.ifElse(isValidLocale, R.identity, R.always(DEFAULT_LOCALE));
+
+const detectLocale = () =>
+  R.pipe(
+    () => getOsLocale(),
+    R.andThen(R.pipe(normalizeLocale, toValidLocale)),
+    R.otherwise(() => R.pipe(normalizeLocale, toValidLocale)(navigator.language)),
+  )();
 
 export const locale = localeFrom(
   storedLocale,
@@ -43,7 +39,7 @@ export const locale = localeFrom(
 );
 
 export const setLocale = async (newLocale) => {
-  const validLocale = R.ifElse(isValidLocale, R.identity, R.always(DEFAULT_LOCALE))(newLocale);
+  const validLocale = toValidLocale(newLocale);
   storedLocale.set(validLocale);
   await saveToStorage(STORAGE_KEYS.LOCALE, validLocale);
 };
@@ -65,7 +61,7 @@ const fallbackLoader = R.always(Promise.resolve({ default: enMessages }));
 
 const i18n = createI18n(locale, {
   get: (code) =>
-    R.propOr(fallbackLoader, code, localeLoaders)().then(R.prop("default")),
+    R.andThen(R.prop("default"), R.propOr(fallbackLoader, code, localeLoaders)()),
 });
 
 export const messages = i18n("app", enMessages.app);

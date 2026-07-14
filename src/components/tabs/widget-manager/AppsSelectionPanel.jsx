@@ -41,7 +41,7 @@ const getAppClassName = (isSelected) =>
   R.join(" ", [
     "version-list-item",
     "widget-item-clickable",
-    isSelected ? "selected" : "",
+    R.ifElse(R.identity, R.always("selected"), R.always(""))(isSelected),
   ]);
 
 const renderVersionBadge = R.ifElse(
@@ -67,12 +67,14 @@ const AppListItem = memo(({ app, isSelected, handleAppClick, onDelete, t }) => {
   const [formattedDate, setFormattedDate] = useState(R.pathOr("Loading...", ["common", "loading"], t));
 
   useEffect(() => {
-    invokeFormatDate(app.last_modified)
-      .then(setFormattedDate)
-      .catch(() => setFormattedDate(R.pathOr("Date unknown", ["common", "dateUnknown"], t)));
-  }, [app.last_modified, t]);
+    R.pipe(
+      () => invokeFormatDate(R.prop("last_modified", app)),
+      R.andThen(setFormattedDate),
+      R.otherwise(() => setFormattedDate(R.pathOr("Date unknown", ["common", "dateUnknown"], t))),
+    )();
+  }, [R.prop("last_modified", app), t]);
 
-  const icon = isSelected ? "☑️" : "📁";
+  const icon = R.ifElse(R.identity, R.always("☑️"), R.always("📁"))(isSelected);
 
   return (
     <div
@@ -89,11 +91,15 @@ const AppListItem = memo(({ app, isSelected, handleAppClick, onDelete, t }) => {
           </span>
         </div>
       </div>
-      {R.complement(R.isNil)(onDelete) && (
-        <div style={INLINE_FLEX_GAP}>
-          {renderAppDeleteButton(onDelete, app, t)}
-        </div>
-      )}
+      {R.ifElse(
+        R.isNotNil,
+        () => (
+          <div style={INLINE_FLEX_GAP}>
+            {renderAppDeleteButton(onDelete, app, t)}
+          </div>
+        ),
+        R.always(null),
+      )(onDelete)}
     </div>
   );
 });
@@ -139,11 +145,15 @@ const AppsSelectionPanel = memo(({
   const [versionOptions, setVersionOptions] = useState([defaultVersionFilter]);
 
   useEffect(() => {
-    if (versions && versions.length > 0) {
-      invokeCreateVersionOptions(versions)
-        .then(setVersionOptions)
-        .catch(() => setVersionOptions([defaultVersionFilter]));
-    }
+    R.when(
+      R.both(R.isNotNil, R.isNotEmpty),
+      (versionList) =>
+        R.pipe(
+          () => invokeCreateVersionOptions(versionList),
+          R.andThen(setVersionOptions),
+          R.otherwise(() => setVersionOptions([defaultVersionFilter])),
+        )(),
+    )(versions);
   }, [versions]);
 
   const searchControls = (

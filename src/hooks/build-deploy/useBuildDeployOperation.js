@@ -39,83 +39,81 @@ export function useBuildDeployOperation({
   const [isBuilding, setIsBuilding] = useAtom(isBuildingAtom);
   const [isDeploying, setIsDeploying] = useAtom(isDeployingAtom);
 
-  const handleBuildDeploy = async ({ selectedWidgets, selectedApps, widgets, apps }) => {
+  const prepareOperation = (operationType) =>
     R.pipe(
-      R.tap(() => onShowResultModal && onShowResultModal(false)),
+      R.tap(() => R.when(R.isNotNil, (show) => show(false))(onShowResultModal)),
       R.tap(() => setBuildResults({ successful: [], failed: [] })),
-      R.tap(() => setLastOperationType("build")),
+      R.tap(() => setLastOperationType(operationType)),
     )({});
 
+  const applyResponse = R.ifElse(
+    R.prop("validation_error"),
+    R.pipe(R.prop("validation_error"), alert),
+    R.pipe(
+      R.tap(R.pipe(R.prop("results"), setBuildResults)),
+      R.tap(R.pipe(R.prop("results"), setInlineResults)),
+      R.tap(
+        R.when(
+          (response) => R.and(R.prop("has_failures", response), R.isNotNil(onShowResultModal)),
+          () => onShowResultModal(true),
+        ),
+      ),
+    ),
+  );
+
+  const applyCatastrophicError = (error) =>
+    R.pipe(
+      () => invokeCreateCatastrophicErrorResult(error),
+      R.andThen(
+        R.pipe(
+          R.tap(setBuildResults),
+          R.tap(setInlineResults),
+          R.tap(() => R.when(R.isNotNil, (show) => show(true))(onShowResultModal)),
+        ),
+      ),
+    )();
+
+  const handleBuildDeploy = ({ selectedWidgets, selectedApps, widgets, apps }) => {
+    prepareOperation("build");
     setIsBuilding(true);
-    try {
-      const response = await executeBuildDeploy({
-        selectedWidgets,
-        selectedApps,
-        widgets,
-        apps,
-        packageManager,
-      });
-
-      if (response.validation_error) {
-        alert(response.validation_error);
-        return;
-      }
-
-      const results = response.results;
-      setBuildResults(results);
-      setInlineResults(results);
-
-      R.when(
-        R.always(response.has_failures && onShowResultModal),
-        () => onShowResultModal(true),
-      )({});
-    } catch (error) {
-      const errorResult = await invokeCreateCatastrophicErrorResult(error);
-      setBuildResults(errorResult);
-      setInlineResults(errorResult);
-      R.when(R.identity, () => onShowResultModal(true))(onShowResultModal);
-    } finally {
-      setIsBuilding(false);
-    }
+    return R.pipe(
+      () =>
+        executeBuildDeploy({
+          selectedWidgets,
+          selectedApps,
+          widgets,
+          apps,
+          packageManager,
+        }),
+      R.andThen(applyResponse),
+      R.otherwise(applyCatastrophicError),
+      R.andThen(() => setIsBuilding(false)),
+      R.otherwise((error) => {
+        setIsBuilding(false);
+        throw error;
+      }),
+    )();
   };
 
-  const handleDeployOnly = async ({ selectedWidgets, selectedApps, widgets, apps }) => {
-    R.pipe(
-      R.tap(() => onShowResultModal && onShowResultModal(false)),
-      R.tap(() => setBuildResults({ successful: [], failed: [] })),
-      R.tap(() => setLastOperationType("deploy")),
-    )({});
-
+  const handleDeployOnly = ({ selectedWidgets, selectedApps, widgets, apps }) => {
+    prepareOperation("deploy");
     setIsDeploying(true);
-    try {
-      const response = await executeDeployOnly({
-        selectedWidgets,
-        selectedApps,
-        widgets,
-        apps,
-      });
-
-      if (response.validation_error) {
-        alert(response.validation_error);
-        return;
-      }
-
-      const results = response.results;
-      setBuildResults(results);
-      setInlineResults(results);
-
-      R.when(
-        R.always(response.has_failures && onShowResultModal),
-        () => onShowResultModal(true),
-      )({});
-    } catch (error) {
-      const errorResult = await invokeCreateCatastrophicErrorResult(error);
-      setBuildResults(errorResult);
-      setInlineResults(errorResult);
-      R.when(R.identity, () => onShowResultModal(true))(onShowResultModal);
-    } finally {
-      setIsDeploying(false);
-    }
+    return R.pipe(
+      () =>
+        executeDeployOnly({
+          selectedWidgets,
+          selectedApps,
+          widgets,
+          apps,
+        }),
+      R.andThen(applyResponse),
+      R.otherwise(applyCatastrophicError),
+      R.andThen(() => setIsDeploying(false)),
+      R.otherwise((error) => {
+        setIsDeploying(false);
+        throw error;
+      }),
+    )();
   };
 
   return {

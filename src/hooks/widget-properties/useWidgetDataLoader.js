@@ -5,13 +5,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { SWR_KEYS } from "../../lib/swr";
 import { useArrayPropertyOperations } from "./useArrayPropertyOperations";
 
-const fetchWidgetData = async (key) => {
-  const widgetPath = key[1];
-  if (R.isNil(widgetPath)) {
-    return null;
-  }
-  return invoke("load_widget_complete_data", { widgetPath });
-};
+const fetchWidgetData = (key) =>
+  R.ifElse(
+    R.isNil,
+    R.always(null),
+    (widgetPath) => invoke("load_widget_complete_data", { widgetPath }),
+  )(R.nth(1, key));
 
 export function useWidgetDataLoader(selectedWidget, externalState = {}) {
   const {
@@ -25,7 +24,11 @@ export function useWidgetDataLoader(selectedWidget, externalState = {}) {
   const initializedWidgetsRef = useRef(new Set());
 
   const { data, isLoading, error } = useSWR(
-    R.isNil(widgetPath) ? null : SWR_KEYS.WIDGET_DATA(widgetId),
+    R.ifElse(
+      R.isNil,
+      R.always(null),
+      () => SWR_KEYS.WIDGET_DATA(widgetId),
+    )(widgetPath),
     () => fetchWidgetData(["widget-data", widgetPath]),
     {
       revalidateOnFocus: false,
@@ -34,10 +37,17 @@ export function useWidgetDataLoader(selectedWidget, externalState = {}) {
   );
 
   useEffect(() => {
-    if (data && widgetId && !initializedWidgetsRef.current.has(String(widgetId))) {
-      setDynamicProperties(R.always(data.initial_values));
-      initializedWidgetsRef.current.add(String(widgetId));
-    }
+    R.when(
+      R.allPass([
+        () => R.isNotNil(data),
+        () => R.isNotNil(widgetId),
+        () => R.not(initializedWidgetsRef.current.has(String(widgetId))),
+      ]),
+      () => {
+        setDynamicProperties(R.always(R.prop("initial_values", data)));
+        initializedWidgetsRef.current.add(String(widgetId));
+      },
+    )(null);
   }, [data, widgetId, setDynamicProperties]);
 
   const widgetDefinition = R.prop("definition", data);
@@ -48,7 +58,7 @@ export function useWidgetDataLoader(selectedWidget, externalState = {}) {
       R.prop("content"),
       R.always(null),
     ),
-  )(data || {});
+  )(R.defaultTo({}, data));
 
   const updateProperty = useCallback(
     R.curry((propertyKey, value) =>
@@ -59,13 +69,15 @@ export function useWidgetDataLoader(selectedWidget, externalState = {}) {
 
   const arrayOperations = useArrayPropertyOperations(dynamicProperties, setDynamicProperties);
 
-  return {
-    widgetDefinition,
-    dynamicProperties,
-    editorConfigContent,
-    updateProperty,
-    isLoading,
-    error,
-    ...arrayOperations,
-  };
+  return R.mergeRight(
+    {
+      widgetDefinition,
+      dynamicProperties,
+      editorConfigContent,
+      updateProperty,
+      isLoading,
+      error,
+    },
+    arrayOperations,
+  );
 }

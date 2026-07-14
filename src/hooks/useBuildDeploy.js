@@ -10,17 +10,33 @@ import { showResultModalAtom } from "../atoms";
 import { itemsAtomFamily, selectedItemsAtomFamily } from "../atoms/collection";
 
 export function useBuildDeploy() {
-  const state = useBuildDeployState();
+  const {
+    buildResults,
+    setBuildResults,
+    inlineResults,
+    setInlineResults,
+    isUninstalling,
+    setIsUninstalling,
+    lastOperationType,
+    setLastOperationType,
+  } = useBuildDeployState();
   const { packageManager, setPackageManager } = usePackageManagerPersistence();
   const setShowResultModal = useSetAtom(showResultModalAtom);
 
-  const install = useInstallOperation({ packageManager });
-
-  const buildDeploy = useBuildDeployOperation({
+  const { handleInstall: runInstall, isInstalling } = useInstallOperation({
     packageManager,
-    setBuildResults: state.setBuildResults,
-    setInlineResults: state.setInlineResults,
-    setLastOperationType: state.setLastOperationType,
+  });
+
+  const {
+    handleBuildDeploy: runBuildDeploy,
+    handleDeployOnly: runDeployOnly,
+    isBuilding,
+    isDeploying,
+  } = useBuildDeployOperation({
+    packageManager,
+    setBuildResults,
+    setInlineResults,
+    setLastOperationType,
     onShowResultModal: setShowResultModal,
   });
 
@@ -30,49 +46,33 @@ export function useBuildDeploy() {
   const selectedApps = useAtomValue(selectedItemsAtomFamily("apps"));
 
   const handleInstall = useCallback(
-    () =>
-      install.handleInstall({
-        selectedWidgets,
-        widgets,
-      }),
-    [install.handleInstall, selectedWidgets, widgets],
+    () => runInstall({ selectedWidgets, widgets }),
+    [runInstall, selectedWidgets, widgets],
   );
 
   const handleBuildDeploy = useCallback(
-    () =>
-      buildDeploy.handleBuildDeploy({
-        selectedWidgets,
-        selectedApps,
-        widgets,
-        apps,
-      }),
-    [buildDeploy.handleBuildDeploy, selectedWidgets, selectedApps, widgets, apps],
+    () => runBuildDeploy({ selectedWidgets, selectedApps, widgets, apps }),
+    [runBuildDeploy, selectedWidgets, selectedApps, widgets, apps],
   );
 
   const handleDeployOnly = useCallback(
-    () =>
-      buildDeploy.handleDeployOnly({
-        selectedWidgets,
-        selectedApps,
-        widgets,
-        apps,
-      }),
-    [buildDeploy.handleDeployOnly, selectedWidgets, selectedApps, widgets, apps],
+    () => runDeployOnly({ selectedWidgets, selectedApps, widgets, apps }),
+    [runDeployOnly, selectedWidgets, selectedApps, widgets, apps],
   );
 
   return {
     packageManager,
     setPackageManager,
-    isInstalling: install.isInstalling,
-    isBuilding: buildDeploy.isBuilding,
-    isDeploying: buildDeploy.isDeploying,
-    buildResults: state.buildResults,
-    setBuildResults: state.setBuildResults,
-    inlineResults: state.inlineResults,
-    setInlineResults: state.setInlineResults,
-    isUninstalling: state.isUninstalling,
-    setIsUninstalling: state.setIsUninstalling,
-    lastOperationType: state.lastOperationType,
+    isInstalling,
+    isBuilding,
+    isDeploying,
+    buildResults,
+    setBuildResults,
+    inlineResults,
+    setInlineResults,
+    isUninstalling,
+    setIsUninstalling,
+    lastOperationType,
     handleInstall,
     handleBuildDeploy,
     handleDeployOnly,

@@ -15,65 +15,67 @@ export function useDownloadableVersions() {
     isLoading: isLoadingDownloadableVersions,
     mutate,
   } = useSWR(SWR_KEYS.DOWNLOADABLE_VERSIONS, fetchCachedVersions, {
-    onSuccess: (cached) => {
+    onSuccess: () => {
       R.when(
-        R.both(
-          R.complement(R.isEmpty),
-          () => !hasLoadedInitialVersions,
-        ),
-        async () => {
+        () => R.not(hasLoadedInitialVersions),
+        () => {
           hasLoadedInitialVersions = true;
-          await fetchVersionsFromDatagrid(1);
+          fetchVersionsFromDatagrid(1);
         },
-      )(cached);
-
-      R.when(
-        R.both(
-          R.isEmpty,
-          () => !hasLoadedInitialVersions,
-        ),
-        async () => {
-          hasLoadedInitialVersions = true;
-          await fetchVersionsFromDatagrid(1);
-        },
-      )(cached);
+      )(null);
     },
   });
 
   const fetchVersionsFromDatagrid = useCallback(
-    async (page = 1) => {
-      try {
-        const processedPage = R.pipe(R.defaultTo(1), R.max(1))(page);
-
-        const versions = await invoke("get_downloadable_versions_from_datagrid", {
-          page: processedPage,
-        });
-
-        const merged = await invoke("merge_and_save_downloadable_versions", {
-          fresh: versions,
-        });
-
-        mutate(merged, false);
-        return versions;
-      } catch (err) {
-        console.error("Failed to fetch versions from datagrid:", err);
-        return [];
-      }
-    },
+    (page = 1) =>
+      R.pipe(
+        () =>
+          invoke("get_downloadable_versions_from_datagrid", {
+            page: R.pipe(R.defaultTo(1), R.max(1))(page),
+          }),
+        R.andThen((versions) =>
+          R.pipe(
+            () => invoke("merge_and_save_downloadable_versions", { fresh: versions }),
+            R.andThen(
+              R.pipe(
+                R.tap((merged) => mutate(merged, false)),
+                R.always(versions),
+              ),
+            ),
+          )(),
+        ),
+        R.otherwise(
+          R.pipe(
+            R.tap((err) => console.error("Failed to fetch versions from datagrid:", err)),
+            R.always([]),
+          ),
+        ),
+      )(),
     [mutate],
   );
 
-  const clearCache = useCallback(async () => {
-    try {
-      await invoke("clear_downloadable_versions_cache");
-      mutate([], false);
-      hasLoadedInitialVersions = false;
-      return true;
-    } catch (err) {
-      console.error("Failed to clear cache:", err);
-      return false;
-    }
-  }, [mutate]);
+  const clearCache = useCallback(
+    () =>
+      R.pipe(
+        () => invoke("clear_downloadable_versions_cache"),
+        R.andThen(
+          R.pipe(
+            R.tap(() => mutate([], false)),
+            R.tap(() => {
+              hasLoadedInitialVersions = false;
+            }),
+            R.always(true),
+          ),
+        ),
+        R.otherwise(
+          R.pipe(
+            R.tap((err) => console.error("Failed to clear cache:", err)),
+            R.always(false),
+          ),
+        ),
+      )(),
+    [mutate],
+  );
 
   const refreshVersions = useCallback(async () => {
     await clearCache();

@@ -26,10 +26,10 @@ const PreviewPanel = memo(({ previewData, properties, widgetDefinition, isBuildi
           R.always(previewData),
           R.always(
             <WidgetPreviewFrame
-              bundle={previewData?.bundle}
-              css={previewData?.css}
-              widgetName={previewData?.widgetName}
-              widgetId={previewData?.widgetId}
+              bundle={R.prop("bundle", previewData)}
+              css={R.prop("css", previewData)}
+              widgetName={R.prop("widgetName", previewData)}
+              widgetId={R.prop("widgetId", previewData)}
               properties={properties}
               widgetDefinition={widgetDefinition}
               onDatasourceCommit={onDatasourceCommit}
@@ -47,7 +47,7 @@ const PreviewPanel = memo(({ previewData, properties, widgetDefinition, isBuildi
                   R.addIndex(R.map)((line, i) => (
                     <span key={i}>
                       {line}
-                      {i === 0 && <br />}
+                      {R.ifElse(R.equals(0), () => <br />, R.always(null))(i)}
                     </span>
                   )),
                 )(R.pathOr("Pick a widget, click Run Preview~\nand watch the magic happen! Hehe", ["preview", "emptyState"], t))}

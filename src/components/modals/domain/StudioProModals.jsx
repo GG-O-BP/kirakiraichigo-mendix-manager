@@ -34,26 +34,20 @@ function StudioProModals() {
 
   const { loadApps } = useApps();
 
-  const handleConfirmUninstall = async (deleteApps = false) => {
-    if (versionToUninstall) {
-      await handleUninstallStudioPro(
-        versionToUninstall,
-        deleteApps,
-        relatedApps,
-        {
+  const handleConfirmUninstall = (deleteApps = false) =>
+    R.when(
+      R.isNotNil,
+      (version) =>
+        handleUninstallStudioPro(version, deleteApps, relatedApps, {
           onDeleteApp: async (appPath) => {
             await invoke("delete_mendix_app", { appPath });
           },
           onComplete: () => {
-            if (deleteApps) {
-              loadApps();
-            }
+            R.when(R.identity, () => loadApps())(deleteApps);
             closeUninstallModal();
           },
-        },
-      );
-    }
-  };
+        }),
+    )(versionToUninstall);
 
   const uninstallTitle = R.pathOr(
     "Say Goodbye to Studio Pro?",
@@ -61,13 +55,20 @@ function StudioProModals() {
     t,
   );
 
-  const uninstallMessage = versionToUninstall
-    ? R.pathOr(
-        `Are you really really sure you want to uninstall Studio Pro ${versionToUninstall.version}?\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay?`,
-        ["modals", "studioPro", "uninstallMessage"],
-        t,
-      ).replace("{version}", versionToUninstall.version)
-    : "";
+  const uninstallMessage = R.ifElse(
+    R.isNil,
+    R.always(""),
+    (version) =>
+      R.replace(
+        "{version}",
+        R.prop("version", version),
+        R.pathOr(
+          `Are you really really sure you want to uninstall Studio Pro ${R.prop("version", version)}?\n\nOnce it's gone, there's no way to bring it back! Please think carefully, okay?`,
+          ["modals", "studioPro", "uninstallMessage"],
+          t,
+        ),
+      ),
+  )(versionToUninstall);
 
   return (
     <>
@@ -76,17 +77,17 @@ function StudioProModals() {
         title={uninstallTitle}
         message={uninstallMessage}
         onConfirm={() => handleConfirmUninstall(false)}
-        onConfirmWithApps={
-          relatedApps.length > 0
-            ? () => handleConfirmUninstall(true)
-            : null
-        }
+        onConfirmWithApps={R.ifElse(
+          R.isNotEmpty,
+          R.always(() => handleConfirmUninstall(true)),
+          R.always(null),
+        )(relatedApps)}
         onCancel={closeUninstallModal}
-        isLoading={
-          versionToUninstall
-            ? getLoadingStateSync(versionToUninstall.version).isUninstalling
-            : false
-        }
+        isLoading={R.ifElse(
+          R.isNil,
+          R.always(false),
+          (version) => R.prop("isUninstalling", getLoadingStateSync(R.prop("version", version))),
+        )(versionToUninstall)}
         relatedApps={relatedApps}
       />
 
@@ -96,11 +97,11 @@ function StudioProModals() {
         onDownload={handleModalDownload}
         onClose={closeDownloadModal}
         onCancel={closeDownloadModal}
-        isLoading={
-          versionToDownload
-            ? getLoadingStateSync(versionToDownload.version).isDownloading
-            : false
-        }
+        isLoading={R.ifElse(
+          R.isNil,
+          R.always(false),
+          (version) => R.prop("isDownloading", getLoadingStateSync(R.prop("version", version))),
+        )(versionToDownload)}
       />
     </>
   );

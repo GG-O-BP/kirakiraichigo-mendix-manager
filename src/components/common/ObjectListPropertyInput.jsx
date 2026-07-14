@@ -2,52 +2,39 @@ import * as R from "ramda";
 import { memo, useCallback, useState } from "react";
 import ObjectListItem from "./ObjectListItem";
 
-const createDefaultItemFromNestedGroups = (nestedPropertyGroups) => {
-  const defaultItem = {};
+const collectGroupProperties = (group) =>
+  R.concat(
+    R.propOr([], "properties", group),
+    R.chain(collectGroupProperties, R.propOr([], "propertyGroups", group)),
+  );
 
-  const processGroup = (group) => {
-    R.forEach((prop) => {
-      const defaultValue = R.cond([
-        [R.equals("boolean"), R.always(false)],
-        [R.equals("integer"), R.always(0)],
-        [R.equals("decimal"), R.always(0.0)],
-        [R.T, R.always("")],
-      ])(R.prop("type", prop));
+const defaultValueForType = R.cond([
+  [R.equals("boolean"), R.always(false)],
+  [R.equals("integer"), R.always(0)],
+  [R.equals("decimal"), R.always(0.0)],
+  [R.T, R.always("")],
+]);
 
-      defaultItem[R.prop("key", prop)] = R.propOr(
-        defaultValue,
-        "defaultValue",
-        prop
-      );
-    }, R.propOr([], "properties", group));
+const createDefaultItemFromNestedGroups = (nestedPropertyGroups) =>
+  R.pipe(
+    R.defaultTo([]),
+    R.chain(collectGroupProperties),
+    R.map((prop) => [
+      R.prop("key", prop),
+      R.propOr(defaultValueForType(R.prop("type", prop)), "defaultValue", prop),
+    ]),
+    R.fromPairs,
+  )(nestedPropertyGroups);
 
-    R.forEach(processGroup, R.propOr([], "propertyGroups", group));
-  };
-
-  R.forEach(processGroup, R.defaultTo([], nestedPropertyGroups));
-
-  return defaultItem;
-};
-
-const findLinkedDatasources = (nestedPropertyGroups) => {
-  const datasources = new Set();
-
-  const processGroup = (group) => {
-    R.forEach((prop) => {
-      const dataSource = R.prop("dataSource", prop);
-      if (dataSource) {
-        const cleanSource = R.replace(/^\.\.\//, "", dataSource);
-        datasources.add(cleanSource);
-      }
-    }, R.propOr([], "properties", group));
-
-    R.forEach(processGroup, R.propOr([], "propertyGroups", group));
-  };
-
-  R.forEach(processGroup, R.defaultTo([], nestedPropertyGroups));
-
-  return Array.from(datasources);
-};
+const findLinkedDatasources = (nestedPropertyGroups) =>
+  R.pipe(
+    R.defaultTo([]),
+    R.chain(collectGroupProperties),
+    R.map(R.prop("dataSource")),
+    R.filter(Boolean),
+    R.map(R.replace(/^\.\.\//, "")),
+    R.uniq,
+  )(nestedPropertyGroups);
 
 const ObjectListPropertyInput = memo(
   ({
@@ -113,7 +100,7 @@ const ObjectListPropertyInput = memo(
           className="object-list-header-toggle"
           onClick={toggleExpanded}
         >
-          <span className={`object-list-icon ${isExpanded ? "expanded" : ""}`}>
+          <span className={`object-list-icon ${R.ifElse(R.identity, R.always("expanded"), R.always(""))(isExpanded)}`}>
             🍓
           </span>
           <span className="object-list-title-text">{caption}</span>
@@ -163,7 +150,7 @@ const ObjectListPropertyInput = memo(
       );
 
     return (
-      <div className={`object-list-container ${isExpanded ? "expanded" : "collapsed"}`}>
+      <div className={`object-list-container ${R.ifElse(R.identity, R.always("expanded"), R.always("collapsed"))(isExpanded)}`}>
         {renderHeader()}
         <div className="object-list-content-wrapper">
           <div className="object-list-content">

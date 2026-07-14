@@ -113,16 +113,18 @@ export function useUninstallModalActions() {
   const { trigger } = useSWRMutation(SWR_KEYS.UNINSTALL_MODAL_APPS, fetchRelatedApps);
 
   const openUninstallModal = useCallback(
-    async (version) => {
-      try {
-        const apps = await trigger(version);
-        setShowModal(true);
-        setVersionToUninstall(version);
-        setRelatedApps(apps);
-      } catch (error) {
-        alert(`Failed to get related apps: ${error}`);
-      }
-    },
+    (version) =>
+      R.pipe(
+        () => trigger(version),
+        R.andThen(
+          R.pipe(
+            R.tap(() => setShowModal(true)),
+            R.tap(() => setVersionToUninstall(version)),
+            R.tap(setRelatedApps),
+          ),
+        ),
+        R.otherwise((error) => alert(`Failed to get related apps: ${error}`)),
+      )(),
     [trigger, setShowModal, setVersionToUninstall, setRelatedApps],
   );
 

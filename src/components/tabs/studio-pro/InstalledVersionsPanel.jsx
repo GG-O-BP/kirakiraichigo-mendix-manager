@@ -37,22 +37,25 @@ const InstalledVersionItem = memo(({
   const loadingState = getLoadingStateSync(version.version);
 
   useEffect(() => {
-    if (selectedVersion) {
-      invokeCheckVersionSelected(selectedVersion.version, version.version)
-        .then(setIsSelected)
-        .catch(() => setIsSelected(false));
-    } else {
-      setIsSelected(false);
-    }
-  }, [selectedVersion, version.version]);
+    R.ifElse(
+      R.isNotNil,
+      (selected) =>
+        R.pipe(
+          () => invokeCheckVersionSelected(R.prop("version", selected), R.prop("version", version)),
+          R.andThen(setIsSelected),
+          R.otherwise(() => setIsSelected(false)),
+        )(),
+      () => setIsSelected(false),
+    )(selectedVersion);
+  }, [selectedVersion, R.prop("version", version)]);
 
   return (
     <MendixVersionListItem
       version={version}
       onLaunch={handleLaunch}
       onUninstall={handleUninstall}
-      isLaunching={loadingState.isLaunching}
-      isUninstalling={loadingState.isUninstalling}
+      isLaunching={R.prop("isLaunching", loadingState)}
+      isUninstalling={R.prop("isUninstalling", loadingState)}
       isSelected={isSelected}
       onClick={createVersionSelectionHandler(handleVersionClick, version)}
     />
@@ -73,25 +76,25 @@ const InstalledVersionsPanel = memo(({
 }) => {
   const { t } = useI18n();
 
-  const renderVersionsList = () => {
-    if (displayedInstalledVersions.length === 0) {
-      return renderEmptyListMessage(
-        R.pathOr("No installed versions found", ["versions", "noInstalledVersions"], t),
-      );
-    }
-
-    return displayedInstalledVersions.map((version) => (
-      <InstalledVersionItem
-        key={`installed-${version.version}`}
-        version={version}
-        getLoadingStateSync={getLoadingStateSync}
-        handleLaunch={handleLaunchStudioPro}
-        handleUninstall={handleUninstallClick}
-        handleVersionClick={handleVersionClick}
-        selectedVersion={selectedVersion}
-      />
-    ));
-  };
+  const renderVersionsList = () =>
+    R.ifElse(
+      R.isEmpty,
+      () =>
+        renderEmptyListMessage(
+          R.pathOr("No installed versions found", ["versions", "noInstalledVersions"], t),
+        ),
+      R.map((version) => (
+        <InstalledVersionItem
+          key={`installed-${R.prop("version", version)}`}
+          version={version}
+          getLoadingStateSync={getLoadingStateSync}
+          handleLaunch={handleLaunchStudioPro}
+          handleUninstall={handleUninstallClick}
+          handleVersionClick={handleVersionClick}
+          selectedVersion={selectedVersion}
+        />
+      )),
+    )(displayedInstalledVersions);
 
   const searchControls = (
     <div className="search-controls">

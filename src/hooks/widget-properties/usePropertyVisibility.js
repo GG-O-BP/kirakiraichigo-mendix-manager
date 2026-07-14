@@ -6,25 +6,28 @@ import { SWR_KEYS } from "../../lib/swr";
 
 const createInputHash = (inputs) => JSON.stringify(inputs);
 
-const fetchPropertyVisibility = async (key) => {
-  const [, , inputHash] = key;
-  const { editorConfigContent, widgetDefinition, dynamicProperties, baseProperties } = JSON.parse(inputHash);
+const fetchPropertyVisibility = (key) => {
+  const { editorConfigContent, widgetDefinition, dynamicProperties, baseProperties } = JSON.parse(R.nth(2, key));
 
-  if (R.or(R.isNil(editorConfigContent), R.isNil(widgetDefinition))) {
-    return { visible_keys: null, group_counts: {} };
-  }
-
-  try {
-    const combinedValues = R.mergeRight(baseProperties, dynamicProperties);
-    return await invoke("get_property_visibility_with_counts", {
-      configContent: editorConfigContent,
-      values: combinedValues,
-      widgetDefinition,
-    });
-  } catch (error) {
-    console.error("Failed to get property visibility:", error);
-    return { visible_keys: null, group_counts: {} };
-  }
+  return R.ifElse(
+    () => R.or(R.isNil(editorConfigContent), R.isNil(widgetDefinition)),
+    R.always({ visible_keys: null, group_counts: {} }),
+    () =>
+      R.pipe(
+        () =>
+          invoke("get_property_visibility_with_counts", {
+            configContent: editorConfigContent,
+            values: R.mergeRight(baseProperties, dynamicProperties),
+            widgetDefinition,
+          }),
+        R.otherwise(
+          R.pipe(
+            R.tap((error) => console.error("Failed to get property visibility:", error)),
+            R.always({ visible_keys: null, group_counts: {} }),
+          ),
+        ),
+      )(),
+  )(null);
 };
 
 export function usePropertyVisibility({

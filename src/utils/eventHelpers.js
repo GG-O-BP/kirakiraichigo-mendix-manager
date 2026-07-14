@@ -10,24 +10,18 @@ const invokeParseIntegerOrEmpty = (value) =>
 const invokeParseDecimalOrEmpty = (value) =>
   invoke("parse_decimal_or_empty", { value: String(value) });
 
-const parseValueByTypeAsync = async (event, rawValue, type) => {
-  if (R.equals("boolean", type)) {
-    return extractEventChecked(event);
-  }
-  if (R.equals("integer", type)) {
-    return await invokeParseIntegerOrEmpty(rawValue);
-  }
-  if (R.equals("decimal", type)) {
-    return await invokeParseDecimalOrEmpty(rawValue);
-  }
-  return rawValue;
-};
+const parseValueByTypeAsync = async (event, rawValue, type) =>
+  R.cond([
+    [R.equals("boolean"), () => extractEventChecked(event)],
+    [R.equals("integer"), () => invokeParseIntegerOrEmpty(rawValue)],
+    [R.equals("decimal"), () => invokeParseDecimalOrEmpty(rawValue)],
+    [R.T, R.always(rawValue)],
+  ])(type);
 
 export const createChangeHandler = R.curry((onChange, event) =>
   R.pipe(extractEventValue, onChange)(event),
 );
 
-export const createTypedChangeHandler = R.curry((onChange, type, event) => {
-  const rawValue = extractEventValue(event);
-  parseValueByTypeAsync(event, rawValue, type).then(onChange);
-});
+export const createTypedChangeHandler = R.curry((onChange, type, event) =>
+  R.andThen(onChange, parseValueByTypeAsync(event, extractEventValue(event), type)),
+);

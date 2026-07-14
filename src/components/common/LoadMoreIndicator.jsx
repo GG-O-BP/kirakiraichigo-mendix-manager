@@ -30,22 +30,17 @@ const LoadMoreButton = memo(({ onClick, t }) => (
 
 LoadMoreButton.displayName = "LoadMoreButton";
 
-const LoadMoreIndicator = memo(({ fetchFunction, isLoading, totalCount, t }) => {
-  if (isLoading) {
-    return <LoadingState t={t} />;
-  }
-
-  const isInitialLoadOrEmpty = !fetchFunction && totalCount === 0;
-  if (isInitialLoadOrEmpty) {
-    return null;
-  }
-
-  if (!fetchFunction) {
-    return <EndOfListState t={t} />;
-  }
-
-  return <LoadMoreButton onClick={fetchFunction} t={t} />;
-});
+const LoadMoreIndicator = memo(({ fetchFunction, isLoading, totalCount, t }) =>
+  R.cond([
+    [R.always(isLoading), () => <LoadingState t={t} />],
+    [
+      R.always(R.and(R.isNil(fetchFunction), R.equals(0, totalCount))),
+      R.always(null),
+    ],
+    [R.always(R.isNil(fetchFunction)), () => <EndOfListState t={t} />],
+    [R.T, () => <LoadMoreButton onClick={fetchFunction} t={t} />],
+  ])(),
+);
 
 LoadMoreIndicator.displayName = "LoadMoreIndicator";
 

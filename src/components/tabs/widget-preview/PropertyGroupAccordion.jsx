@@ -2,6 +2,9 @@ import * as R from "ramda";
 import { memo } from "react";
 import { renderPropertyInputField } from "./propertyUtils";
 
+const expandedIconClassName = R.ifElse(R.identity, R.always("expanded"), R.always(""));
+const expandCollapseClassName = R.ifElse(R.identity, R.always("expanded"), R.always("collapsed"));
+
 const PropertyGroupAccordion = memo(({
   group,
   groupPath,
@@ -15,69 +18,85 @@ const PropertyGroupAccordion = memo(({
   groupCounts,
 }) => {
   const caption = R.prop("caption", group);
-  const groupId = groupPath ? `${groupPath}.${caption}` : caption;
+  const groupId = R.ifElse(
+    R.either(R.isNil, R.isEmpty),
+    R.always(caption),
+    (path) => `${path}.${caption}`,
+  )(groupPath);
   const isExpanded = R.propOr(true, groupId, expandedGroups);
   const groupProperties = R.propOr([], "properties", group);
   const nestedGroups = R.propOr([], "propertyGroups", group);
 
   const visibleCount = R.propOr(0, groupId, groupCounts);
 
-  if (visibleCount === 0) {
-    return null;
-  }
+  const filteredProperties = R.ifElse(
+    R.isNil,
+    R.always(groupProperties),
+    (keys) => R.filter((prop) => R.includes(R.prop("key", prop), keys), groupProperties),
+  )(visibleKeys);
 
-  const filteredProperties = visibleKeys
-    ? R.filter((prop) => R.includes(R.prop("key", prop), visibleKeys), groupProperties)
-    : groupProperties;
+  const visibleNestedGroups = R.filter(
+    (nestedGroup) =>
+      R.gt(
+        R.propOr(0, `${groupId}.${R.prop("caption", nestedGroup)}`, groupCounts),
+        0,
+      ),
+    nestedGroups,
+  );
 
-  const visibleNestedGroups = R.filter((nestedGroup) => {
-    const nestedCaption = R.prop("caption", nestedGroup);
-    const nestedGroupId = `${groupId}.${nestedCaption}`;
-    return R.propOr(0, nestedGroupId, groupCounts) > 0;
-  }, nestedGroups);
+  const hasOnlyNestedGroups = R.and(
+    R.isEmpty(filteredProperties),
+    R.isNotEmpty(visibleNestedGroups),
+  );
+  const contentClassName = `property-group-content${R.ifElse(
+    R.identity,
+    R.always(" groups-only"),
+    R.always(""),
+  )(hasOnlyNestedGroups)}`;
 
-  const hasOnlyNestedGroups = R.isEmpty(filteredProperties) && !R.isEmpty(visibleNestedGroups);
-  const contentClassName = `property-group-content${hasOnlyNestedGroups ? " groups-only" : ""}`;
-
-  return (
-    <div className={`property-group depth-${depth} ${isExpanded ? "expanded" : "collapsed"}`}>
-      <button
-        type="button"
-        className="property-group-header"
-        onClick={() => toggleGroup(groupId)}
-      >
-        <span className={`property-group-icon ${isExpanded ? "expanded" : ""}`}>🍓</span>
-        <span className="property-group-title">{caption}</span>
-        <span className="property-group-count">{visibleCount}</span>
-      </button>
-      <div className="property-group-content-wrapper">
-        <div className={contentClassName}>
-          {R.map(
-            (prop) => renderPropertyInputField(properties, updateProperty, arrayHandlers, prop),
-            filteredProperties,
-          )}
-          {R.map(
-            (nestedGroup) => (
-              <PropertyGroupAccordion
-                key={R.prop("caption", nestedGroup)}
-                group={nestedGroup}
-                groupPath={groupId}
-                depth={depth + 1}
-                properties={properties}
-                updateProperty={updateProperty}
-                arrayHandlers={arrayHandlers}
-                expandedGroups={expandedGroups}
-                toggleGroup={toggleGroup}
-                visibleKeys={visibleKeys}
-                groupCounts={groupCounts}
-              />
-            ),
-            visibleNestedGroups,
-          )}
+  return R.ifElse(
+    R.equals(0),
+    R.always(null),
+    () => (
+      <div className={`property-group depth-${depth} ${expandCollapseClassName(isExpanded)}`}>
+        <button
+          type="button"
+          className="property-group-header"
+          onClick={() => toggleGroup(groupId)}
+        >
+          <span className={`property-group-icon ${expandedIconClassName(isExpanded)}`}>🍓</span>
+          <span className="property-group-title">{caption}</span>
+          <span className="property-group-count">{visibleCount}</span>
+        </button>
+        <div className="property-group-content-wrapper">
+          <div className={contentClassName}>
+            {R.map(
+              (prop) => renderPropertyInputField(properties, updateProperty, arrayHandlers, prop),
+              filteredProperties,
+            )}
+            {R.map(
+              (nestedGroup) => (
+                <PropertyGroupAccordion
+                  key={R.prop("caption", nestedGroup)}
+                  group={nestedGroup}
+                  groupPath={groupId}
+                  depth={R.inc(depth)}
+                  properties={properties}
+                  updateProperty={updateProperty}
+                  arrayHandlers={arrayHandlers}
+                  expandedGroups={expandedGroups}
+                  toggleGroup={toggleGroup}
+                  visibleKeys={visibleKeys}
+                  groupCounts={groupCounts}
+                />
+              ),
+              visibleNestedGroups,
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    ),
+  )(visibleCount);
 });
 
 PropertyGroupAccordion.displayName = "PropertyGroupAccordion";
