@@ -17,6 +17,7 @@ export const selectedVersionAtom = atom(null);
 
 // ===== Version Loading States Atom =====
 export const versionLoadingStatesAtom = atom({});
+export const isFetchingDownloadableVersionsAtom = atom(false);
 
 // ===== Derived Atoms =====
 export const versionFiltersAtom = atom((get) => ({

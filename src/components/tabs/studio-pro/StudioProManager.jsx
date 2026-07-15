@@ -22,6 +22,7 @@ const StudioProManager = memo(() => {
     handleVersionClick,
     downloadableVersions,
     isLoadingDownloadableVersions,
+    isFetchingFromDatagrid,
     getLoadingStateSync,
     handleLaunchStudioPro,
     fetchVersionsFromDatagrid,
@@ -70,7 +71,7 @@ const StudioProManager = memo(() => {
         getLoadingStateSync={getLoadingStateSync}
         handleDownloadVersion={openDownloadModal}
         loadMoreHandler={loadMoreHandler}
-        isLoadingDownloadableVersions={isLoadingDownloadableVersions}
+        isLoadingDownloadableVersions={R.or(isLoadingDownloadableVersions, isFetchingFromDatagrid)}
         totalDownloadableCount={R.length(R.defaultTo([], downloadableVersions))}
         showOnlyDownloadableVersions={showOnlyDownloadableVersions}
         setShowOnlyDownloadableVersions={setShowOnlyDownloadableVersions}

@@ -23,8 +23,8 @@ pub use mendix::{
 pub use package_manager::{batch_install_widgets, BatchInstallSummary};
 pub use utils::extract_folder_name_from_path;
 pub use web_scraper::{
-    download_and_install_mendix_version, get_downloadable_versions_from_datagrid, BuildInfo,
-    DownloadProgress, DownloadableVersion,
+    cleanup_stale_scraper_resources, download_and_install_mendix_version,
+    get_downloadable_versions_from_datagrid, BuildInfo, DownloadProgress, DownloadableVersion,
 };
 
 pub use build_deploy::{check_multiple_dist_exists, create_catastrophic_error_result, validate_and_build_deploy, validate_and_deploy_only};
@@ -79,6 +79,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os::init())
         .manage(AppState::default())
+        .setup(|_app| {
+            tauri::async_runtime::spawn(cleanup_stale_scraper_resources());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             // ================================================================
             // Mendix version management

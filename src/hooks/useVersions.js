@@ -25,6 +25,7 @@ export function useVersions() {
   const {
     downloadableVersions,
     isLoadingDownloadableVersions,
+    isFetchingFromDatagrid,
     fetchVersionsFromDatagrid,
     refreshVersions,
   } = useDownloadableVersions();
@@ -45,6 +46,7 @@ export function useVersions() {
     loadVersions,
     downloadableVersions,
     isLoadingDownloadableVersions,
+    isFetchingFromDatagrid,
     fetchVersionsFromDatagrid,
     refreshDownloadableVersions: refreshVersions,
     searchTerm,

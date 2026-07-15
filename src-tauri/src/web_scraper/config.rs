@@ -40,17 +40,8 @@ pub const ELEMENT_WAIT_TIMEOUT_SECS: u64 = 30;
 /// Poll interval for checking page changes in milliseconds
 pub const PAGE_CHANGE_POLL_MS: u64 = 100;
 
-/// Initial page load delay in milliseconds
-pub const PAGE_LOAD_DELAY_MS: u64 = 2000;
-
-/// Pagination navigation delay in milliseconds
-pub const PAGINATION_DELAY_MS: u64 = 1500;
-
 /// Click debounce delay in milliseconds
 pub const CLICK_DEBOUNCE_MS: u64 = 500;
-
-/// Build number extraction delay in milliseconds
-pub const BUILD_NUMBER_EXTRACT_DELAY_MS: u64 = 3000;
 
 /// Page click navigation delay in milliseconds
 pub const CLICK_NAVIGATION_DELAY_MS: u64 = 2000;

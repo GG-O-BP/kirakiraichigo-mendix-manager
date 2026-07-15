@@ -1,14 +1,20 @@
 import * as R from "ramda";
 import { useCallback } from "react";
+import { useAtom } from "jotai";
 import useSWR from "swr";
 import { invoke } from "@tauri-apps/api/core";
 import { SWR_KEYS } from "../../lib/swr";
+import { isFetchingDownloadableVersionsAtom } from "../../atoms";
 
 const fetchCachedVersions = () => invoke("load_downloadable_versions_cache");
 
 let hasLoadedInitialVersions = false;
 
 export function useDownloadableVersions() {
+  const [isFetchingFromDatagrid, setIsFetchingFromDatagrid] = useAtom(
+    isFetchingDownloadableVersionsAtom,
+  );
+
   const {
     data: downloadableVersions = [],
     error,
@@ -29,6 +35,7 @@ export function useDownloadableVersions() {
   const fetchVersionsFromDatagrid = useCallback(
     (page = 1) =>
       R.pipe(
+        R.tap(() => setIsFetchingFromDatagrid(true)),
         () =>
           invoke("get_downloadable_versions_from_datagrid", {
             page: R.pipe(R.defaultTo(1), R.max(1))(page),
@@ -44,14 +51,18 @@ export function useDownloadableVersions() {
             ),
           )(),
         ),
+        R.andThen(
+          R.tap(() => setIsFetchingFromDatagrid(false)),
+        ),
         R.otherwise(
           R.pipe(
             R.tap((err) => console.error("Failed to fetch versions from datagrid:", err)),
+            R.tap(() => setIsFetchingFromDatagrid(false)),
             R.always([]),
           ),
         ),
-      )(),
-    [mutate],
+      )(page),
+    [mutate, setIsFetchingFromDatagrid],
   );
 
   const clearCache = useCallback(
@@ -85,6 +96,7 @@ export function useDownloadableVersions() {
   return {
     downloadableVersions,
     isLoadingDownloadableVersions,
+    isFetchingFromDatagrid,
     fetchVersionsFromDatagrid,
     clearCache,
     refreshVersions,
